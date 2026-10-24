@@ -19,6 +19,7 @@ import {
 import { motion } from 'framer-motion';
 import { useTranslation } from 'react-i18next';
 import Text from '../../ui/Text';
+import Slider from '../../ui/Slider';
 import { TextWeights } from '../../../types/typography';
 import i18n from 'i18next';
 
@@ -276,3 +277,62 @@ export function NewMaskDropZone({ isOver, textKey }: { isOver: boolean; textKey:
     </motion.div>
   );
 }
+
+export const BrushTools = ({
+  settings,
+  onSettingsChange,
+  onDragStateChange,
+  labelPrefix = 'editor.masks.brush',
+}: {
+  settings: any;
+  onSettingsChange: any;
+  onDragStateChange?: (isDragging: boolean) => void;
+  labelPrefix?: string;
+}) => {
+  const { t } = useTranslation();
+
+  return (
+    <div>
+      <Slider
+        defaultValue={100}
+        label={t(`${labelPrefix}.size`)}
+        max={200}
+        min={1}
+        onChange={(e: any) => onSettingsChange((s: any) => ({ ...s, size: Number(e.target.value) }))}
+        step={1}
+        value={settings.size}
+        fillOrigin="min"
+        onDragStateChange={onDragStateChange}
+      />
+      <Slider
+        defaultValue={50}
+        label={t(`${labelPrefix}.feather`)}
+        max={100}
+        min={0}
+        onChange={(e: any) => onSettingsChange((s: any) => ({ ...s, feather: Number(e.target.value) }))}
+        step={1}
+        value={settings.feather}
+        fillOrigin="min"
+        onDragStateChange={onDragStateChange}
+      />
+      <div className="grid grid-cols-2 gap-2 pt-2">
+        <button
+          className={`p-2 rounded-md text-sm font-medium transition-colors flex items-center justify-center gap-2 ${
+            settings.tool === ToolType.Brush ? 'text-primary bg-surface' : 'bg-surface text-text-secondary hover:bg-card-active'
+          }`}
+          onClick={() => onSettingsChange((s: any) => ({ ...s, tool: ToolType.Brush }))}
+        >
+          {t(`${labelPrefix}.${labelPrefix === 'editor.ai.brush' ? 'add' : 'brush'}`)}
+        </button>
+        <button
+          className={`p-2 rounded-md text-sm font-medium transition-colors flex items-center justify-center gap-2 ${
+            settings.tool === ToolType.Eraser ? 'text-primary bg-surface' : 'bg-surface text-text-secondary hover:bg-card-active'
+          }`}
+          onClick={() => onSettingsChange((s: any) => ({ ...s, tool: ToolType.Eraser }))}
+        >
+          {t(`${labelPrefix}.${labelPrefix === 'editor.ai.brush' ? 'erase' : 'eraser'}`)}
+        </button>
+      </div>
+    </div>
+  );
+};

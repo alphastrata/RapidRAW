@@ -72,6 +72,7 @@ import {
   getSubMaskName,
   getMaskTypeName,
   NewMaskDropZone,
+  BrushTools,
 } from './Masks';
 import {
   Adjustments,
@@ -154,58 +155,7 @@ const SUB_MASK_CONFIG: Record<Mask, any> = {
   [Mask.QuickEraser]: { parameters: [] },
 };
 
-const BrushTools = ({
-  settings,
-  onSettingsChange,
-  onDragStateChange,
-}: {
-  settings: any;
-  onSettingsChange: any;
-  onDragStateChange?: (isDragging: boolean) => void;
-}) => {
-  const { t } = useTranslation();
 
-  return (
-    <div>
-      <Slider
-        defaultValue={100}
-        label={t('editor.masks.brush.size')}
-        max={200}
-        min={1}
-        onChange={(e: any) => onSettingsChange((s: any) => ({ ...s, size: Number(e.target.value) }))}
-        step={1}
-        value={settings.size}
-        fillOrigin="min"
-        onDragStateChange={onDragStateChange}
-      />
-      <Slider
-        defaultValue={50}
-        label={t('editor.masks.brush.feather')}
-        max={100}
-        min={0}
-        onChange={(e: any) => onSettingsChange((s: any) => ({ ...s, feather: Number(e.target.value) }))}
-        step={1}
-        value={settings.feather}
-        fillOrigin="min"
-        onDragStateChange={onDragStateChange}
-      />
-      <div className="grid grid-cols-2 gap-2 pt-2">
-        <button
-          className={`p-2 rounded-md text-sm font-medium transition-colors flex items-center justify-center gap-2 ${settings.tool === ToolType.Brush ? 'text-primary bg-surface' : 'bg-surface text-text-secondary hover:bg-card-active'}`}
-          onClick={() => onSettingsChange((s: any) => ({ ...s, tool: ToolType.Brush }))}
-        >
-          {t('editor.masks.brush.brush')}
-        </button>
-        <button
-          className={`p-2 rounded-md text-sm font-medium transition-colors flex items-center justify-center gap-2 ${settings.tool === ToolType.Eraser ? 'text-primary bg-surface' : 'bg-surface text-text-secondary hover:bg-card-active'}`}
-          onClick={() => onSettingsChange((s: any) => ({ ...s, tool: ToolType.Eraser }))}
-        >
-          {t('editor.masks.brush.eraser')}
-        </button>
-      </div>
-    </div>
-  );
-};
 
 const FlowBrushTool = ({
   flow,

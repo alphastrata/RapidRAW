@@ -58,6 +58,7 @@ import {
   formatMaskTypeName,
   getSubMaskName,
   NewMaskDropZone,
+  BrushTools,
 } from './Masks';
 import { Adjustments, AiPatch } from '../../../utils/adjustments';
 import { OPTION_SEPARATOR } from '../../ui/AppProperties';
@@ -138,56 +139,7 @@ const SUB_MASK_CONFIG: any = {
   },
 };
 
-const BrushTools = ({ settings, onSettingsChange }: { settings: any; onSettingsChange: any }) => {
-  const { t } = useTranslation();
 
-  return (
-    <div>
-      <Slider
-        defaultValue={100}
-        label={t('editor.ai.brush.size')}
-        max={200}
-        min={1}
-        onChange={(e: any) => onSettingsChange((s: any) => ({ ...s, size: Number(e.target.value) }))}
-        step={1}
-        value={settings.size}
-        fillOrigin="min"
-      />
-      <Slider
-        defaultValue={50}
-        label={t('editor.ai.brush.feather')}
-        max={100}
-        min={0}
-        onChange={(e: any) => onSettingsChange((s: any) => ({ ...s, feather: Number(e.target.value) }))}
-        step={1}
-        value={settings.feather}
-        fillOrigin="min"
-      />
-      <div className="grid grid-cols-2 gap-2 pt-2">
-        <button
-          className={`p-2 rounded-md text-sm font-medium transition-colors flex items-center justify-center gap-2 ${
-            settings.tool === ToolType.Brush
-              ? 'text-primary bg-surface'
-              : 'bg-surface text-text-secondary hover:bg-card-active'
-          }`}
-          onClick={() => onSettingsChange((s: any) => ({ ...s, tool: ToolType.Brush }))}
-        >
-          {t('editor.ai.brush.add')}
-        </button>
-        <button
-          className={`p-2 rounded-md text-sm font-medium transition-colors flex items-center justify-center gap-2 ${
-            settings.tool === ToolType.Eraser
-              ? 'text-primary bg-surface'
-              : 'bg-surface text-text-secondary hover:bg-card-active'
-          }`}
-          onClick={() => onSettingsChange((s: any) => ({ ...s, tool: ToolType.Eraser }))}
-        >
-          {t('editor.ai.brush.erase')}
-        </button>
-      </div>
-    </div>
-  );
-};
 
 interface ConnectionStatusProps {
   aiProvider: string;
@@ -2231,7 +2183,7 @@ function SettingsPanel({
               )}
 
               {subMaskConfig.showBrushTools && brushSettings && (
-                <BrushTools settings={brushSettings} onSettingsChange={setBrushSettings} />
+                <BrushTools settings={brushSettings} onSettingsChange={setBrushSettings} labelPrefix="editor.ai.brush" />
               )}
             </>
           )}
