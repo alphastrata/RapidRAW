@@ -265,9 +265,58 @@ interface AiProviderSwitchProps {
   onProviderChange: (provider: string) => void;
 }
 
+interface SegmentedSwitchItem<T extends string> {
+  id: T;
+  label: string;
+  icon: React.ComponentType<{ size?: number; className?: string }>;
+}
+
+function SegmentedSwitch<T extends string>({
+  items,
+  selected,
+  onChange,
+  layoutId,
+}: {
+  items: SegmentedSwitchItem<T>[];
+  selected: T;
+  onChange: (val: T) => void;
+  layoutId: string;
+}) {
+  return (
+    <div className="relative flex w-full p-1 bg-bg-primary rounded-md border border-border-color">
+      {items.map((item) => (
+        <button
+          key={item.id}
+          onClick={() => onChange(item.id)}
+          className={clsx(
+            'relative flex-1 flex items-center justify-center gap-2 px-3 py-1.5 text-sm font-medium rounded-md transition-colors',
+            {
+              'text-text-primary hover:bg-surface': selected !== item.id,
+              'text-button-text': selected === item.id,
+            },
+          )}
+          style={{ WebkitTapHighlightColor: 'transparent' }}
+        >
+          {selected === item.id && (
+            <motion.span
+              layoutId={layoutId}
+              className="absolute inset-0 z-0 bg-accent"
+              style={{ borderRadius: 6 }}
+              transition={{ type: 'spring', bounce: 0.2, duration: 0.6 }}
+            />
+          )}
+          <span className="relative z-10 flex items-center">
+            <item.icon size={16} className="mr-2" />
+            {item.label}
+          </span>
+        </button>
+      ))}
+    </div>
+  );
+}
+
 const AiProviderSwitch = ({ selectedProvider, onProviderChange }: AiProviderSwitchProps) => {
   const { t } = useTranslation();
-
   const aiProviders = useMemo(
     () => [
       { id: 'cpu', label: t('settings.processing.ai.providers.cpu'), icon: Cpu },
@@ -277,38 +326,7 @@ const AiProviderSwitch = ({ selectedProvider, onProviderChange }: AiProviderSwit
     ],
     [t],
   );
-
-  return (
-    <div className="relative flex w-full p-1 bg-bg-primary rounded-md border border-border-color">
-      {aiProviders.map((provider) => (
-        <button
-          key={provider.id}
-          onClick={() => onProviderChange(provider.id)}
-          className={clsx(
-            'relative flex-1 flex items-center justify-center gap-2 px-3 py-1.5 text-sm font-medium rounded-md transition-colors',
-            {
-              'text-text-primary hover:bg-surface': selectedProvider !== provider.id,
-              'text-button-text': selectedProvider === provider.id,
-            },
-          )}
-          style={{ WebkitTapHighlightColor: 'transparent' }}
-        >
-          {selectedProvider === provider.id && (
-            <motion.span
-              layoutId="ai-provider-switch-bubble"
-              className="absolute inset-0 z-0 bg-accent"
-              style={{ borderRadius: 6 }}
-              transition={{ type: 'spring', bounce: 0.2, duration: 0.6 }}
-            />
-          )}
-          <span className="relative z-10 flex items-center">
-            <provider.icon size={16} className="mr-2" />
-            {provider.label}
-          </span>
-        </button>
-      ))}
-    </div>
-  );
+  return <SegmentedSwitch items={aiProviders} selected={selectedProvider} onChange={onProviderChange} layoutId="ai-provider-switch-bubble" />;
 };
 
 const signInAppearance = {
@@ -444,46 +462,14 @@ interface CanvasInputModeSwitchProps {
 
 const CanvasInputModeSwitch = ({ mode, onModeChange }: CanvasInputModeSwitchProps) => {
   const { t } = useTranslation();
-
-  const canvasInputModes = useMemo(
+  const canvasInputModes = useMemo<SegmentedSwitchItem<'mouse' | 'trackpad'>[]>(
     () => [
       { id: 'mouse', label: t('settings.controls.modes.mouse'), icon: Mouse },
       { id: 'trackpad', label: t('settings.controls.modes.trackpad'), icon: Touchpad },
     ],
     [t],
   );
-
-  return (
-    <div className="relative flex w-full p-1 bg-bg-primary rounded-md border border-border-color">
-      {canvasInputModes.map((item) => (
-        <button
-          key={item.id}
-          onClick={() => onModeChange(item.id as 'mouse' | 'trackpad')}
-          className={clsx(
-            'relative flex-1 flex items-center justify-center gap-2 px-3 py-1.5 text-sm font-medium rounded-md transition-colors',
-            {
-              'text-text-primary hover:bg-surface': mode !== item.id,
-              'text-button-text': mode === item.id,
-            },
-          )}
-          style={{ WebkitTapHighlightColor: 'transparent' }}
-        >
-          {mode === item.id && (
-            <motion.span
-              layoutId="canvas-input-mode-switch-bubble"
-              className="absolute inset-0 z-0 bg-accent"
-              style={{ borderRadius: 6 }}
-              transition={{ type: 'spring', bounce: 0.2, duration: 0.6 }}
-            />
-          )}
-          <span className="relative z-10 flex items-center">
-            <item.icon size={16} className="mr-2" />
-            {item.label}
-          </span>
-        </button>
-      ))}
-    </div>
-  );
+  return <SegmentedSwitch items={canvasInputModes} selected={mode} onChange={onModeChange} layoutId="canvas-input-mode-switch-bubble" />;
 };
 
 interface PreviewModeSwitchProps {
@@ -493,46 +479,14 @@ interface PreviewModeSwitchProps {
 
 const PreviewModeSwitch = ({ mode, onModeChange }: PreviewModeSwitchProps) => {
   const { t } = useTranslation();
-
-  const previewModes = useMemo(
+  const previewModes = useMemo<SegmentedSwitchItem<'static' | 'dynamic'>[]>(
     () => [
       { id: 'static', label: t('settings.processing.modes.static'), icon: ImageIcon },
       { id: 'dynamic', label: t('settings.processing.modes.dynamic'), icon: Scaling },
     ],
     [t],
   );
-
-  return (
-    <div className="relative flex w-full p-1 bg-bg-primary rounded-md border border-border-color">
-      {previewModes.map((item) => (
-        <button
-          key={item.id}
-          onClick={() => onModeChange(item.id as 'static' | 'dynamic')}
-          className={clsx(
-            'relative flex-1 flex items-center justify-center gap-2 px-3 py-1.5 text-sm font-medium rounded-md transition-colors',
-            {
-              'text-text-primary hover:bg-surface': mode !== item.id,
-              'text-button-text': mode === item.id,
-            },
-          )}
-          style={{ WebkitTapHighlightColor: 'transparent' }}
-        >
-          {mode === item.id && (
-            <motion.span
-              layoutId="preview-mode-switch-bubble"
-              className="absolute inset-0 z-0 bg-accent"
-              style={{ borderRadius: 6 }}
-              transition={{ type: 'spring', bounce: 0.2, duration: 0.6 }}
-            />
-          )}
-          <span className="relative z-10 flex items-center">
-            <item.icon size={16} className="mr-2" />
-            {item.label}
-          </span>
-        </button>
-      ))}
-    </div>
-  );
+  return <SegmentedSwitch items={previewModes} selected={mode} onChange={onModeChange} layoutId="preview-mode-switch-bubble" />;
 };
 
 export default function SettingsPanel({
