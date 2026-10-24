@@ -1,5 +1,4 @@
 import { Crop } from 'react-image-crop';
-import { v4 as uuidv4 } from 'uuid';
 import { SubMask, SubMaskMode } from '../components/panel/right/Masks';
 import type { AdjustmentLayout, AppSettings } from '../components/ui/AppProperties';
 import type { WhiteBalance } from './whiteBalance';
@@ -141,7 +140,7 @@ export interface RelightLight {
 }
 
 export const createRelightLight = (x: number, y: number): RelightLight => ({
-  id: uuidv4(),
+  id: crypto.randomUUID(),
   type: 'point',
   x,
   y,
@@ -640,7 +639,7 @@ export const normalizeLoadedAdjustments = (loadedAdjustments: Adjustments): any 
 
     return {
       ...INITIAL_MASK_CONTAINER,
-      id: maskContainer.id || uuidv4(),
+      id: maskContainer.id || crypto.randomUUID(),
       ...maskContainer,
       adjustments: {
         ...INITIAL_MASK_ADJUSTMENTS,
@@ -675,7 +674,7 @@ export const normalizeLoadedAdjustments = (loadedAdjustments: Adjustments): any 
 
   const clamp01 = (n: number) => Math.min(1, Math.max(0, n));
   const rawLines = (loadedAdjustments.guidedPerspective?.lines || []).map((l: any) => ({
-    id: l.id || uuidv4(),
+    id: l.id || crypto.randomUUID(),
     type: (l.type === 'horizontal' ? 'horizontal' : 'vertical') as 'vertical' | 'horizontal',
     p1: { x: clamp01(l.p1?.x ?? 0), y: clamp01(l.p1?.y ?? 0) },
     p2: { x: clamp01(l.p2?.x ?? 1), y: clamp01(l.p2?.y ?? 1) },

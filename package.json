@@ -44,7 +44,6 @@
     "react-toastify": "^11.1.0",
     "react-window": "^2.3.0",
     "tauri-plugin-clerk": "^0.1.1",
-    "uuid": "^14.0.2",
     "zustand": "^5.0.15"
   },
   "devDependencies": {

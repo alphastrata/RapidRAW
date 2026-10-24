@@ -7,7 +7,6 @@ import {
   useCallback,
 } from 'react';
 import { useShallow } from 'zustand/react/shallow';
-import { v4 as uuidv4 } from 'uuid';
 import clsx from 'clsx';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useTranslation } from 'react-i18next';
@@ -450,7 +449,7 @@ export default function MasksPanel() {
     const count = (adjustments.masks?.length || 0) + 1;
     const newContainer = {
       ...INITIAL_MASK_CONTAINER,
-      id: uuidv4(),
+      id: crypto.randomUUID(),
       name: t('editor.masks.patches.maskName', { count }),
       subMasks: [subMask],
     };
@@ -611,13 +610,13 @@ export default function MasksPanel() {
   ): MaskContainer => {
     const clonedContainer = JSON.parse(JSON.stringify(container));
 
-    clonedContainer.id = uuidv4();
+    clonedContainer.id = crypto.randomUUID();
     clonedContainer.invert = options.invert ? !clonedContainer.invert : clonedContainer.invert;
     clonedContainer.name =
       options.rename === false ? clonedContainer.name : t('editor.masks.patches.copyName', { name: container.name });
     clonedContainer.subMasks = clonedContainer.subMasks.map((subMask: SubMask) => ({
       ...subMask,
-      id: uuidv4(),
+      id: crypto.randomUUID(),
     }));
 
     if (options.resetAdjustments) {
@@ -824,7 +823,7 @@ export default function MasksPanel() {
 
           const newContainer = {
             ...INITIAL_MASK_CONTAINER,
-            id: uuidv4(),
+            id: crypto.randomUUID(),
             name: `Mask ${newMasks.length + 1}`,
             subMasks: [movedSubMask],
           };
