@@ -816,27 +816,25 @@ export default function SettingsPanel({
     }
   };
 
-  const handleResetLayout = () => {
-    setConfirmModalState({
-      confirmText: t('settings.data.modals.confirmResetLayout'),
-      confirmVariant: 'destructive',
-      isOpen: true,
-      message: t('settings.data.modals.resetLayoutMessage'),
-      onConfirm: executeResetLayout,
-      title: t('settings.data.modals.confirmResetLayoutTitle'),
-    });
+  const openDestructiveConfirm = (title: string, message: string, confirmText: string, onConfirm: () => void) => {
+    setConfirmModalState({ confirmText, confirmVariant: 'destructive', isOpen: true, message, onConfirm, title });
   };
 
-  const handleClearSidecars = () => {
-    setConfirmModalState({
-      confirmText: t('settings.data.modals.confirmDeleteAllEdits'),
-      confirmVariant: 'destructive',
-      isOpen: true,
-      message: t('settings.data.modals.sidecarMessage'),
-      onConfirm: executeClearSidecars,
-      title: t('settings.data.modals.confirmTitle'),
-    });
-  };
+  const handleResetLayout = () =>
+    openDestructiveConfirm(
+      t('settings.data.modals.confirmResetLayoutTitle'),
+      t('settings.data.modals.resetLayoutMessage'),
+      t('settings.data.modals.confirmResetLayout'),
+      executeResetLayout,
+    );
+
+  const handleClearSidecars = () =>
+    openDestructiveConfirm(
+      t('settings.data.modals.confirmTitle'),
+      t('settings.data.modals.sidecarMessage'),
+      t('settings.data.modals.confirmDeleteAllEdits'),
+      executeClearSidecars,
+    );
 
   const executeClearAiTags = async () => {
     setIsClearingAiTags(true);
@@ -860,16 +858,13 @@ export default function SettingsPanel({
     }
   };
 
-  const handleClearAiTags = () => {
-    setConfirmModalState({
-      confirmText: t('settings.data.modals.confirmClearAi'),
-      confirmVariant: 'destructive',
-      isOpen: true,
-      message: t('settings.data.modals.aiMessage'),
-      onConfirm: executeClearAiTags,
-      title: t('settings.data.modals.confirmAiTitle'),
-    });
-  };
+  const handleClearAiTags = () =>
+    openDestructiveConfirm(
+      t('settings.data.modals.confirmAiTitle'),
+      t('settings.data.modals.aiMessage'),
+      t('settings.data.modals.confirmClearAi'),
+      executeClearAiTags,
+    );
 
   const executeClearTags = async () => {
     setIsClearingTags(true);
@@ -893,16 +888,13 @@ export default function SettingsPanel({
     }
   };
 
-  const handleClearTags = () => {
-    setConfirmModalState({
-      confirmText: t('settings.data.modals.confirmClearAll'),
-      confirmVariant: 'destructive',
-      isOpen: true,
-      message: t('settings.data.modals.allMessage'),
-      onConfirm: executeClearTags,
-      title: t('settings.data.modals.confirmAllTitle'),
-    });
-  };
+  const handleClearTags = () =>
+    openDestructiveConfirm(
+      t('settings.data.modals.confirmAllTitle'),
+      t('settings.data.modals.allMessage'),
+      t('settings.data.modals.confirmClearAll'),
+      executeClearTags,
+    );
 
   const shortcutTagVariants = {
     visible: { opacity: 1, scale: 1, transition: { type: 'spring', stiffness: 500, damping: 30 } },
@@ -927,16 +919,13 @@ export default function SettingsPanel({
     }
   };
 
-  const handleClearCache = () => {
-    setConfirmModalState({
-      confirmText: t('settings.data.modals.confirmClearCache'),
-      confirmVariant: 'destructive',
-      isOpen: true,
-      message: t('settings.data.modals.cacheMessage'),
-      onConfirm: executeClearCache,
-      title: t('settings.data.modals.confirmCacheTitle'),
-    });
-  };
+  const handleClearCache = () =>
+    openDestructiveConfirm(
+      t('settings.data.modals.confirmCacheTitle'),
+      t('settings.data.modals.cacheMessage'),
+      t('settings.data.modals.confirmClearCache'),
+      executeClearCache,
+    );
 
   const handleTestConnection = async () => {
     if (!aiConnectorAddress) {
