@@ -2628,11 +2628,11 @@ pub fn save_metadata_and_update_thumbnail(
     Ok(())
 }
 
-#[tauri::command]
-pub async fn apply_adjustments_to_paths(
+fn batch_update_adjustments_and_thumbnails(
     paths: Vec<String>,
-    adjustments: Value,
     app_handle: AppHandle,
+    load_exif: bool,
+    mutate: impl Fn(&mut ImageMetadata, Option<&crate::lens_correction::LensDatabase>) + Send + Sync + 'static,
 ) -> Result<(), String> {
     let state = app_handle.state::<AppState>();
     add_to_thumbnail_queue(&state, paths.len(), &app_handle);
@@ -2651,39 +2651,22 @@ pub async fn apply_adjustments_to_paths(
 
         paths.par_iter().for_each(|path| {
             let (source_path, sidecar_path) = parse_virtual_path(path);
+            let mut metadata = if load_exif {
+                crate::exif_processing::load_sidecar_with_exif(&sidecar_path, &source_path)
+            } else {
+                crate::exif_processing::load_sidecar(&sidecar_path)
+            };
 
-            let mut existing_metadata =
-                crate::exif_processing::load_sidecar_with_exif(&sidecar_path, &source_path);
-
-            let mut new_adjustments = existing_metadata.adjustments;
-            if new_adjustments.is_null() {
-                new_adjustments = default_adjustments();
-            }
-
-            if let (Some(new_map), Some(pasted_map)) =
-                (new_adjustments.as_object_mut(), adjustments.as_object())
-            {
-                for (k, v) in pasted_map {
-                    new_map.insert(k.clone(), v.clone());
-                }
-            }
-
-            resolve_lens_params_in_adjustments(
-                &mut new_adjustments,
-                &existing_metadata.exif,
-                lens_db.as_deref(),
-            );
-
-            existing_metadata.adjustments = new_adjustments;
+            mutate(&mut metadata, lens_db.as_deref());
 
             let _ = crate::exif_processing::write_sidecar(
                 &sidecar_path,
                 &source_path,
-                &existing_metadata,
+                &metadata,
             );
 
             if enable_xmp_sync {
-                sync_metadata_to_xmp(&source_path, &existing_metadata, create_xmp_if_missing);
+                sync_metadata_to_xmp(&source_path, &metadata, create_xmp_if_missing);
             }
         });
 
@@ -2694,40 +2677,43 @@ pub async fn apply_adjustments_to_paths(
 }
 
 #[tauri::command]
+pub async fn apply_adjustments_to_paths(
+    paths: Vec<String>,
+    adjustments: Value,
+    app_handle: AppHandle,
+) -> Result<(), String> {
+    batch_update_adjustments_and_thumbnails(paths, app_handle, true, move |metadata, lens_db| {
+        let mut new_adjustments = std::mem::take(&mut metadata.adjustments);
+        if new_adjustments.is_null() {
+            new_adjustments = default_adjustments();
+        }
+
+        if let (Some(new_map), Some(pasted_map)) =
+            (new_adjustments.as_object_mut(), adjustments.as_object())
+        {
+            for (k, v) in pasted_map {
+                new_map.insert(k.clone(), v.clone());
+            }
+        }
+
+        resolve_lens_params_in_adjustments(
+            &mut new_adjustments,
+            &metadata.exif,
+            lens_db,
+        );
+
+        metadata.adjustments = new_adjustments;
+    })
+}
+
+#[tauri::command]
 pub async fn reset_adjustments_for_paths(
     paths: Vec<String>,
     app_handle: AppHandle,
 ) -> Result<(), String> {
-    let state = app_handle.state::<AppState>();
-    add_to_thumbnail_queue(&state, paths.len(), &app_handle);
-
-    tauri::async_runtime::spawn_blocking(move || {
-        let settings = load_settings(app_handle.clone()).unwrap_or_default();
-        let enable_xmp_sync = settings.enable_xmp_sync.unwrap_or(false);
-        let create_xmp_if_missing = settings.create_xmp_if_missing.unwrap_or(false);
-
-        paths.par_iter().for_each(|path| {
-            let (source_path, sidecar_path) = parse_virtual_path(path);
-
-            let mut existing_metadata = crate::exif_processing::load_sidecar(&sidecar_path);
-
-            existing_metadata.adjustments = default_adjustments();
-
-            let _ = crate::exif_processing::write_sidecar(
-                &sidecar_path,
-                &source_path,
-                &existing_metadata,
-            );
-
-            if enable_xmp_sync {
-                sync_metadata_to_xmp(&source_path, &existing_metadata, create_xmp_if_missing);
-            }
-        });
-
-        regenerate_thumbnails(&paths, &app_handle, &settings);
-    });
-
-    Ok(())
+    batch_update_adjustments_and_thumbnails(paths, app_handle, false, |metadata, _| {
+        metadata.adjustments = default_adjustments();
+    })
 }
 
 fn regenerate_thumbnails(paths: &[String], app_handle: &AppHandle, settings: &AppSettings) {
@@ -2779,60 +2765,24 @@ pub async fn apply_auto_lens_correction_to_paths(
     paths: Vec<String>,
     app_handle: tauri::AppHandle,
 ) -> Result<(), String> {
-    let settings = load_settings(app_handle.clone()).unwrap_or_default();
-    let enable_xmp_sync = settings.enable_xmp_sync.unwrap_or(false);
-    let create_xmp_if_missing = settings.create_xmp_if_missing.unwrap_or(false);
-    let lens_db = app_handle
-        .state::<AppState>()
-        .lens_db
-        .lock()
-        .unwrap()
-        .clone();
+    batch_update_adjustments_and_thumbnails(paths, app_handle, true, |metadata, lens_db| {
+        if metadata.adjustments.is_null() {
+            metadata.adjustments = default_adjustments();
+        }
 
-    let sidecar_paths = paths.clone();
-    tauri::async_runtime::spawn_blocking(move || {
-        sidecar_paths.par_iter().for_each(|path| {
-            let (source_path, sidecar_path) = parse_virtual_path(path);
-            let mut existing_metadata =
-                crate::exif_processing::load_sidecar_with_exif(&sidecar_path, &source_path);
+        if let Some(obj) = metadata.adjustments.as_object_mut() {
+            obj.insert("lensCorrectionMode".to_string(), serde_json::json!("auto"));
+            obj.insert("lensDistortionEnabled".to_string(), serde_json::json!(true));
+            obj.insert("lensTcaEnabled".to_string(), serde_json::json!(true));
+            obj.insert("lensVignetteEnabled".to_string(), serde_json::json!(true));
+        }
 
-            if existing_metadata.adjustments.is_null() {
-                existing_metadata.adjustments = default_adjustments();
-            }
-
-            if let Some(obj) = existing_metadata.adjustments.as_object_mut() {
-                obj.insert("lensCorrectionMode".to_string(), serde_json::json!("auto"));
-                obj.insert("lensDistortionEnabled".to_string(), serde_json::json!(true));
-                obj.insert("lensTcaEnabled".to_string(), serde_json::json!(true));
-                obj.insert("lensVignetteEnabled".to_string(), serde_json::json!(true));
-            }
-
-            resolve_lens_params_in_adjustments(
-                &mut existing_metadata.adjustments,
-                &existing_metadata.exif,
-                lens_db.as_deref(),
-            );
-
-            let _ = crate::exif_processing::write_sidecar(
-                &sidecar_path,
-                &source_path,
-                &existing_metadata,
-            );
-
-            if enable_xmp_sync {
-                sync_metadata_to_xmp(&source_path, &existing_metadata, create_xmp_if_missing);
-            }
-        });
+        resolve_lens_params_in_adjustments(
+            &mut metadata.adjustments,
+            &metadata.exif,
+            lens_db,
+        );
     })
-    .await
-    .map_err(|e| e.to_string())?;
-
-    add_to_thumbnail_queue(&app_handle.state::<AppState>(), paths.len(), &app_handle);
-    tauri::async_runtime::spawn_blocking(move || {
-        regenerate_thumbnails(&paths, &app_handle, &settings)
-    });
-
-    Ok(())
 }
 
 const FULL_DECODE_WORKER_THREADS: usize = 2;
