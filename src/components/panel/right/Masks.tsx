@@ -641,3 +641,65 @@ export function SharedSubMaskRow({
     </motion.div>
   );
 }
+
+export function SharedDraggableGridItem({
+  maskType,
+  onClick,
+  onRightClick,
+  disabled,
+  tooltip,
+  label,
+  idPrefix = 'create',
+}: {
+  maskType: any;
+  onClick: () => void;
+  onRightClick?: (e: React.MouseEvent) => void;
+  disabled?: boolean;
+  tooltip: string;
+  label: string;
+  idPrefix?: string;
+}) {
+  const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
+    id: `${idPrefix}-${maskType.type}`,
+    data: { type: 'Creation', maskType: maskType.type },
+    disabled: disabled || maskType.disabled,
+  });
+
+  const isDisabled = disabled || maskType.disabled;
+
+  return (
+    <motion.div
+      ref={setNodeRef}
+      {...listeners}
+      {...attributes}
+      onClick={onClick}
+      onContextMenu={(event) => {
+        if (onRightClick) {
+          event.preventDefault();
+          event.stopPropagation();
+        }
+      }}
+      onMouseDown={(event) => {
+        if (event.button === 2 && onRightClick) {
+          onRightClick(event);
+        }
+      }}
+      className={`bg-surface text-text-primary rounded-lg p-2 flex flex-col items-center justify-center gap-2 aspect-square transition-colors
+        ${isDisabled ? 'opacity-50 cursor-not-allowed' : 'hover:bg-card-active active:bg-accent/20'}
+        ${isDragging ? 'opacity-50' : ''}`}
+      data-tooltip={tooltip}
+      whileTap={{ scale: 0.98 }}
+      transition={{ type: 'spring', stiffness: 400, damping: 17 }}
+    >
+      <maskType.icon size={24} />
+      <Text
+        as="span"
+        variant={TextVariants.small}
+        color={TextColors.primary}
+        className="text-center w-full leading-tight"
+      >
+        {label}
+      </Text>
+    </motion.div>
+  );
+}

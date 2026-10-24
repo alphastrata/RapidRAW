@@ -60,6 +60,7 @@ import {
   BrushTools,
   cloneSubMaskData,
   SharedSubMaskRow,
+  SharedDraggableGridItem,
 } from './Masks';
 import { Adjustments, AiPatch } from '../../../utils/adjustments';
 import { OPTION_SEPARATOR } from '../../ui/AppProperties';
@@ -1302,42 +1303,20 @@ export default function AIPanel() {
 
 function DraggableGridItem({ maskType, isGenerating, onClick }: any) {
   const { t } = useTranslation();
-  const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
-    id: `create-ai-${maskType.type}`,
-    data: { type: 'Creation', maskType: maskType.type },
-    disabled: isGenerating,
-  });
+  const label = formatMaskTypeName(maskType.type);
+  const tooltip = maskType.disabled
+    ? t('editor.ai.comingSoon')
+    : t('editor.ai.createNewTooltip', { name: label });
+
   return (
-    <motion.div
-      ref={setNodeRef}
-      {...listeners}
-      {...attributes}
+    <SharedDraggableGridItem
+      maskType={maskType}
       onClick={onClick}
-      className={`bg-surface text-text-primary rounded-lg p-2 flex flex-col items-center justify-center gap-2 aspect-square transition-colors
-            ${
-              maskType.disabled || isGenerating
-                ? 'opacity-50 cursor-not-allowed'
-                : 'hover:bg-card-active active:bg-accent/20'
-            }
-            ${isDragging ? 'opacity-50' : ''}`}
-      data-tooltip={
-        maskType.disabled
-          ? t('editor.ai.comingSoon')
-          : t('editor.ai.createNewTooltip', { name: formatMaskTypeName(maskType.type) })
-      }
-      whileTap={{ scale: 0.98 }}
-      transition={{ type: 'spring', stiffness: 400, damping: 17 }}
-    >
-      <maskType.icon size={24} />
-      <Text
-        as="span"
-        variant={TextVariants.small}
-        color={TextColors.primary}
-        className="text-center w-full leading-tight"
-      >
-        {formatMaskTypeName(maskType.type)}
-      </Text>
-    </motion.div>
+      disabled={isGenerating}
+      tooltip={tooltip}
+      label={label}
+      idPrefix="create-ai"
+    />
   );
 }
 
