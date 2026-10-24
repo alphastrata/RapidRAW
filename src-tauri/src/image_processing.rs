@@ -1877,11 +1877,44 @@ fn parse_color_grade_settings(js_cg: &serde_json::Value) -> ColorGradeSettings {
     }
 }
 
-fn convert_points_to_aligned(frontend_points: Vec<serde_json::Value>) -> [Point; 16] {
-    let mut aligned_points = [Point::default(); 16];
-    for (i, point) in frontend_points.iter().enumerate().take(16) {
-        if let (Some(x), Some(y)) = (point["x"].as_f64(), point["y"].as_f64()) {
-            aligned_points[i] = Point {
+fn parse_all_color_grade_settings(
+    cg_obj: &serde_json::Value,
+    visible: bool,
+) -> (
+    ColorGradeSettings,
+    ColorGradeSettings,
+    ColorGradeSettings,
+    ColorGradeSettings,
+) {
+    if visible {
+        (
+            parse_color_grade_settings(&cg_obj["shadows"]),
+            parse_color_grade_settings(&cg_obj["midtones"]),
+            parse_color_grade_settings(&cg_obj["highlights"]),
+            parse_color_grade_settings(&cg_obj["global"]),
+        )
+    } else {
+        (
+            ColorGradeSettings::default(),
+            ColorGradeSettings::default(),
+            ColorGradeSettings::default(),
+            ColorGradeSettings::default(),
+        )
+    }
+}
+
+fn parse_curve_channel(curves_obj: &serde_json::Value, channel: &str, visible: bool, default_points: Option<&serde_json::Value>) -> ([Point; 16], u32) {
+    let mut aligned = [Point::default(); 16];
+    if !visible {
+        return (aligned, 0);
+    }
+    let points = match curves_obj.get(channel).or(default_points).and_then(serde_json::Value::as_array) {
+        Some(arr) => arr,
+        None => return (aligned, 0),
+    };
+    for (i, p) in points.iter().enumerate().take(16) {
+        if let (Some(x), Some(y)) = (p["x"].as_f64(), p["y"].as_f64()) {
+            aligned[i] = Point {
                 x: x as f32,
                 y: y as f32,
                 _pad1: 0.0,
@@ -1889,7 +1922,7 @@ fn convert_points_to_aligned(frontend_points: Vec<serde_json::Value>) -> [Point;
             };
         }
     }
-    aligned_points
+    (aligned, points.len() as u32)
 }
 
 pub(crate) const WP_D65: Vec2 = Vec2::new(0.3127, 0.3290);
@@ -2309,47 +2342,11 @@ fn get_global_adjustments_from_json(
 
     let default_curve = serde_json::json!([{"x": 0.0, "y": 0.0}, {"x": 255.0, "y": 255.0}]);
     let curves_obj = js_adjustments.get("curves").cloned().unwrap_or_default();
-
-    let luma_points: Vec<serde_json::Value> = if is_visible("curves") {
-        curves_obj
-            .get("luma")
-            .unwrap_or(&default_curve)
-            .as_array()
-            .cloned()
-            .unwrap_or_default()
-    } else {
-        Vec::new()
-    };
-    let red_points: Vec<serde_json::Value> = if is_visible("curves") {
-        curves_obj
-            .get("red")
-            .unwrap_or(&default_curve)
-            .as_array()
-            .cloned()
-            .unwrap_or_default()
-    } else {
-        Vec::new()
-    };
-    let green_points: Vec<serde_json::Value> = if is_visible("curves") {
-        curves_obj
-            .get("green")
-            .unwrap_or(&default_curve)
-            .as_array()
-            .cloned()
-            .unwrap_or_default()
-    } else {
-        Vec::new()
-    };
-    let blue_points: Vec<serde_json::Value> = if is_visible("curves") {
-        curves_obj
-            .get("blue")
-            .unwrap_or(&default_curve)
-            .as_array()
-            .cloned()
-            .unwrap_or_default()
-    } else {
-        Vec::new()
-    };
+    let curves_vis = is_visible("curves");
+    let (luma_curve, luma_curve_count) = parse_curve_channel(&curves_obj, "luma", curves_vis, Some(&default_curve));
+    let (red_curve, red_curve_count) = parse_curve_channel(&curves_obj, "red", curves_vis, Some(&default_curve));
+    let (green_curve, green_curve_count) = parse_curve_channel(&curves_obj, "green", curves_vis, Some(&default_curve));
+    let (blue_curve, blue_curve_count) = parse_curve_channel(&curves_obj, "blue", curves_vis, Some(&default_curve));
 
     let color_grading_visible = is_visible("colorGrading");
     let color_mixer_visible = is_visible("colorMixer");
@@ -2410,6 +2407,9 @@ fn get_global_adjustments_from_json(
     } else {
         (0, 1.0, 0)
     };
+
+    let (cg_shadows, cg_midtones, cg_highlights, cg_global) =
+        parse_all_color_grade_settings(&cg_obj, color_grading_visible);
 
     GlobalAdjustments {
         exposure: get_val("basic", "exposure", SCALES.exposure, None) + baseline_exposure,
@@ -2517,26 +2517,10 @@ fn get_global_adjustments_from_json(
         _pad_cg2: 0.0,
         _pad_cg3: 0.0,
         _pad_cg4: 0.0,
-        color_grading_shadows: if color_grading_visible {
-            parse_color_grade_settings(&cg_obj["shadows"])
-        } else {
-            ColorGradeSettings::default()
-        },
-        color_grading_midtones: if color_grading_visible {
-            parse_color_grade_settings(&cg_obj["midtones"])
-        } else {
-            ColorGradeSettings::default()
-        },
-        color_grading_highlights: if color_grading_visible {
-            parse_color_grade_settings(&cg_obj["highlights"])
-        } else {
-            ColorGradeSettings::default()
-        },
-        color_grading_global: if color_grading_visible {
-            parse_color_grade_settings(&cg_obj["global"])
-        } else {
-            ColorGradeSettings::default()
-        },
+        color_grading_shadows: cg_shadows,
+        color_grading_midtones: cg_midtones,
+        color_grading_highlights: cg_highlights,
+        color_grading_global: cg_global,
         color_grading_blending: if color_grading_visible {
             cg_obj["blending"].as_f64().unwrap_or(50.0) as f32 / SCALES.color_grading_blending
         } else {
@@ -2557,14 +2541,14 @@ fn get_global_adjustments_from_json(
         } else {
             [HslColor::default(); 8]
         },
-        luma_curve: convert_points_to_aligned(luma_points.clone()),
-        red_curve: convert_points_to_aligned(red_points.clone()),
-        green_curve: convert_points_to_aligned(green_points.clone()),
-        blue_curve: convert_points_to_aligned(blue_points.clone()),
-        luma_curve_count: luma_points.len() as u32,
-        red_curve_count: red_points.len() as u32,
-        green_curve_count: green_points.len() as u32,
-        blue_curve_count: blue_points.len() as u32,
+        luma_curve,
+        red_curve,
+        green_curve,
+        blue_curve,
+        luma_curve_count,
+        red_curve_count,
+        green_curve_count,
+        blue_curve_count,
         _pad_end1: 0.0,
         _pad_end2: 0.0,
         _pad_end3: 0.0,
@@ -2601,30 +2585,17 @@ fn get_mask_adjustments_from_json(
     };
 
     let curves_obj = adj.get("curves").cloned().unwrap_or_default();
-    let luma_points: Vec<serde_json::Value> = if is_visible("curves") {
-        curves_obj["luma"].as_array().cloned().unwrap_or_default()
-    } else {
-        Vec::new()
-    };
-    let red_points: Vec<serde_json::Value> = if is_visible("curves") {
-        curves_obj["red"].as_array().cloned().unwrap_or_default()
-    } else {
-        Vec::new()
-    };
-    let green_points: Vec<serde_json::Value> = if is_visible("curves") {
-        curves_obj["green"].as_array().cloned().unwrap_or_default()
-    } else {
-        Vec::new()
-    };
-    let blue_points: Vec<serde_json::Value> = if is_visible("curves") {
-        curves_obj["blue"].as_array().cloned().unwrap_or_default()
-    } else {
-        Vec::new()
-    };
+    let curves_vis = is_visible("curves");
+    let (luma_curve, luma_curve_count) = parse_curve_channel(&curves_obj, "luma", curves_vis, None);
+    let (red_curve, red_curve_count) = parse_curve_channel(&curves_obj, "red", curves_vis, None);
+    let (green_curve, green_curve_count) = parse_curve_channel(&curves_obj, "green", curves_vis, None);
+    let (blue_curve, blue_curve_count) = parse_curve_channel(&curves_obj, "blue", curves_vis, None);
     let color_grading_visible = is_visible("colorGrading");
     let color_mixer_visible = is_visible("colorMixer");
 
     let cg_obj = adj.get("colorGrading").cloned().unwrap_or_default();
+    let (cg_shadows, cg_midtones, cg_highlights, cg_global) =
+        parse_all_color_grade_settings(&cg_obj, color_grading_visible);
     let [wb_log_gain_l, wb_log_gain_m, wb_log_gain_s] = if is_visible("whiteBalance") {
         white_balance::adaptation_log_gains(
             global_white_balance,
@@ -2679,26 +2650,10 @@ fn get_mask_adjustments_from_json(
         wb_log_gain_m,
         wb_log_gain_s,
         _pad_wb: 0.0,
-        color_grading_shadows: if color_grading_visible {
-            parse_color_grade_settings(&cg_obj["shadows"])
-        } else {
-            ColorGradeSettings::default()
-        },
-        color_grading_midtones: if color_grading_visible {
-            parse_color_grade_settings(&cg_obj["midtones"])
-        } else {
-            ColorGradeSettings::default()
-        },
-        color_grading_highlights: if color_grading_visible {
-            parse_color_grade_settings(&cg_obj["highlights"])
-        } else {
-            ColorGradeSettings::default()
-        },
-        color_grading_global: if color_grading_visible {
-            parse_color_grade_settings(&cg_obj["global"])
-        } else {
-            ColorGradeSettings::default()
-        },
+        color_grading_shadows: cg_shadows,
+        color_grading_midtones: cg_midtones,
+        color_grading_highlights: cg_highlights,
+        color_grading_global: cg_global,
         color_grading_blending: if color_grading_visible {
             cg_obj["blending"].as_f64().unwrap_or(50.0) as f32 / SCALES.color_grading_blending
         } else {
@@ -2717,14 +2672,14 @@ fn get_mask_adjustments_from_json(
         } else {
             [HslColor::default(); 8]
         },
-        luma_curve: convert_points_to_aligned(luma_points.clone()),
-        red_curve: convert_points_to_aligned(red_points.clone()),
-        green_curve: convert_points_to_aligned(green_points.clone()),
-        blue_curve: convert_points_to_aligned(blue_points.clone()),
-        luma_curve_count: luma_points.len() as u32,
-        red_curve_count: red_points.len() as u32,
-        green_curve_count: green_points.len() as u32,
-        blue_curve_count: blue_points.len() as u32,
+        luma_curve,
+        red_curve,
+        green_curve,
+        blue_curve,
+        luma_curve_count,
+        red_curve_count,
+        green_curve_count,
+        blue_curve_count,
         _pad_end4: 0.0,
         _pad_end5: 0.0,
         _pad_end6: 0.0,
