@@ -118,6 +118,37 @@ export function useAppContextMenus(props: UseAppContextMenusProps) {
     [handleSetFlag, t],
   );
 
+  const buildRatingMenu = useCallback(
+    (paths?: string[]) => ({
+      label: t('contextMenus.editor.rating'),
+      icon: Star,
+      submenu: [0, 1, 2, 3, 4, 5].map((rating: number) => ({
+        label:
+          rating === 0
+            ? t('contextMenus.editor.noRating')
+            : t('contextMenus.editor.ratingLabel', { count: rating }),
+        onClick: () => (paths ? handleRate(rating, paths) : handleRate(rating)),
+      })),
+    }),
+    [handleRate, t],
+  );
+
+  const buildColorLabelMenu = useCallback(
+    (paths?: string[]) => ({
+      label: t('contextMenus.editor.colorLabel'),
+      icon: Palette,
+      submenu: [
+        { label: t('contextMenus.editor.noLabel'), onClick: () => (paths ? handleSetColorLabel(null, paths) : handleSetColorLabel(null)) },
+        ...COLOR_LABELS.map((label: Color) => ({
+          label: t(`contextMenus.colors.${label.name}`),
+          color: label.color,
+          onClick: () => (paths ? handleSetColorLabel(label.name, paths) : handleSetColorLabel(label.name)),
+        })),
+      ],
+    }),
+    [handleSetColorLabel, t],
+  );
+
   const albumIcons = useMemo(
     () => [
       { label: t('contextMenus.albumIcons.default'), value: undefined, icon: Folder },
@@ -302,30 +333,9 @@ export function useAppContextMenus(props: UseAppContextMenusProps) {
           ],
         },
         { type: OPTION_SEPARATOR },
-        {
-          label: t('contextMenus.editor.rating'),
-          icon: Star,
-          submenu: [0, 1, 2, 3, 4, 5].map((rating: number) => ({
-            label:
-              rating === 0
-                ? t('contextMenus.editor.noRating')
-                : t('contextMenus.editor.ratingLabel', { count: rating }),
-            onClick: () => handleRate(rating),
-          })),
-        },
+        buildRatingMenu(),
         buildFlagMenu(),
-        {
-          label: t('contextMenus.editor.colorLabel'),
-          icon: Palette,
-          submenu: [
-            { label: t('contextMenus.editor.noLabel'), onClick: () => handleSetColorLabel(null) },
-            ...COLOR_LABELS.map((label: Color) => ({
-              label: t(`contextMenus.colors.${label.name}`),
-              color: label.color,
-              onClick: () => handleSetColorLabel(label.name),
-            })),
-          ],
-        },
+        buildColorLabelMenu(),
         {
           label: t('contextMenus.editor.tagging'),
           icon: Tag,
@@ -759,30 +769,9 @@ export function useAppContextMenus(props: UseAppContextMenusProps) {
         },
         { icon: FileEdit, label: renameLabel, onClick: () => props.handleRenameFiles(finalSelection) },
         { type: OPTION_SEPARATOR },
-        {
-          icon: Star,
-          label: t('contextMenus.editor.rating'),
-          submenu: [0, 1, 2, 3, 4, 5].map((rating: number) => ({
-            label:
-              rating === 0
-                ? t('contextMenus.editor.noRating')
-                : t('contextMenus.editor.ratingLabel', { count: rating }),
-            onClick: () => handleRate(rating, finalSelection),
-          })),
-        },
+        buildRatingMenu(finalSelection),
         buildFlagMenu(finalSelection),
-        {
-          label: t('contextMenus.editor.colorLabel'),
-          icon: Palette,
-          submenu: [
-            { label: t('contextMenus.editor.noLabel'), onClick: () => handleSetColorLabel(null, finalSelection) },
-            ...COLOR_LABELS.map((label: Color) => ({
-              label: t(`contextMenus.colors.${label.name}`),
-              color: label.color,
-              onClick: () => handleSetColorLabel(label.name, finalSelection),
-            })),
-          ],
-        },
+        buildColorLabelMenu(finalSelection),
         {
           label: t('contextMenus.editor.tagging'),
           icon: Tag,
