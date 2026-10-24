@@ -73,6 +73,7 @@ import {
   getMaskTypeName,
   NewMaskDropZone,
   BrushTools,
+  cloneSubMaskData as baseCloneSubMaskData,
 } from './Masks';
 import {
   Adjustments,
@@ -625,18 +626,11 @@ export default function MasksPanel() {
     return clonedContainer;
   };
 
-  const cloneSubMaskData = (subMask: SubMask, options: { invert?: boolean; rename?: boolean } = {}): SubMask => {
-    const clonedSubMask = JSON.parse(JSON.stringify(subMask));
-
-    clonedSubMask.id = uuidv4();
-    clonedSubMask.invert = options.invert ? !clonedSubMask.invert : clonedSubMask.invert;
-    clonedSubMask.name =
-      options.rename === false
-        ? clonedSubMask.name
-        : t('editor.masks.patches.copyName', { name: getSubMaskName(subMask) });
-
-    return clonedSubMask;
-  };
+  const cloneSubMaskData = (subMask: SubMask, options: { invert?: boolean; rename?: boolean } = {}): SubMask =>
+    baseCloneSubMaskData(subMask, {
+      ...options,
+      copyName: t('editor.masks.patches.copyName', { name: getSubMaskName(subMask) }),
+    });
 
   const copyMaskToClipboard = (container: MaskContainer) => {
     setCopiedMask(JSON.parse(JSON.stringify(container)));

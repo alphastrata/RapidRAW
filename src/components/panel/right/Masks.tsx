@@ -18,6 +18,7 @@ import {
 } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { useTranslation } from 'react-i18next';
+import { v4 as uuidv4 } from 'uuid';
 import Text from '../../ui/Text';
 import Slider from '../../ui/Slider';
 import { TextWeights } from '../../../types/typography';
@@ -335,4 +336,18 @@ export const BrushTools = ({
       </div>
     </div>
   );
+};
+
+export const cloneSubMaskData = (
+  subMask: SubMask,
+  options: { invert?: boolean; rename?: boolean; copyName?: string } = {},
+): SubMask => {
+  const clonedSubMask = JSON.parse(JSON.stringify(subMask));
+  clonedSubMask.id = uuidv4();
+  clonedSubMask.invert = options.invert ? !clonedSubMask.invert : clonedSubMask.invert;
+  clonedSubMask.name =
+    options.rename === false
+      ? clonedSubMask.name
+      : (options.copyName ?? `${getSubMaskName(subMask)} Copy`);
+  return clonedSubMask;
 };

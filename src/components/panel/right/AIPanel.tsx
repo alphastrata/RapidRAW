@@ -59,6 +59,7 @@ import {
   getSubMaskName,
   NewMaskDropZone,
   BrushTools,
+  cloneSubMaskData,
 } from './Masks';
 import { Adjustments, AiPatch } from '../../../utils/adjustments';
 import { OPTION_SEPARATOR } from '../../ui/AppProperties';
@@ -708,15 +709,7 @@ export default function AIPanel() {
     return clonedContainer;
   };
 
-  const cloneSubMaskData = (subMask: SubMask, options: { invert?: boolean; rename?: boolean } = {}): SubMask => {
-    const clonedSubMask = JSON.parse(JSON.stringify(subMask));
 
-    clonedSubMask.id = uuidv4();
-    clonedSubMask.invert = options.invert ? !clonedSubMask.invert : clonedSubMask.invert;
-    clonedSubMask.name = options.rename === false ? clonedSubMask.name : `${getSubMaskName(subMask)} Copy`;
-
-    return clonedSubMask;
-  };
 
   const copyPatchToClipboard = (container: AiPatch) => {
     setCopiedPatch(JSON.parse(JSON.stringify(container)));
