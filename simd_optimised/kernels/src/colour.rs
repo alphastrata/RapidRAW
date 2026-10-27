@@ -1,7 +1,7 @@
 use core::simd::prelude::*;
-use core::simd::{f32x8, Simd};
+use core::simd::{Simd, f32x8};
 
-use crate::{splat, LANES};
+use crate::{LANES, splat};
 
 type F32x8 = Simd<f32, LANES>;
 type U32x8 = Simd<u32, LANES>;
@@ -22,16 +22,12 @@ fn horner10(r: F32x8) -> F32x8 {
         core::f32::consts::LN_2,
         1.0,
     ];
-    C[1..]
-        .iter()
-        .fold(splat(C[0]), |p, &c| p * r + splat(c))
+    C[1..].iter().fold(splat(C[0]), |p, &c| p * r + splat(c))
 }
 
 fn series(t2: F32x8) -> F32x8 {
     const K: [f32; 6] = [1.0 / 11.0, 1.0 / 9.0, 1.0 / 7.0, 1.0 / 5.0, 1.0 / 3.0, 1.0];
-    K[1..]
-        .iter()
-        .fold(splat(K[0]), |a, &c| a * t2 + splat(c))
+    K[1..].iter().fold(splat(K[0]), |a, &c| a * t2 + splat(c))
 }
 
 #[inline]

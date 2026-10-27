@@ -29,24 +29,27 @@ fn srgb_inv_scalar(c: f32) -> f32 {
 }
 
 fn convolve_scalar_reference(src: &[f32], w: usize, h: usize, kernel: &[f32]) -> Vec<f32> {
-    let r_kern = (kernel.len().max(1) / 2) as i64;
+    let (w_i, h_i) = (w as i64, h as i64);
     let mut tmp = vec![0.0f32; w * h];
     let mut out = vec![0.0f32; w * h];
+    let r_kern = (kernel.len().max(1) / 2) as i64;
     for y in 0..h {
         for x in 0..w {
+            let x_i = x as i64;
             let mut acc = 0.0f32;
-            for (i, &k) in kernel.iter().enumerate() {
-                let sx = (x as i64 + i as i64 - r_kern).clamp(0, w as i64 - 1) as usize;
+            for (&k, i) in kernel.iter().zip(0i64..) {
+                let sx = (x_i + i - r_kern).clamp(0, w_i - 1) as usize;
                 acc += k * src[y * w + sx];
             }
             tmp[y * w + x] = acc;
         }
     }
     for y in 0..h {
+        let y_i = y as i64;
         for x in 0..w {
             let mut acc = 0.0f32;
-            for (i, &k) in kernel.iter().enumerate() {
-                let sy = (y as i64 + i as i64 - r_kern).clamp(0, h as i64 - 1) as usize;
+            for (&k, i) in kernel.iter().zip(0i64..) {
+                let sy = (y_i + i - r_kern).clamp(0, h_i - 1) as usize;
                 acc += k * tmp[sy * w + x];
             }
             out[y * w + x] = acc;
@@ -67,7 +70,10 @@ fn srgb_to_linear_accuracy() {
     for (&input, &output) in samples.iter().zip(&got) {
         let expected = srgb_scalar(input.max(0.0));
         let error = (output - expected).abs() / expected.abs().max(1e-6);
-        assert!(error < 5e-5, "srgb_to_linear({input}) = {output}, expected {expected}");
+        assert!(
+            error < 5e-5,
+            "srgb_to_linear({input}) = {output}, expected {expected}"
+        );
     }
 }
 

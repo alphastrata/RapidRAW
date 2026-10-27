@@ -1,5 +1,5 @@
 use core::simd::prelude::*;
-use core::simd::{f32x8, i64x8, Simd};
+use core::simd::{Simd, f32x8, i64x8};
 
 use alloc::vec;
 use alloc::vec::Vec;
@@ -28,8 +28,12 @@ fn simd_clamp_i64(c: I64x8, max: i64) -> I64x8 {
 fn tap(data: &[f32], idx: I64x8, k: f32) -> f32x8 {
     let lanes: [i64; 8] = idx.to_array();
     let gather_idx = Simd::<usize, 8>::from_array(lanes.map(|i| i as usize));
-    Simd::<f32, 8>::gather_select(data, Mask::<isize, 8>::splat(true), gather_idx, f32x8::splat(0.0))
-        * f32x8::splat(k)
+    Simd::<f32, 8>::gather_select(
+        data,
+        Mask::<isize, 8>::splat(true),
+        gather_idx,
+        f32x8::splat(0.0),
+    ) * f32x8::splat(k)
 }
 
 fn row_out(scan: &RowScan<'_>, src: &[f32], dst_row: &mut [f32]) {
@@ -49,7 +53,11 @@ fn row_out(scan: &RowScan<'_>, src: &[f32], dst_row: &mut [f32]) {
         for (t, &k) in scan.kernel.iter().enumerate() {
             let coord = if scan.vertical { fixed } else { xs } + splat_i64(t as i64 - r);
             let clamped = simd_clamp_i64(coord, max_coord) * splat_i64(coord_stride as i64);
-            let idx = if scan.vertical { clamped + xs } else { clamped + fixed };
+            let idx = if scan.vertical {
+                clamped + xs
+            } else {
+                clamped + fixed
+            };
             acc += tap(src, idx, k);
         }
 
@@ -59,22 +67,69 @@ fn row_out(scan: &RowScan<'_>, src: &[f32], dst_row: &mut [f32]) {
 }
 
 pub fn conv_row_horizontal(src: &[f32], w: usize, kernel: &[f32], y: usize, dst_row: &mut [f32]) {
-    row_out(&RowScan { kernel, w, h: 0, vertical: false, y }, src, dst_row);
+    row_out(
+        &RowScan {
+            kernel,
+            w,
+            h: 0,
+            vertical: false,
+            y,
+        },
+        src,
+        dst_row,
+    );
 }
 
-pub fn conv_row_vertical(src: &[f32], w: usize, h: usize, kernel: &[f32], y: usize, dst_row: &mut [f32]) {
-    row_out(&RowScan { kernel, w, h, vertical: true, y }, src, dst_row);
+pub fn conv_row_vertical(
+    src: &[f32],
+    w: usize,
+    h: usize,
+    kernel: &[f32],
+    y: usize,
+    dst_row: &mut [f32],
+) {
+    row_out(
+        &RowScan {
+            kernel,
+            w,
+            h,
+            vertical: true,
+            y,
+        },
+        src,
+        dst_row,
+    );
 }
 
 #[must_use]
 pub fn convolve_separable(src: &[f32], w: usize, h: usize, kernel: &[f32]) -> Vec<f32> {
     let mut tmp = vec![0.0; w * h];
     let mut out = vec![0.0; w * h];
-    for (y, row) in tmp.chunks_mut(w).enumerate() {
-        row_out(&RowScan { kernel, w, h, vertical: false, y }, src, row);
-    }
-    for (y, row) in out.chunks_mut(w).enumerate() {
-        row_out(&RowScan { kernel, w, h, vertical: true, y }, &tmp, row);
-    }
+    tmp.chunks_mut(w).enumerate().for_each(|(y, row)| {
+        row_out(
+            &RowScan {
+                kernel,
+                w,
+                h,
+                vertical: false,
+                y,
+            },
+            src,
+            row,
+        )
+    });
+    out.chunks_mut(w).enumerate().for_each(|(y, row)| {
+        row_out(
+            &RowScan {
+                kernel,
+                w,
+                h,
+                vertical: true,
+                y,
+            },
+            &tmp,
+            row,
+        )
+    });
     out
 }
