@@ -1,3 +1,4 @@
+pub use engine::guided_perspective::*;
 use engine::guided_perspective::calculate_guided_perspective as engine_calculate;
 use engine::guided_perspective::{GuidedResultJson, GuideLine};
 
