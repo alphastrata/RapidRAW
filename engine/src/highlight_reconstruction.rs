@@ -203,18 +203,16 @@ pub fn reconstruct_highlights(data: &mut [[f32; 3]], region: Region, clips: [f32
                     let offset = offsets.sample(gx, gy);
                     let mut roots = observed.map(cube_root);
                     (0..ITERATIONS).for_each(|iteration| {
-                        (0..3).for_each(|c| {
-                            if blend[c] > 0.0 {
+                        (0..3)
+                            .filter(|&c| blend[c] > 0.0)
+                            .for_each(|c| {
                                 let rebuilt = observed[c].max(opposed(&roots, c) + offset[c]);
                                 pixel[c] = observed[c] + (rebuilt - observed[c]) * blend[c];
-                            }
-                        });
-                        if iteration + 1 < ITERATIONS {
-                            (0..3).for_each(|c| {
-                                if blend[c] > 0.0 {
-                                    roots[c] = cube_root(pixel[c]);
-                                }
                             });
+                        if iteration + 1 < ITERATIONS {
+                            (0..3)
+                                .filter(|&c| blend[c] > 0.0)
+                                .for_each(|c| roots[c] = cube_root(pixel[c]));
                         }
                     });
 
@@ -225,12 +223,12 @@ pub fn reconstruct_highlights(data: &mut [[f32; 3]], region: Region, clips: [f32
                     let keep = FULL_CLIP_CHROMA
                         + (1.0 - FULL_CLIP_CHROMA) * smoothstep(0.0, HEADROOM_FADE, headroom);
                     let mean = (pixel[0] + pixel[1] + pixel[2]) / 3.0;
-                    (0..3).for_each(|c| {
-                        if blend[c] > 0.0 {
+                    (0..3)
+                        .filter(|&c| blend[c] > 0.0)
+                        .for_each(|c| {
                             let faded = observed[c].max(mean + (pixel[c] - mean) * keep);
                             pixel[c] = observed[c] + (faded - observed[c]) * blend[c];
-                        }
-                    });
+                        });
                 });
             blown
         })
