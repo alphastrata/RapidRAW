@@ -24,7 +24,6 @@ import { ColumnWidths } from '../MainLibrary';
 import { useProcessStore } from '../../../store/useProcessStore';
 import { useSettingsStore } from '../../../store/useSettingsStore';
 import { useLibraryStore } from '../../../store/useLibraryStore';
-import { isImmichAlbumId } from '../../immich/immichApi';
 import { IconAperture, IconFocalLength, IconIso, IconShutter } from '../editor/ExifIcons';
 
 const LIST_DATE_FORMAT = new Intl.DateTimeFormat(undefined, { year: 'numeric', month: 'short', day: 'numeric' });
@@ -60,9 +59,7 @@ const ThumbnailComponent = ({
   const exif = useLibraryStore((s) => s.exifByPath[path]);
   const isAiPending = useProcessStore((s) => !!s.aiPendingPaths[path]);
   const isAiPaused = useProcessStore((s) => s.aiJobs.paused);
-  const cloudTooltip = useLibraryStore((s) =>
-    isImmichAlbumId(s.activeAlbumId) ? 'library.items.immichPlaceholder' : 'library.items.cloudPlaceholder',
-  );
+  const cloudTooltip = 'library.items.cloudPlaceholder';
   const exifOverlay = useSettingsStore((s) => s.appSettings?.exifOverlay || ExifOverlay.Off);
   const displayEditIcon = useSettingsStore((s) => s.appSettings?.displayEditIcon ?? true);
   const showEditIcon = isEdited && displayEditIcon;
@@ -556,9 +553,7 @@ const ListItemComponent = ({
   const { t } = useTranslation();
   const data = useProcessStore((s) => s.thumbnails[path]);
   const exif = useLibraryStore((s) => s.exifByPath[path]);
-  const cloudTooltip = useLibraryStore((s) =>
-    isImmichAlbumId(s.activeAlbumId) ? 'library.items.immichPlaceholder' : 'library.items.cloudPlaceholder',
-  );
+  const cloudTooltip = 'library.items.cloudPlaceholder';
   const exifOverlay = useSettingsStore((s) => s.appSettings?.exifOverlay || ExifOverlay.Off);
 
   const [showPlaceholder, setShowPlaceholder] = useState(false);

@@ -30,7 +30,7 @@ import CropPanel from './components/panel/right/CropPanel';
 import MasksPanel from './components/panel/right/MasksPanel';
 import AIPanel from './components/panel/right/AIPanel';
 import PresetsPanel from './components/panel/right/PresetsPanel';
-import TetheringPanel from './components/panel/right/TetheringPanel';
+
 
 import EditorView from './components/views/EditorView';
 import LibraryView from './components/views/LibraryView';
@@ -60,7 +60,6 @@ import { useLibraryActions } from './hooks/useLibraryActions';
 import { useProductivityActions } from './hooks/useProductivityActions';
 
 import { useAppInitialization } from './hooks/useAppInitialization';
-import { useAndroidBackHandler } from './hooks/useAndroidBackHandler';
 import './i18n';
 
 import {
@@ -76,8 +75,6 @@ import {
 
 import ImageProcessingManager from './components/managers/ImageProcessingManager';
 import ImageLoaderManager from './components/managers/ImageLoaderManager';
-import { isImmichAlbumId } from './components/immich/immichApi';
-import { useImmichEvents } from './components/immich/useImmichEvents';
 
 const DND_MEASURING = { droppable: { strategy: MeasuringStrategy.Always } };
 
@@ -402,8 +399,6 @@ function App() {
           };
           const album = findObj(albumTree);
           if (album) await handleSelectAlbum(album.id, album.name, album.images, true);
-          else if (isImmichAlbumId(activeAlbumId))
-            await handleSelectAlbum(activeAlbumId, currentFolderPath.slice('Album: '.length), [], true);
         }
       } else {
         await handleSelectSubfolder(currentFolderPath, false, undefined, false, true);
@@ -459,7 +454,6 @@ function App() {
     handleTogglePinFolder,
   });
 
-  useImmichEvents(handleLibraryRefresh);
 
   useTauriListeners({
     refreshAllFolderTrees,
@@ -468,7 +462,6 @@ function App() {
     markGenerated,
   });
 
-  useAndroidBackHandler();
 
   useKeyboardShortcuts({
     sortedImageList,
@@ -760,8 +753,6 @@ function App() {
           return <AIPanel />;
         case Panel.Presets:
           return <PresetsPanel onNavigateToCommunity={() => setUI({ activeView: 'community' })} />;
-        case Panel.Tethering:
-          return <TetheringPanel onLibraryRefresh={handleLibraryRefresh} onImageSelect={handleImageSelect} />;
         default:
           return null;
       }
