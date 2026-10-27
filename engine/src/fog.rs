@@ -149,7 +149,10 @@ pub fn apply_fog<'a>(
         disp_aspect.recip()
     };
 
-    let disparity: Vec<f32> = depth_map.pixels().map(|p| f32::from(p[0]) / 255.0).collect();
+    let disparity: Vec<f32> = depth_map
+        .pixels()
+        .map(|p| f32::from(p[0]) / 255.0)
+        .collect();
     let guide = build_relight_guide(out.as_raw(), wu, hu, dw, dh);
     let radius = ((dw.max(dh) as f32 * 0.01).round() as usize).max(2);
     let model = build_guided_model(&guide, &disparity, dw, dh, radius, 2.0e-3);
@@ -158,10 +161,7 @@ pub fn apply_fog<'a>(
     let noise: Vec<f32> = (0..dw * dh)
         .into_par_iter()
         .map(|i| {
-            let (x, y) = to_display(
-                ((i % dw) as f32 + 0.5) / dwf,
-                ((i / dw) as f32 + 0.5) / dhf,
-            );
+            let (x, y) = to_display(((i % dw) as f32 + 0.5) / dwf, ((i / dw) as f32 + 0.5) / dhf);
             fog_noise(x * 3.0 * display_aspect, y * 8.0)
         })
         .collect();

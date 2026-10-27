@@ -1,14 +1,17 @@
+use anyhow::anyhow;
 use std::collections::hash_map::DefaultHasher;
 use std::hash::{Hash, Hasher};
 use std::sync::{Arc, Mutex};
-use anyhow::anyhow;
 
 use image::{DynamicImage, GenericImageView};
 
 use crate::app_state::{AppState, LoadedImage};
+use crate::cache_utils::{calculate_geometry_hash, calculate_transform_hash};
 use crate::image_loader::prepare_base_image_cow;
-use crate::cache_utils::{calculate_transform_hash, calculate_geometry_hash};
-use crate::image_processing::{Crop, downscale_f32_image, get_geometry_params_from_json, is_geometry_identity, apply_geometry_warp};
+use crate::image_processing::{
+    Crop, apply_geometry_warp, downscale_f32_image, get_geometry_params_from_json,
+    is_geometry_identity,
+};
 use std::borrow::Cow;
 
 use crate::mask_generation::build_full_warped_image_rgb8;
@@ -56,7 +59,9 @@ fn get_or_compute_stage(
     key: u64,
     compute: impl FnOnce() -> anyhow::Result<Arc<DynamicImage>>,
 ) -> anyhow::Result<Arc<DynamicImage>> {
-    let mut cache_lock = cache.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
+    let mut cache_lock = cache
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
 
     if let Some((hash, img)) = cache_lock.as_ref()
         && *hash == key
@@ -332,10 +337,9 @@ pub fn get_cached_full_warped_image_for_path(
     *state
         .full_warped_cache
         .lock()
-        .unwrap_or_else(std::sync::PoisonError::into_inner) = Some((cache_key, Arc::clone(&warped_arc)));
+        .unwrap_or_else(std::sync::PoisonError::into_inner) =
+        Some((cache_key, Arc::clone(&warped_arc)));
 
     drop(build_guard);
     Ok(warped_arc)
 }
-
-

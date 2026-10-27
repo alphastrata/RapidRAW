@@ -141,7 +141,9 @@ fn channel_bounds(image: &DynamicImage) -> [ChannelBounds; 3] {
         downscale_f32_image_if_needed(image, BOUNDS_REFERENCE_DIM, BOUNDS_REFERENCE_DIM);
     let reference = downscaled.as_ref().unwrap_or(image);
     let converted;
-    let rgb = if let Some(buf) = reference.as_rgb32f() { buf } else {
+    let rgb = if let Some(buf) = reference.as_rgb32f() {
+        buf
+    } else {
         converted = reference.to_rgb32f();
         &converted
     };

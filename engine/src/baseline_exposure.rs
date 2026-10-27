@@ -171,12 +171,11 @@ fn olympus_camera_settings(file_bytes: &[u8]) -> Option<IFD> {
 }
 
 fn integers(ifd: &IFD, tag: u16) -> Vec<i32> {
-    ifd.get_entry(tag)
-        .map_or_default(|entry| {
-            (0..entry.value.count())
-                .map_while(|index| entry.value.get_i32(index).ok().flatten())
-                .collect()
-        })
+    ifd.get_entry(tag).map_or_default(|entry| {
+        (0..entry.value.count())
+            .map_while(|index| entry.value.get_i32(index).ok().flatten())
+            .collect()
+    })
 }
 
 fn first_integer(ifd: &IFD, tag: u16) -> Option<i32> {

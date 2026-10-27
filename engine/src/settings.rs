@@ -239,11 +239,9 @@ pub fn default_included_adjustments() -> HashSet<String> {
         "guidedPerspective",
     ];
 
-    off_by_default
-        .iter()
-        .for_each(|item| {
-            defaults.remove(*item);
-        });
+    off_by_default.iter().for_each(|item| {
+        defaults.remove(*item);
+    });
 
     defaults
 }

@@ -1,6 +1,6 @@
-use std::io::Write;
 use std::fmt;
 use std::fs;
+use std::io::Write;
 use std::path::{Path, PathBuf};
 use std::thread;
 

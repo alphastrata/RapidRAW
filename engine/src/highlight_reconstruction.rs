@@ -203,12 +203,10 @@ pub fn reconstruct_highlights(data: &mut [[f32; 3]], region: Region, clips: [f32
                     let offset = offsets.sample(gx, gy);
                     let mut roots = observed.map(cube_root);
                     (0..ITERATIONS).for_each(|iteration| {
-                        (0..3)
-                            .filter(|&c| blend[c] > 0.0)
-                            .for_each(|c| {
-                                let rebuilt = observed[c].max(opposed(&roots, c) + offset[c]);
-                                pixel[c] = observed[c] + (rebuilt - observed[c]) * blend[c];
-                            });
+                        (0..3).filter(|&c| blend[c] > 0.0).for_each(|c| {
+                            let rebuilt = observed[c].max(opposed(&roots, c) + offset[c]);
+                            pixel[c] = observed[c] + (rebuilt - observed[c]) * blend[c];
+                        });
                         if iteration + 1 < ITERATIONS {
                             (0..3)
                                 .filter(|&c| blend[c] > 0.0)
@@ -223,12 +221,10 @@ pub fn reconstruct_highlights(data: &mut [[f32; 3]], region: Region, clips: [f32
                     let keep = FULL_CLIP_CHROMA
                         + (1.0 - FULL_CLIP_CHROMA) * smoothstep(0.0, HEADROOM_FADE, headroom);
                     let mean = (pixel[0] + pixel[1] + pixel[2]) / 3.0;
-                    (0..3)
-                        .filter(|&c| blend[c] > 0.0)
-                        .for_each(|c| {
-                            let faded = observed[c].max(mean + (pixel[c] - mean) * keep);
-                            pixel[c] = observed[c] + (faded - observed[c]) * blend[c];
-                        });
+                    (0..3).filter(|&c| blend[c] > 0.0).for_each(|c| {
+                        let faded = observed[c].max(mean + (pixel[c] - mean) * keep);
+                        pixel[c] = observed[c] + (faded - observed[c]) * blend[c];
+                    });
                 });
             blown
         })
@@ -421,9 +417,7 @@ fn inpaint_offsets(
                             let usable = channels & !near_clip[start + x];
                             let mut roots = None;
                             (0..3).for_each(|c| {
-                                if usable & (1 << c) == 0
-                                    || p[c] <= lo[c]
-                                    || p[c] >= thresholds[c]
+                                if usable & (1 << c) == 0 || p[c] <= lo[c] || p[c] >= thresholds[c]
                                 {
                                     return;
                                 }
@@ -472,10 +466,7 @@ fn push_pull(base: Vec<Cell>, width: usize, height: usize, full_weight: f32) -> 
         levels.push((next, nw, nh));
     }
 
-    let Some(top) = levels
-        .last()
-        .and_then(|(cells, _, _)| cells.first())
-    else {
+    let Some(top) = levels.last().and_then(|(cells, _, _)| cells.first()) else {
         unreachable!("push_pull invariant: levels seeded non-empty and only appended");
     };
     let filled = Grid {

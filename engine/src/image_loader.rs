@@ -1,16 +1,14 @@
-use std::io::Cursor;
-use crate::settings::AppSettings;
 use crate::app_state::AppState;
 use crate::cache_utils::{DecodeFingerprint, FlightRole};
 use crate::exif_processing;
-use crate::paths::read_file_mapped;
 use crate::formats::is_raw_file;
 use crate::image_processing::ImageMetadata;
 use crate::image_processing::{
-    apply_orientation, apply_srgb_to_linear,
-    remove_raw_artifacts_and_enhance,
+    apply_orientation, apply_srgb_to_linear, remove_raw_artifacts_and_enhance,
 };
 use crate::mask_generation::{MaskDefinition, SubMask, generate_mask_bitmap};
+use crate::paths::read_file_mapped;
+use crate::settings::AppSettings;
 use crate::white_balance::WhiteBalance;
 use anyhow::{Context, Result, anyhow};
 use base64::{Engine as _, engine::general_purpose};
@@ -23,6 +21,7 @@ use serde_json::Value;
 use std::borrow::Cow;
 use std::collections::HashMap;
 use std::fs;
+use std::io::Cursor;
 use std::panic;
 use std::path::Path;
 use std::sync::OnceLock;
@@ -57,16 +56,14 @@ fn srgb_to_linear_lut() -> &'static [f32; 256] {
     static LUT: OnceLock<[f32; 256]> = OnceLock::new();
     LUT.get_or_init(|| {
         let mut lut = [0.0f32; 256];
-        lut.iter_mut()
-            .enumerate()
-            .for_each(|(i, v)| {
-                let x = i as f32 / 255.0;
-                *v = if x <= 0.04045 {
-                    x / 12.92
-                } else {
-                    ((x + 0.055) / 1.055).powf(2.4)
-                };
-            });
+        lut.iter_mut().enumerate().for_each(|(i, v)| {
+            let x = i as f32 / 255.0;
+            *v = if x <= 0.04045 {
+                x / 12.92
+            } else {
+                ((x + 0.055) / 1.055).powf(2.4)
+            };
+        });
         lut
     })
 }
@@ -164,9 +161,7 @@ pub fn load_base_image_from_bytes(
                         sharpening_amount,
                     );
                     let duration = start.elapsed();
-                    log::info!(
-                        "Raw enhancing for '{path_for_ext_check}' took {duration:?}"
-                    );
+                    log::info!("Raw enhancing for '{path_for_ext_check}' took {duration:?}");
                 }
                 Ok(image)
             }
@@ -177,9 +172,7 @@ pub fn load_base_image_from_bytes(
                     return Err(classified);
                 }
 
-                log::warn!(
-                    "Error developing RAW file '{path_for_ext_check}': {classified}"
-                );
+                log::warn!("Error developing RAW file '{path_for_ext_check}': {classified}");
                 if let Some(preview) = safe_embedded_preview_fallback(bytes, path_for_ext_check) {
                     log::warn!(
                         "Using embedded preview fallback for '{}' ({}x{})",
@@ -204,9 +197,7 @@ pub fn load_base_image_from_bytes(
 
                     return Ok(linearize_embedded_preview(preview));
                 }
-                Err(anyhow!(
-                    "Failed to process RAW file: {path_for_ext_check}"
-                ))
+                Err(anyhow!("Failed to process RAW file: {path_for_ext_check}"))
             }
         }
     } else {
@@ -219,9 +210,7 @@ pub fn load_base_image_from_bytes(
             let start = Instant::now();
             remove_raw_artifacts_and_enhance(&mut image, color_nr_amount, sharpening_amount);
             let duration = start.elapsed();
-            log::info!(
-                "Enhancing non-RAW '{path_for_ext_check}' took {duration:?}"
-            );
+            log::info!("Enhancing non-RAW '{path_for_ext_check}' took {duration:?}");
         }
 
         Ok(image)
@@ -281,7 +270,8 @@ fn largest_tiff_jpeg_preview(buf: &[u8]) -> Option<DynamicImage> {
 
             (0..n).for_each(|i| {
                 let e = ifd as usize + 2 + (i as usize) * 12;
-                let (Some(tag), Some(count), Some(val)) = (rd16(e), rd32(e + 4), rd32(e + 8)) else {
+                let (Some(tag), Some(count), Some(val)) = (rd16(e), rd32(e + 4), rd32(e + 8))
+                else {
                     return;
                 };
                 match tag {
@@ -354,7 +344,11 @@ fn embedded_preview_fallback(bytes: &[u8]) -> Option<DynamicImage> {
 
 #[must_use]
 pub fn safe_embedded_preview_fallback(bytes: &[u8], path: &str) -> Option<DynamicImage> {
-    if let Ok(preview) = panic::catch_unwind(panic::AssertUnwindSafe(|| embedded_preview_fallback(bytes))) { preview } else {
+    if let Ok(preview) =
+        panic::catch_unwind(panic::AssertUnwindSafe(|| embedded_preview_fallback(bytes)))
+    {
+        preview
+    } else {
         log::warn!("Embedded RAW preview extraction panicked for '{path}'");
         None
     }
@@ -576,9 +570,17 @@ fn composite_patches_cow<'a>(
 
     let get_color = |patch: &DecodedPatch, r: u8, g: u8, b: u8| -> (f32, f32, f32) {
         if patch.is_srgb_encoded {
-            (lut[usize::from(r)], lut[usize::from(g)], lut[usize::from(b)])
+            (
+                lut[usize::from(r)],
+                lut[usize::from(g)],
+                lut[usize::from(b)],
+            )
         } else {
-            (f32::from(r) / 255.0, f32::from(g) / 255.0, f32::from(b) / 255.0)
+            (
+                f32::from(r) / 255.0,
+                f32::from(g) / 255.0,
+                f32::from(b) / 255.0,
+            )
         }
     };
 
@@ -855,7 +857,11 @@ pub fn get_or_decode_pristine(
     let fingerprint = DecodeFingerprint::for_file(source_path, settings);
     loop {
         if let Some(fp) = &fingerprint
-            && let Some(hit) = state.decoded_image_cache.lock().unwrap_or_else(std::sync::PoisonError::into_inner).get(&path_str, fp)
+            && let Some(hit) = state
+                .decoded_image_cache
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner)
+                .get(&path_str, fp)
         {
             return Ok(hit);
         }
@@ -900,12 +906,11 @@ pub fn get_or_decode_pristine(
 
                 let image = Arc::new(image);
                 if let Some(fp) = fingerprint {
-                    state.decoded_image_cache.lock().unwrap_or_else(std::sync::PoisonError::into_inner).insert(
-                        path_str,
-                        fp,
-                        Arc::clone(&image),
-                        exif.clone(),
-                    );
+                    state
+                        .decoded_image_cache
+                        .lock()
+                        .unwrap_or_else(std::sync::PoisonError::into_inner)
+                        .insert(path_str, fp, Arc::clone(&image), exif.clone());
                 }
                 drop(guard);
                 return Ok((image, exif));

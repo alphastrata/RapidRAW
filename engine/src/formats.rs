@@ -16,7 +16,6 @@ pub const RAW_EXTENSIONS: &[(&str, &str)] = &[
     ("bay", "Casio"),
     // Contax
     ("raw", "Contax"),
-
     // Epson
     ("erf", "Epson Raw"),
     // Fuji
@@ -35,7 +34,6 @@ pub const RAW_EXTENSIONS: &[(&str, &str)] = &[
     ("mos", "Leaf"),
     // Leica
     ("rwl", "Leica Raw"),
-
     // Mamiya
     ("mef", "Mamiya"),
     // Minolta

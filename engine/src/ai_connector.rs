@@ -103,10 +103,7 @@ fn composite_full_res(
 
 pub async fn check_status(address: &str) -> Result<bool> {
     let client = Client::new();
-    let res = client
-        .get(format!("http://{address}/health"))
-        .send()
-        .await;
+    let res = client.get(format!("http://{address}/health")).send().await;
     Ok(res.is_ok())
 }
 

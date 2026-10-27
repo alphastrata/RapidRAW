@@ -44,7 +44,9 @@ static CACHE: LazyLock<Mutex<DenoiseCache>> = LazyLock::new(Default::default);
 static DISK_CACHE_LIMIT_BYTES: AtomicU64 = AtomicU64::new(u64::MAX);
 
 fn cache() -> std::sync::MutexGuard<'static, DenoiseCache> {
-    CACHE.lock().unwrap_or_else(std::sync::PoisonError::into_inner)
+    CACHE
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner)
 }
 
 pub fn initialize_cache_dir(cache_dir: PathBuf) {
@@ -529,7 +531,11 @@ fn generate_blocking(
     Ok(())
 }
 
-pub fn ensure_generated(host: Arc<dyn Host>, loaded_image: &LoadedImage, adjustments: &serde_json::Value) {
+pub fn ensure_generated(
+    host: Arc<dyn Host>,
+    loaded_image: &LoadedImage,
+    adjustments: &serde_json::Value,
+) {
     if !is_enabled(adjustments) {
         return;
     }
@@ -547,11 +553,20 @@ pub fn ensure_generated(host: Arc<dyn Host>, loaded_image: &LoadedImage, adjustm
     let loaded_image = loaded_image.clone();
     let path = loaded_image.path.clone();
     let [fingerprint, _] = base_fingerprints(&loaded_image.image);
-    host.emit_json("ai-denoise-progress", serde_json::json!({ "path": path, "progress": 0.0 }),
+    host.emit_json(
+        "ai-denoise-progress",
+        serde_json::json!({ "path": path, "progress": 0.0 }),
     );
 
     std::thread::spawn(move || {
-        let result = generate_blocking(&host, loaded_image, method, key.clone(), source, fingerprint);
+        let result = generate_blocking(
+            &host,
+            loaded_image,
+            method,
+            key.clone(),
+            source,
+            fingerprint,
+        );
         cache().pending.remove(&key);
         host.release_deferred(&path);
         match result {
@@ -603,7 +618,9 @@ pub fn generate_for_base(
         return Ok(true);
     }
 
-    host.emit_json("ai-denoise-progress", serde_json::json!({ "path": path, "progress": 0.0 }),
+    host.emit_json(
+        "ai-denoise-progress",
+        serde_json::json!({ "path": path, "progress": 0.0 }),
     );
     let result = pollster::block_on(load_session(host, method)).and_then(|session| {
         denoise_into_cache(
@@ -613,7 +630,9 @@ pub fn generate_for_base(
             source,
             fingerprints[0],
             &|progress| {
-                host.emit_json("ai-denoise-progress", serde_json::json!({ "path": path, "progress": progress }),
+                host.emit_json(
+                    "ai-denoise-progress",
+                    serde_json::json!({ "path": path, "progress": progress }),
                 );
             },
         )

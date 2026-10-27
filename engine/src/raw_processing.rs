@@ -523,7 +523,8 @@ pub fn read_as_shot(file_bytes: &[u8]) -> Option<AsShot> {
     Some(AsShot {
         white_balance: (!is_monochrome)
             .then(|| as_shot_color(&raw_image))
-            .flatten().map_or_else(WhiteBalance::reference, |(white_balance, _)| white_balance),
+            .flatten()
+            .map_or_else(WhiteBalance::reference, |(white_balance, _)| white_balance),
         exposure: crate::baseline_exposure::read(decoder.as_ref(), file_bytes, is_monochrome),
     })
 }
@@ -590,8 +591,7 @@ pub fn get_fast_demosaic_scale_factor(
     decoded_height: u32,
 ) -> f32 {
     if let Some((raw_width, raw_height)) = raw_dimensions(file_bytes) {
-        let max_orig =
-            u32::try_from(raw_width.max(raw_height)).unwrap_or(u32::MAX) as f32;
+        let max_orig = u32::try_from(raw_width.max(raw_height)).unwrap_or(u32::MAX) as f32;
         let max_comp = decoded_width.max(decoded_height) as f32;
         if max_orig > 0.0 {
             let ratio = max_comp / max_orig;

@@ -249,15 +249,12 @@ fn grayscale_dilate(image: &GrayImage, k: u8) -> GrayImage {
     temp.par_chunks_mut(w)
         .zip(src.par_chunks(w))
         .for_each(|(temp_row, src_row)| {
-            temp_row
-                .iter_mut()
-                .enumerate()
-                .for_each(|(x, slot)| {
-                    let start = x.saturating_sub(r);
-                    let end = (x + r).min(w - 1);
-                    let max_val = src_row[start..=end].iter().fold(0, |a, &b| a.max(b));
-                    *slot = max_val;
-                });
+            temp_row.iter_mut().enumerate().for_each(|(x, slot)| {
+                let start = x.saturating_sub(r);
+                let end = (x + r).min(w - 1);
+                let max_val = src_row[start..=end].iter().fold(0, |a, &b| a.max(b));
+                *slot = max_val;
+            });
         });
 
     out.par_chunks_mut(w).enumerate().for_each(|(y, out_row)| {
@@ -296,15 +293,12 @@ fn grayscale_erode(image: &GrayImage, k: u8) -> GrayImage {
     temp.par_chunks_mut(w)
         .zip(src.par_chunks(w))
         .for_each(|(temp_row, src_row)| {
-            temp_row
-                .iter_mut()
-                .enumerate()
-                .for_each(|(x, slot)| {
-                    let start = x.saturating_sub(r);
-                    let end = (x + r).min(w - 1);
-                    let min_val = src_row[start..=end].iter().fold(255, |a, &b| a.min(b));
-                    *slot = min_val;
-                });
+            temp_row.iter_mut().enumerate().for_each(|(x, slot)| {
+                let start = x.saturating_sub(r);
+                let end = (x + r).min(w - 1);
+                let min_val = src_row[start..=end].iter().fold(255, |a, &b| a.min(b));
+                *slot = min_val;
+            });
         });
 
     out.par_chunks_mut(w).enumerate().for_each(|(y, out_row)| {
@@ -369,22 +363,25 @@ fn stroke_bounds(
 
     let r_pad = radius.ceil() + 2.0;
 
-    let (min_x, min_y, max_x, max_y) = points
-        .iter()
-        .fold(
-            (f32::INFINITY, f32::INFINITY, f32::NEG_INFINITY, f32::NEG_INFINITY),
-            |(min_x, min_y, max_x, max_y), p| {
-                let px = p.x as f32 * scale - crop_offset.0;
-                let py = p.y as f32 * scale - crop_offset.1;
+    let (min_x, min_y, max_x, max_y) = points.iter().fold(
+        (
+            f32::INFINITY,
+            f32::INFINITY,
+            f32::NEG_INFINITY,
+            f32::NEG_INFINITY,
+        ),
+        |(min_x, min_y, max_x, max_y), p| {
+            let px = p.x as f32 * scale - crop_offset.0;
+            let py = p.y as f32 * scale - crop_offset.1;
 
-                (
-                    min_x.min(px - r_pad),
-                    min_y.min(py - r_pad),
-                    max_x.max(px + r_pad),
-                    max_y.max(py + r_pad),
-                )
-            },
-        );
+            (
+                min_x.min(px - r_pad),
+                min_y.min(py - r_pad),
+                max_x.max(px + r_pad),
+                max_y.max(py + r_pad),
+            )
+        },
+    );
 
     let width_limit = (width - 1) as f32;
     let height_limit = (height - 1) as f32;
@@ -504,9 +501,9 @@ fn render_stroke_layer_parallel(
                 .filter(|seg| y_i32 >= seg.bounds_top && y_i32 <= seg.bounds_bottom)
                 .collect();
 
-            let is_point_active = single_point.as_ref().is_some_and(|pt| {
-                y_i32 >= pt.4 && y_i32 <= pt.5
-            });
+            let is_point_active = single_point
+                .as_ref()
+                .is_some_and(|pt| y_i32 >= pt.4 && y_i32 <= pt.5);
 
             if active_segments.is_empty() && !is_point_active {
                 return;
@@ -540,8 +537,7 @@ fn render_stroke_layer_parallel(
                 if is_point_active {
                     if let Some(pt) = single_point.as_ref() {
                         if x_i32 >= pt.2 && x_i32 <= pt.3 {
-                            let dist_sq =
-                                (px - pt.0) * (px - pt.0) + (py - pt.1) * (py - pt.1);
+                            let dist_sq = (px - pt.0) * (px - pt.0) + (py - pt.1) * (py - pt.1);
                             if dist_sq < min_dist_sq {
                                 min_dist_sq = dist_sq;
                             }
@@ -1201,8 +1197,9 @@ fn generate_luminance_bitmap(
     }
 
     let ref_pixel = warped.get_pixel(target_x as u32, target_y as u32);
-    let ref_luma =
-        0.299 * f32::from(ref_pixel[0]) + 0.587 * f32::from(ref_pixel[1]) + 0.114 * f32::from(ref_pixel[2]);
+    let ref_luma = 0.299 * f32::from(ref_pixel[0])
+        + 0.587 * f32::from(ref_pixel[1])
+        + 0.114 * f32::from(ref_pixel[2]);
 
     let mut mask = GrayImage::new(width, height);
 
@@ -1265,8 +1262,9 @@ fn generate_luminance_bitmap(
 
                 if x_src < full_w && y_src < full_h {
                     let pixel = warped.get_pixel(x_src, y_src);
-                    let luma =
-                        0.299 * f32::from(pixel[0]) + 0.587 * f32::from(pixel[1]) + 0.114 * f32::from(pixel[2]);
+                    let luma = 0.299 * f32::from(pixel[0])
+                        + 0.587 * f32::from(pixel[1])
+                        + 0.114 * f32::from(pixel[2]);
                     let dist = (luma - ref_luma).abs();
 
                     if dist <= tolerance_val {
@@ -1394,7 +1392,14 @@ pub fn generate_mask_bitmap(
         .filter_map(|sub_mask| {
             Some((
                 sub_mask,
-                generate_sub_mask_bitmap(sub_mask, width, height, scale, crop_offset, warped_image)?,
+                generate_sub_mask_bitmap(
+                    sub_mask,
+                    width,
+                    height,
+                    scale,
+                    crop_offset,
+                    warped_image,
+                )?,
             ))
         })
         .for_each(|(sub_mask, mut sub_bitmap)| {
@@ -1450,7 +1455,10 @@ pub fn generate_mask_overlay(
     }
 
     if let Some(sub_masks) = mask_def.get_mut("subMasks").and_then(|v| v.as_array_mut()) {
-        let mut cache = state.patch_cache.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
+        let mut cache = state
+            .patch_cache
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
         crate::adjustment_utils::hydrate_sub_masks(sub_masks, &mut cache);
     }
 
@@ -1639,7 +1647,10 @@ pub fn get_cached_or_generate_masks(
                 warped_image.as_deref(),
             )?;
 
-            let mut cache = state.mask_cache.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
+            let mut cache = state
+                .mask_cache
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner);
             let cached_bytes: usize = cache.values().map(|m| m.as_raw().len()).sum();
             if cache.len() > 50 || cached_bytes > MASK_CACHE_LIMIT_BYTES {
                 cache.clear();

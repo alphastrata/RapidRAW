@@ -1,5 +1,5 @@
-use serde::Serialize;
 use crate::best_effort::best_effort;
+use serde::Serialize;
 use std::collections::HashMap;
 
 use std::path::{Path, PathBuf};
@@ -11,7 +11,6 @@ use crate::settings::{
     AppSettings, default_ai_cache_limit_gb, default_ai_maps_cache_limit_gb,
     default_thumbnail_cache_limit_gb,
 };
-
 
 struct ThumbnailCache {
     dir: Mutex<Option<PathBuf>>,
@@ -99,10 +98,7 @@ fn set_thumbnail_limit_gb(limit_gb: u32) {
 pub fn record_thumbnail_write(bytes: u64) {
     let cache = &*THUMBNAIL_CACHE;
     let estimated = cache.estimated.fetch_add(bytes, Ordering::SeqCst) + bytes;
-    let written = cache
-        .written_since_prune
-        .fetch_add(bytes, Ordering::SeqCst)
-        + bytes;
+    let written = cache.written_since_prune.fetch_add(bytes, Ordering::SeqCst) + bytes;
     if estimated > cache.limit.load(Ordering::SeqCst) && written >= 64 * 1024 * 1024 {
         prune_thumbnails_in_background();
     }
@@ -118,7 +114,11 @@ fn prune_thumbnails_in_background() {
         loop {
             while cache.prune_requested.swap(false, Ordering::AcqRel) {
                 cache.written_since_prune.store(0, Ordering::SeqCst);
-                let dir = cache.dir.lock().unwrap_or_else(std::sync::PoisonError::into_inner).clone();
+                let dir = cache
+                    .dir
+                    .lock()
+                    .unwrap_or_else(std::sync::PoisonError::into_inner)
+                    .clone();
                 if let Some(dir) = dir {
                     let before = cache.estimated.load(Ordering::SeqCst);
                     let remaining = prune_thumbnails(&dir, cache.limit.load(Ordering::SeqCst));
@@ -160,7 +160,7 @@ fn prune_thumbnails(dir: &Path, limit_bytes: u64) -> u64 {
             let path = file.path();
             let stem = path.file_stem().and_then(|s| s.to_str())?.to_string();
             let meta = file.metadata().ok()?;
-            meta.is_file().then(|| (path, stem, meta))
+            (meta.is_file()).then_some((path, stem, meta))
         })
         .for_each(|(path, stem, meta)| {
             let key = stem
@@ -185,16 +185,19 @@ fn prune_thumbnails(dir: &Path, limit_bytes: u64) -> u64 {
     let target = limit_bytes / 10 * 9;
     let mut entries: Vec<ThumbnailEntry> = entries.into_values().collect();
     entries.sort_by_key(|entry| entry.last_used);
-    entries.into_iter().map_while(|entry| {
-        (total > target && entry.last_used < THUMBNAIL_CACHE.session_start).then(|| {
-            entry
-                .files
-                .iter()
-                .for_each(|file| best_effort(fs::remove_file(file)));
-            total = total.saturating_sub(entry.size);
-            entry.size
+    entries
+        .into_iter()
+        .map_while(|entry| {
+            (total > target && entry.last_used < THUMBNAIL_CACHE.session_start).then(|| {
+                entry
+                    .files
+                    .iter()
+                    .for_each(|file| best_effort(fs::remove_file(file)));
+                total = total.saturating_sub(entry.size);
+                entry.size
+            })
         })
-    }).count();
+        .count();
     total
 }
 
@@ -209,6 +212,3 @@ pub struct StorageUsage {
     pub models: u64,
     pub logs: u64,
 }
-
-
-

@@ -1,19 +1,19 @@
-use base64::{Engine as _, engine::general_purpose};
+use crate::best_effort::best_effort;
 use anyhow::{anyhow, bail};
+use base64::{Engine as _, engine::general_purpose};
 use image::{DynamicImage, ImageFormat, Rgb32FImage};
 use nalgebra::{DMatrix, DVector};
 use rayon::prelude::*;
-use crate::best_effort::best_effort;
 use std::fs;
 use std::io::{Cursor, Read, Write};
 use std::path::PathBuf;
 use std::sync::Arc;
 
 use crate::app_state::AppState;
-use crate::host::Host;
-use crate::paths::parse_virtual_path;
 use crate::formats::is_raw_file;
+use crate::host::Host;
 use crate::image_processing::apply_cpu_default_raw_processing;
+use crate::paths::parse_virtual_path;
 
 const MEMORY_BUDGET_BYTES: u64 = 2 * 1024 * 1024 * 1024;
 const F64_SANITY_CEILING: f64 = 4.294_967_3e9;
@@ -186,10 +186,9 @@ pub fn convolve_separable(src: &Plane, kernel: &[f32]) -> Plane {
         .enumerate()
         .for_each(|(y, row)| simd_kernels::conv::conv_row_horizontal(&src.data, w, kernel, y, row));
     let mut out = Plane::new(w, h);
-    out.data
-        .par_chunks_mut(w)
-        .enumerate()
-        .for_each(|(y, row)| simd_kernels::conv::conv_row_vertical(&tmp.data, w, h, kernel, y, row));
+    out.data.par_chunks_mut(w).enumerate().for_each(|(y, row)| {
+        simd_kernels::conv::conv_row_vertical(&tmp.data, w, h, kernel, y, row)
+    });
     out
 }
 
@@ -321,16 +320,13 @@ impl PlanarRgb {
         let h = img.height() as usize;
         let raw = img.as_raw();
         let mut out = PlanarRgb::new(w, h);
-        out.c
-            .iter_mut()
-            .enumerate()
-            .for_each(|(ch, plane)| {
-                plane
-                    .data
-                    .par_iter_mut()
-                    .enumerate()
-                    .for_each(|(i, v)| *v = raw[i * 3 + ch]);
-            });
+        out.c.iter_mut().enumerate().for_each(|(ch, plane)| {
+            plane
+                .data
+                .par_iter_mut()
+                .enumerate()
+                .for_each(|(i, v)| *v = raw[i * 3 + ch]);
+        });
         out
     }
 
@@ -362,20 +358,17 @@ impl PlanarRgb {
     #[must_use]
     pub fn crop(&self, x0: usize, y0: usize, w: usize, h: usize) -> PlanarRgb {
         let mut out = PlanarRgb::new(w, h);
-        out.c
-            .iter_mut()
-            .enumerate()
-            .for_each(|(ch, out_plane)| {
-                let src = &self.c[ch];
-                out_plane
-                    .data
-                    .par_chunks_mut(w)
-                    .enumerate()
-                    .for_each(|(y, row)| {
-                        let sy = y + y0;
-                        row.copy_from_slice(&src.data[sy * src.w + x0..sy * src.w + x0 + w]);
-                    });
-            });
+        out.c.iter_mut().enumerate().for_each(|(ch, out_plane)| {
+            let src = &self.c[ch];
+            out_plane
+                .data
+                .par_chunks_mut(w)
+                .enumerate()
+                .for_each(|(y, row)| {
+                    let sy = y + y0;
+                    row.copy_from_slice(&src.data[sy * src.w + x0..sy * src.w + x0 + w]);
+                });
+        });
         out
     }
 }
@@ -880,7 +873,6 @@ fn solve_level(
         .ceil()
         .clamp(1.0, F64_SANITY_CEILING) as usize;
 
-
     let tmpl_mean = lvl.tmpl.mean();
     let tmpl_var: f64 = lvl
         .tmpl
@@ -1116,20 +1108,17 @@ pub fn warp_frame(
     });
     let mask = erode_mask(&mask, 2);
 
-    out.c
-        .iter_mut()
-        .enumerate()
-        .for_each(|(ch, out_plane)| {
-            let s = &src.c[ch];
-            out_plane
-                .data
-                .par_iter_mut()
-                .enumerate()
-                .for_each(|(i, o)| {
-                    let (u, v, _) = coords[i];
-                    *o = (s.sample_catmull_rom(u, v) * gain + bias).max(0.0);
-                });
-        });
+    out.c.iter_mut().enumerate().for_each(|(ch, out_plane)| {
+        let s = &src.c[ch];
+        out_plane
+            .data
+            .par_iter_mut()
+            .enumerate()
+            .for_each(|(i, o)| {
+                let (u, v, _) = coords[i];
+                *o = (s.sample_catmull_rom(u, v) * gain + bias).max(0.0);
+            });
+    });
 
     (out, mask)
 }
@@ -1271,27 +1260,24 @@ pub fn decide_labels(
     {
         let mut median = vec![0f32; npx];
         let mut buf = vec![0f32; n];
-        median
-            .iter_mut()
-            .enumerate()
-            .for_each(|(p, med)| {
-                let mut cnt = 0usize;
-                masks
-                    .iter()
-                    .enumerate()
-                    .take(n)
-                    .filter(|(_, mask_i)| mask_i.data[p] > 0.5)
-                    .for_each(|(i, _)| {
-                        buf[cnt] = base[i].data[p];
-                        cnt += 1;
-                    });
-                if cnt == 0 {
-                    return;
-                }
-                let slice = &mut buf[..cnt];
-                slice.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
-                *med = slice[cnt / 2];
-            });
+        median.iter_mut().enumerate().for_each(|(p, med)| {
+            let mut cnt = 0usize;
+            masks
+                .iter()
+                .enumerate()
+                .take(n)
+                .filter(|(_, mask_i)| mask_i.data[p] > 0.5)
+                .for_each(|(i, _)| {
+                    buf[cnt] = base[i].data[p];
+                    cnt += 1;
+                });
+            if cnt == 0 {
+                return;
+            }
+            let slice = &mut buf[..cnt];
+            slice.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
+            *med = slice[cnt / 2];
+        });
         let thr = cfg.consistency_threshold.max(1e-4);
         for i in 0..n {
             let b = &base[i];
@@ -1310,16 +1296,16 @@ pub fn decide_labels(
 
     let mut guide = Plane::new(w, h);
     guide.data.par_iter_mut().enumerate().for_each(|(p, g)| {
-        let (bi, _best) = combined
-            .iter()
-            .enumerate()
-            .fold((0usize, f32::NEG_INFINITY), |(bi, best), (i, comb)| {
+        let (bi, _best) = combined.iter().enumerate().fold(
+            (0usize, f32::NEG_INFINITY),
+            |(bi, best), (i, comb)| {
                 if comb.data[p] > best {
                     (i, comb.data[p])
                 } else {
                     (bi, best)
                 }
-            });
+            },
+        );
         *g = base[bi].data[p];
     });
     let guide = gaussian_blur(&guide, 0.8);
@@ -1606,15 +1592,14 @@ pub fn valid_bounds(masks: &[Plane], min_coverage: f32) -> (usize, usize, usize,
     }
     let need = (n * min_coverage).max(1.0);
 
-    let (x0, x1, y0, y1) = cov
-        .iter()
-        .enumerate()
-        .filter(|(_, c)| **c >= need)
-        .fold((w, 0usize, h, 0usize), |(x0, x1, y0, y1), (idx, _)| {
+    let (x0, x1, y0, y1) = cov.iter().enumerate().filter(|(_, c)| **c >= need).fold(
+        (w, 0usize, h, 0usize),
+        |(x0, x1, y0, y1), (idx, _)| {
             let x = idx % w;
             let y = idx / w;
             (x0.min(x), x1.max(x), y0.min(y), y1.max(y))
-        });
+        },
+    );
     if x0 > x1 || y0 > y1 {
         return (0, 0, w, h);
     }
@@ -1690,17 +1675,15 @@ fn regularize_poses(poses: &mut [FramePose], cfg: &StackConfig, reference: usize
     }
 
     let center = (n as f64 - 1.0) / 2.0;
-    let ata = good
-        .iter()
-        .fold([[0f64; 3]; 3], |mut ata, &i| {
-            let t = (i as f64 - center) / (n as f64).max(1.0);
-            let wgt = poses[i].quality * poses[i].quality;
-            let basis = [1.0, t, t * t];
-            (0..3).for_each(|a| {
-                (0..3).for_each(|b| ata[a][b] += wgt * basis[a] * basis[b]);
-            });
-            ata
+    let ata = good.iter().fold([[0f64; 3]; 3], |mut ata, &i| {
+        let t = (i as f64 - center) / (n as f64).max(1.0);
+        let wgt = poses[i].quality * poses[i].quality;
+        let basis = [1.0, t, t * t];
+        (0..3).for_each(|a| {
+            (0..3).for_each(|b| ata[a][b] += wgt * basis[a] * basis[b]);
         });
+        ata
+    });
     let m = nalgebra::Matrix3::new(
         ata[0][0], ata[0][1], ata[0][2], ata[1][0], ata[1][1], ata[1][2], ata[2][0], ata[2][1],
         ata[2][2],
@@ -1723,29 +1706,24 @@ fn regularize_poses(poses: &mut [FramePose], cfg: &StackConfig, reference: usize
         *coeff = [c[0], c[1], c[2]];
     }
 
-    poses
-        .iter_mut()
-        .enumerate()
-        .take(n)
-        .for_each(|(i, pose)| {
-            if i == reference {
-                return;
-            }
-            let t = (i as f64 - center) / (n as f64).max(1.0);
-            let fitted: [f64; 22] =
-                std::array::from_fn(|p| coeffs[p][0] + coeffs[p][1] * t + coeffs[p][2] * t * t);
+    poses.iter_mut().enumerate().take(n).for_each(|(i, pose)| {
+        if i == reference {
+            return;
+        }
+        let t = (i as f64 - center) / (n as f64).max(1.0);
+        let fitted: [f64; 22] =
+            std::array::from_fn(|p| coeffs[p][0] + coeffs[p][1] * t + coeffs[p][2] * t * t);
 
-            let failed = pose.quality < cfg.align.min_quality || !pose.warp.is_plausible();
-            let s = if failed { 1.0 } else { cfg.pose_smoothing };
+        let failed = pose.quality < cfg.align.min_quality || !pose.warp.is_plausible();
+        let s = if failed { 1.0 } else { cfg.pose_smoothing };
 
-            let cur = pose.warp.to_vector();
-            let blended: [f64; 22] =
-                std::array::from_fn(|p| cur[p] * (1.0 - s) + fitted[p] * s);
-            let candidate = pose.warp.with_vector(&blended);
-            if candidate.is_plausible() {
-                pose.warp = candidate;
-            }
-        });
+        let cur = pose.warp.to_vector();
+        let blended: [f64; 22] = std::array::from_fn(|p| cur[p] * (1.0 - s) + fitted[p] * s);
+        let candidate = pose.warp.with_vector(&blended);
+        if candidate.is_plausible() {
+            pose.warp = candidate;
+        }
+    });
 }
 
 pub fn run_focus_stack<S: FrameSource + ?Sized>(
@@ -1910,8 +1888,12 @@ pub fn run_focus_stack<S: FrameSource + ?Sized>(
     let chf = ch as f64;
     let x0 = ((cxf * sx).ceil().clamp(0.0, F64_SANITY_CEILING) as usize).min(w.saturating_sub(1));
     let y0 = ((cyf * sy).ceil().clamp(0.0, F64_SANITY_CEILING) as usize).min(h.saturating_sub(1));
-    let cw = ((cwf * sx).floor().clamp(1.0, F64_SANITY_CEILING) as usize).min(w - x0).max(1);
-    let ch = ((chf * sy).floor().clamp(1.0, F64_SANITY_CEILING) as usize).min(h - y0).max(1);
+    let cw = ((cwf * sx).floor().clamp(1.0, F64_SANITY_CEILING) as usize)
+        .min(w - x0)
+        .max(1);
+    let ch = ((chf * sy).floor().clamp(1.0, F64_SANITY_CEILING) as usize)
+        .min(h - y0)
+        .max(1);
 
     let image = if x0 == 0 && y0 == 0 && cw == w && ch == h {
         merged
@@ -2095,7 +2077,10 @@ pub async fn stitch_focus_stack_impl(
             serde_json::json!({ "frames": report }),
         );
 
-        *focus_result_handle.lock().unwrap_or_else(std::sync::PoisonError::into_inner) = Some(DynamicImage::ImageRgb32F(final_image));
+        *focus_result_handle
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner) =
+            Some(DynamicImage::ImageRgb32F(final_image));
 
         host.emit_json(
             "focus-stack-complete",
@@ -2111,10 +2096,7 @@ pub async fn stitch_focus_stack_impl(
     }
 }
 
-fn load_frames(
-    paths: &[String],
-    progress: &dyn Fn(&str),
-) -> anyhow::Result<Box<dyn FrameSource>> {
+fn load_frames(paths: &[String], progress: &dyn Fn(&str)) -> anyhow::Result<Box<dyn FrameSource>> {
     let settings = crate::settings::AppSettings::default();
     let n = paths.len();
 
@@ -2176,10 +2158,7 @@ fn check_dims(i: usize, f: &PlanarRgb, w: usize, h: usize) -> anyhow::Result<()>
     Ok(())
 }
 
-fn decode_frame(
-    path: &str,
-    settings: &crate::settings::AppSettings,
-) -> anyhow::Result<PlanarRgb> {
+fn decode_frame(path: &str, settings: &crate::settings::AppSettings) -> anyhow::Result<PlanarRgb> {
     let bytes = fs::read(path).map_err(|e| anyhow!("Failed to read {path}: {e}"))?;
     let mut dyn_img =
         crate::image_loader::load_base_image_from_bytes(&bytes, path, false, settings, None)
@@ -2219,11 +2198,9 @@ fn make_preview(img: &image::Rgb32FImage, max_dim: u32) -> anyhow::Result<String
 fn make_depth_preview(result: &StackResult, n_frames: usize) -> anyhow::Result<String> {
     let p: Plane = depth_preview_plane(result, n_frames);
     let mut img = image::GrayImage::new(p.w as u32, p.h as u32);
-    img.pixels_mut()
-        .enumerate()
-        .for_each(|(i, px)| {
-            *px = image::Luma([(p.data[i].clamp(0.0, 1.0) * 255.0) as u8]);
-        });
+    img.pixels_mut().enumerate().for_each(|(i, px)| {
+        *px = image::Luma([(p.data[i].clamp(0.0, 1.0) * 255.0) as u8]);
+    });
     let mut buf = Cursor::new(Vec::new());
     img.write_to(&mut buf, ImageFormat::Png)
         .map_err(|e| anyhow!("Failed to encode depth map: {e}"))?;
@@ -2233,10 +2210,7 @@ fn make_depth_preview(result: &StackResult, n_frames: usize) -> anyhow::Result<S
     ))
 }
 
-pub fn save_focus_stack_impl(
-    first_path_str: String,
-    state: &AppState,
-) -> anyhow::Result<String> {
+pub fn save_focus_stack_impl(first_path_str: String, state: &AppState) -> anyhow::Result<String> {
     let focus_image = state
         .focus_stack_result
         .lock()

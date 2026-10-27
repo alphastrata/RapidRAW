@@ -133,7 +133,9 @@ fn filter_valid_lines(
         .collect();
     let hors: Vec<GuideLine> = lines
         .iter()
-        .filter(|l| l.orientation == GuideOrientation::Horizontal && is_line_valid(l, width, height))
+        .filter(|l| {
+            l.orientation == GuideOrientation::Horizontal && is_line_valid(l, width, height)
+        })
         .take(2)
         .cloned()
         .collect();
@@ -352,19 +354,17 @@ fn finalize_h(mut h: [[f64; 3]; 3], width: f64, height: f64) -> Option<[[f64; 3]
     let hh = height / 2.0;
     let src = [(-hw, -hh), (hw, -hh), (hw, hh), (-hw, hh)];
     let mut dest = [(0.0, 0.0); 4];
-    src.iter()
-        .enumerate()
-        .try_fold((), |_, (i, &(x, y))| {
-            let w = h[2][0] * x + h[2][1] * y + h[2][2];
-            if w.abs() < 1e-6 {
-                return None;
-            }
-            dest[i] = (
-                (h[0][0] * x + h[0][1] * y + h[0][2]) / w,
-                (h[1][0] * x + h[1][1] * y + h[1][2]) / w,
-            );
-            Some(())
-        })?;
+    src.iter().enumerate().try_fold((), |_, (i, &(x, y))| {
+        let w = h[2][0] * x + h[2][1] * y + h[2][2];
+        if w.abs() < 1e-6 {
+            return None;
+        }
+        dest[i] = (
+            (h[0][0] * x + h[0][1] * y + h[0][2]) / w,
+            (h[1][0] * x + h[1][1] * y + h[1][2]) / w,
+        );
+        Some(())
+    })?;
     if !quad_ok(&dest) {
         return None;
     }

@@ -15,8 +15,8 @@ use base64::{Engine as _, engine::general_purpose};
 use mozjpeg_rs::{Encoder, Preset};
 
 use crate::app_state::AppState;
-use crate::host::Host;
 use crate::cache_utils::calculate_transform_hash;
+use crate::host::Host;
 use crate::image_processing::{
     RenderRequest, get_all_adjustments_from_json, mark_baseline_exposure,
     process_and_get_dynamic_image,
@@ -60,7 +60,9 @@ fn strip_verbatim(path: &Path) -> PathBuf {
 }
 
 fn film_luts_dir(host: &dyn Host) -> Option<PathBuf> {
-    Some(strip_verbatim(&host.resource_dir().join("resources").join("film_luts")))
+    Some(strip_verbatim(
+        &host.resource_dir().join("resources").join("film_luts"),
+    ))
 }
 
 pub fn get_luts_dir(app_data_dir: &Path) -> anyhow::Result<PathBuf> {
@@ -90,19 +92,17 @@ pub fn list_luts_in_dir(dir: &Path, is_built_in: bool) -> anyhow::Result<Vec<Lut
     }
     entries = read_dir(dir)?
         .map(|entry| {
-            entry
-                .map(|e| e.path())
-                .map(|path| {
-                    is_supported_lut_path(&path).then_some(LutEntry {
-                        name: path
-                            .file_stem()
-                            .and_then(|s| s.to_str())
-                            .unwrap_or("LUT")
-                            .to_string(),
-                        path: strip_verbatim(&path).to_string_lossy().into_owned(),
-                        is_built_in,
-                    })
+            entry.map(|e| e.path()).map(|path| {
+                is_supported_lut_path(&path).then_some(LutEntry {
+                    name: path
+                        .file_stem()
+                        .and_then(|s| s.to_str())
+                        .unwrap_or("LUT")
+                        .to_string(),
+                    path: strip_verbatim(&path).to_string_lossy().into_owned(),
+                    is_built_in,
                 })
+            })
         })
         .collect::<Result<Vec<Option<_>>, _>>()?
         .into_iter()
@@ -412,15 +412,13 @@ pub fn generate_identity_lut_image(size: u32) -> DynamicImage {
     let size_us = size as usize;
     let mut img = Rgb32FImage::new(width, height);
 
-    img.pixels_mut()
-        .enumerate()
-        .for_each(|(i, pixel)| {
-            let row = i / size_us;
-            let x = i % size_us;
-            let y = row % size_us;
-            let z = row / size_us;
-            *pixel = Rgb([coords[x], coords[y], coords[z]]);
-        });
+    img.pixels_mut().enumerate().for_each(|(i, pixel)| {
+        let row = i / size_us;
+        let x = i % size_us;
+        let y = row % size_us;
+        let z = row / size_us;
+        *pixel = Rgb([coords[x], coords[y], coords[z]]);
+    });
 
     DynamicImage::ImageRgb32F(img)
 }
@@ -428,27 +426,27 @@ pub fn generate_identity_lut_image(size: u32) -> DynamicImage {
 pub fn convert_image_to_cube_lut(image: &DynamicImage, size: u32) -> Result<Vec<u8>, String> {
     let f32_image = image.to_rgb32f();
 
-    let out = f32_image
-        .pixels()
-        .enumerate()
-        .fold(
-            format!("LUT_3D_SIZE {size}\nDOMAIN_MIN 0.0 0.0 0.0\nDOMAIN_MAX 1.0 1.0 1.0\n"),
-            |mut out, (_, pixel)| {
-                out.push_str(&format!(
-                    "{:.6} {:.6} {:.6}\n",
-                    pixel[0].clamp(0.0, 1.0),
-                    pixel[1].clamp(0.0, 1.0),
-                    pixel[2].clamp(0.0, 1.0)
-                ));
-                out
-            },
-        );
+    let out = f32_image.pixels().enumerate().fold(
+        format!("LUT_3D_SIZE {size}\nDOMAIN_MIN 0.0 0.0 0.0\nDOMAIN_MAX 1.0 1.0 1.0\n"),
+        |mut out, (_, pixel)| {
+            out.push_str(&format!(
+                "{:.6} {:.6} {:.6}\n",
+                pixel[0].clamp(0.0, 1.0),
+                pixel[1].clamp(0.0, 1.0),
+                pixel[2].clamp(0.0, 1.0)
+            ));
+            out
+        },
+    );
 
     Ok(out.into_bytes())
 }
 
 pub fn get_or_load_lut(state: &AppState, path: &str) -> Result<Arc<Lut>, String> {
-    let mut cache = state.lut_cache.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
+    let mut cache = state
+        .lut_cache
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
     if let Some(lut) = cache.get(path) {
         return Ok(lut.clone());
     }
@@ -607,13 +605,13 @@ pub async fn generate_lut_previews_impl(
         let is_raw = loaded_image.is_raw;
 
         let base_json = serde_json::json!({});
-    let (base_image, _scale, _offset) = crate::preview_cache::generate_transformed_preview(
-        &state,
-        &loaded_image,
-        &base_json,
-        size,
-    )
-    .map_err(|e| e.to_string())?;
+        let (base_image, _scale, _offset) = crate::preview_cache::generate_transformed_preview(
+            &state,
+            &loaded_image,
+            &base_json,
+            size,
+        )
+        .map_err(|e| e.to_string())?;
 
         let render = crate::image_processing::resolve_render_options(&host.load_settings(), is_raw);
         let transform_hash = calculate_transform_hash(&base_json);
@@ -660,7 +658,10 @@ pub fn load_and_parse_lut_impl(path: String, state: &AppState) -> anyhow::Result
     let lut = parse_lut_file(&path)?;
     let lut_size = lut.size;
 
-    let mut cache = state.lut_cache.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
+    let mut cache = state
+        .lut_cache
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
     cache.insert(path, Arc::new(lut));
 
     Ok(LutParseResult { size: lut_size })

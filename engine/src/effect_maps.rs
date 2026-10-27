@@ -1,12 +1,12 @@
+use crate::best_effort::best_effort;
 use crate::cache_utils::GEOMETRY_KEYS;
 use crate::image_processing::{
     GeometryParams, get_geometry_params_from_json, is_geometry_identity, warp_image_geometry,
 };
-use base64::{Engine as _, engine::general_purpose::STANDARD as BASE64};
 use anyhow::anyhow;
+use base64::{Engine as _, engine::general_purpose::STANDARD as BASE64};
 use image::{DynamicImage, GrayImage, Luma, Rgb, Rgb32FImage, Rgba, RgbaImage};
 use rayon::prelude::*;
-use crate::best_effort::best_effort;
 use std::collections::hash_map::DefaultHasher;
 use std::fs;
 use std::hash::{Hash, Hasher};
@@ -56,7 +56,9 @@ impl EffectMapKind {
 pub fn initialize_cache_dir(cache_dir: PathBuf) {
     let dir = cache_dir.join("ai_maps");
     best_effort(fs::create_dir_all(&dir));
-    *MAP_CACHE_DIR.lock().unwrap_or_else(std::sync::PoisonError::into_inner) = Some(dir);
+    *MAP_CACHE_DIR
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner) = Some(dir);
 }
 
 pub fn set_disk_cache_limit_gb(limit_gb: u32) {
@@ -141,14 +143,17 @@ fn evict_map_disk_cache(dir: &Path, keep: Option<&Path>) {
     let mut total: u64 = entries.iter().map(|(_, len, _)| len).sum();
     entries.sort_by_key(|(_, _, modified)| *modified);
 
-    entries.into_iter().map_while(|(path, len, _)| {
-        (total > limit).then(|| {
-            if Some(path.as_path()) != keep && fs::remove_file(&path).is_ok() {
-                total = total.saturating_sub(len);
-            }
-            path
+    entries
+        .into_iter()
+        .map_while(|(path, len, _)| {
+            (total > limit).then(|| {
+                if Some(path.as_path()) != keep && fs::remove_file(&path).is_ok() {
+                    total = total.saturating_sub(len);
+                }
+                path
+            })
         })
-    }).count();
+        .count();
 }
 
 pub fn clear_disk_cache() -> anyhow::Result<()> {
@@ -352,7 +357,9 @@ fn cached_map<T>(
 
     let map = Arc::new(build()?);
 
-    let mut cache_lock = cache.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
+    let mut cache_lock = cache
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
     if cache_lock.len() >= MAP_CACHE_CAPACITY {
         cache_lock.remove(0);
     }

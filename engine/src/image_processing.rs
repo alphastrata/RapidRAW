@@ -17,11 +17,11 @@ use std::borrow::Cow;
 use std::f32::consts::PI;
 use std::sync::{Arc, OnceLock};
 
+use crate::app_state::AppState;
 pub use crate::gpu_processing::{
     RenderOutputPrecision, RenderRequest, get_or_init_gpu_context, process_and_get_dynamic_image,
     process_and_get_dynamic_image_with_analytics, process_and_get_dynamic_image_with_precision,
 };
-use crate::app_state::AppState;
 use crate::mask_generation::MaskDefinition;
 
 pub trait IntoCowImage<'a> {
@@ -675,7 +675,8 @@ fn build_transform_matrices(
 
     let forward = t_center * m_offset * m_perspective * m_rotate * m_scale * guided_m * t_uncenter;
     let half_diagonal =
-        ((f64::from(width) * f64::from(width) + f64::from(height) * f64::from(height)).sqrt()) / 2.0;
+        ((f64::from(width) * f64::from(width) + f64::from(height) * f64::from(height)).sqrt())
+            / 2.0;
 
     (forward, cx, cy, half_diagonal)
 }
@@ -868,7 +869,9 @@ fn compute_lens_auto_crop_scale(params: &GeometryParams, width: f32, height: f32
 #[must_use]
 pub fn warp_image_geometry(image: &DynamicImage, params: GeometryParams) -> DynamicImage {
     let converted;
-    let src_img = if let Some(buffer) = image.as_rgb32f() { buffer } else {
+    let src_img = if let Some(buffer) = image.as_rgb32f() {
+        buffer
+    } else {
         converted = image.to_rgb32f();
         &converted
     };
@@ -1038,7 +1041,9 @@ pub fn warp_image_geometry(image: &DynamicImage, params: GeometryParams) -> Dyna
 #[must_use]
 pub fn unwarp_image_geometry(warped_image: &DynamicImage, params: GeometryParams) -> DynamicImage {
     let converted;
-    let src_img = if let Some(buffer) = warped_image.as_rgb32f() { buffer } else {
+    let src_img = if let Some(buffer) = warped_image.as_rgb32f() {
+        buffer
+    } else {
         converted = warped_image.to_rgb32f();
         &converted
     };
@@ -1405,11 +1410,9 @@ fn map_color_channels(
     match &mut image {
         DynamicImage::ImageRgb32F(img) => {
             img.as_mut().par_chunks_mut(32768).for_each(|chunk| {
-                chunk
-                    .iter_mut()
-                    .for_each(|c| {
-                        *c = map(*c);
-                    });
+                chunk.iter_mut().for_each(|c| {
+                    *c = map(*c);
+                });
             });
         }
         DynamicImage::ImageRgba32F(img) => {
@@ -1452,26 +1455,20 @@ pub fn apply_exposure(image: DynamicImage, exposure: f32) -> DynamicImage {
 }
 
 pub fn apply_srgb_to_linear(image: DynamicImage) -> DynamicImage {
-    map_color_channels_simd(
-        image,
-        simd_kernels::colour::srgb_to_linear,
-        |x| srgb_channel_to_linear(x.max(0.0)),
-    )
+    map_color_channels_simd(image, simd_kernels::colour::srgb_to_linear, |x| {
+        srgb_channel_to_linear(x.max(0.0))
+    })
 }
 
 pub fn apply_linear_to_srgb(image: DynamicImage) -> DynamicImage {
-    map_color_channels_simd(
-        image,
-        simd_kernels::colour::linear_to_srgb,
-        |x| {
-            let x = x.max(0.0);
-            if x <= 0.0031308 {
-                x * 12.92
-            } else {
-                1.055 * x.powf(1.0 / 2.4) - 0.055
-            }
-        },
-    )
+    map_color_channels_simd(image, simd_kernels::colour::linear_to_srgb, |x| {
+        let x = x.max(0.0);
+        if x <= 0.0031308 {
+            x * 12.92
+        } else {
+            1.055 * x.powf(1.0 / 2.4) - 0.055
+        }
+    })
 }
 
 #[must_use]
@@ -2089,12 +2086,21 @@ fn parse_all_color_grade_settings(
     }
 }
 
-fn parse_curve_channel(curves_obj: &serde_json::Value, channel: &str, visible: bool, default_points: Option<&serde_json::Value>) -> ([Point; 16], u32) {
+fn parse_curve_channel(
+    curves_obj: &serde_json::Value,
+    channel: &str,
+    visible: bool,
+    default_points: Option<&serde_json::Value>,
+) -> ([Point; 16], u32) {
     let mut aligned = [Point::default(); 16];
     if !visible {
         return (aligned, 0);
     }
-    let points = match curves_obj.get(channel).or(default_points).and_then(serde_json::Value::as_array) {
+    let points = match curves_obj
+        .get(channel)
+        .or(default_points)
+        .and_then(serde_json::Value::as_array)
+    {
         Some(arr) => arr,
         None => return (aligned, 0),
     };
@@ -2209,7 +2215,10 @@ fn calculate_agx_matrices() -> (GpuMat3, GpuMat3) {
 }
 
 #[must_use]
-pub fn resolve_tonemapper_override(settings: &crate::settings::AppSettings, is_raw: bool) -> Option<u32> {
+pub fn resolve_tonemapper_override(
+    settings: &crate::settings::AppSettings,
+    is_raw: bool,
+) -> Option<u32> {
     if !settings.tonemapper_override_enabled.unwrap_or(false) {
         return None;
     }
@@ -2232,7 +2241,10 @@ pub struct RenderOptions {
 }
 
 #[must_use]
-pub fn resolve_render_options(settings: &crate::settings::AppSettings, is_raw: bool) -> RenderOptions {
+pub fn resolve_render_options(
+    settings: &crate::settings::AppSettings,
+    is_raw: bool,
+) -> RenderOptions {
     RenderOptions {
         tonemapper_override: resolve_tonemapper_override(settings, is_raw),
         non_raw_tonemapper_override: resolve_tonemapper_override(settings, false),
@@ -2241,7 +2253,10 @@ pub fn resolve_render_options(settings: &crate::settings::AppSettings, is_raw: b
 }
 
 #[must_use]
-pub fn resolve_render_options_from_settings(settings: &crate::settings::AppSettings, is_raw: bool) -> RenderOptions {
+pub fn resolve_render_options_from_settings(
+    settings: &crate::settings::AppSettings,
+    is_raw: bool,
+) -> RenderOptions {
     resolve_render_options(settings, is_raw)
 }
 
@@ -2543,10 +2558,14 @@ fn get_global_adjustments_from_json(
     let default_curve = serde_json::json!([{"x": 0.0, "y": 0.0}, {"x": 255.0, "y": 255.0}]);
     let curves_obj = js_adjustments.get("curves").cloned().unwrap_or_default();
     let curves_vis = is_visible("curves");
-    let (luma_curve, luma_curve_count) = parse_curve_channel(&curves_obj, "luma", curves_vis, Some(&default_curve));
-    let (red_curve, red_curve_count) = parse_curve_channel(&curves_obj, "red", curves_vis, Some(&default_curve));
-    let (green_curve, green_curve_count) = parse_curve_channel(&curves_obj, "green", curves_vis, Some(&default_curve));
-    let (blue_curve, blue_curve_count) = parse_curve_channel(&curves_obj, "blue", curves_vis, Some(&default_curve));
+    let (luma_curve, luma_curve_count) =
+        parse_curve_channel(&curves_obj, "luma", curves_vis, Some(&default_curve));
+    let (red_curve, red_curve_count) =
+        parse_curve_channel(&curves_obj, "red", curves_vis, Some(&default_curve));
+    let (green_curve, green_curve_count) =
+        parse_curve_channel(&curves_obj, "green", curves_vis, Some(&default_curve));
+    let (blue_curve, blue_curve_count) =
+        parse_curve_channel(&curves_obj, "blue", curves_vis, Some(&default_curve));
 
     let color_grading_visible = is_visible("colorGrading");
     let color_mixer_visible = is_visible("colorMixer");
@@ -2591,9 +2610,11 @@ fn get_global_adjustments_from_json(
         (
             u32::from(js_adjustments["lutPath"].is_string()),
             js_adjustments["lutIntensity"].as_f64().unwrap_or(100.0) as f32 / 100.0,
-            u32::from(js_adjustments["lutIsSceneReferred"]
-                .as_bool()
-                .unwrap_or(false)),
+            u32::from(
+                js_adjustments["lutIsSceneReferred"]
+                    .as_bool()
+                    .unwrap_or(false),
+            ),
         )
     } else {
         (0, 1.0, 0)
@@ -2685,8 +2706,7 @@ fn get_global_adjustments_from_json(
         has_lut,
         lut_intensity,
 
-        tonemapper_mode: tonemapper_override
-            .unwrap_or_else(|| u32::from(tone_mapper == "agx")),
+        tonemapper_mode: tonemapper_override.unwrap_or_else(|| u32::from(tone_mapper == "agx")),
         lut_is_scene_referred,
         vignette_center_x: get_val("vignette", "vignetteCenterX", 1.0, Some(0.5)),
         vignette_center_y: get_val("vignette", "vignetteCenterY", 1.0, Some(0.5)),
@@ -2775,7 +2795,8 @@ fn get_mask_adjustments_from_json(
     let curves_vis = is_visible("curves");
     let (luma_curve, luma_curve_count) = parse_curve_channel(&curves_obj, "luma", curves_vis, None);
     let (red_curve, red_curve_count) = parse_curve_channel(&curves_obj, "red", curves_vis, None);
-    let (green_curve, green_curve_count) = parse_curve_channel(&curves_obj, "green", curves_vis, None);
+    let (green_curve, green_curve_count) =
+        parse_curve_channel(&curves_obj, "green", curves_vis, None);
     let (blue_curve, blue_curve_count) = parse_curve_channel(&curves_obj, "blue", curves_vis, None);
     let color_grading_visible = is_visible("colorGrading");
     let color_mixer_visible = is_visible("colorMixer");
@@ -3042,14 +3063,12 @@ impl ChromaPlanes {
         Self::new(w.div_ceil(2), h.div_ceil(2), |x, y| {
             let mut sum = [0.0f32; 3];
             [2 * y, (2 * y + 1).min(h - 1)].iter().for_each(|&sy| {
-                [2 * x, (2 * x + 1).min(w - 1)]
-                    .iter()
-                    .for_each(|&sx| {
-                        let i = (sy * w + sx) * 3;
-                        sum.iter_mut()
-                            .zip(&src[i..i + 3])
-                            .for_each(|(s, &v)| *s += v * 0.25);
-                    });
+                [2 * x, (2 * x + 1).min(w - 1)].iter().for_each(|&sx| {
+                    let i = (sy * w + sx) * 3;
+                    sum.iter_mut()
+                        .zip(&src[i..i + 3])
+                        .for_each(|(s, &v)| *s += v * 0.25);
+                });
             });
             Self::stabilize(sum)
         })
@@ -3059,14 +3078,12 @@ impl ChromaPlanes {
         Self::new(self.w.div_ceil(2), self.h.div_ceil(2), |x, y| {
             let mut sum = (0.0, 0.0, 0.0);
             [2 * y, (2 * y + 1).min(self.h - 1)].iter().for_each(|&sy| {
-                [2 * x, (2 * x + 1).min(self.w - 1)]
-                    .iter()
-                    .for_each(|&sx| {
-                        let i = self.at(sx, sy);
-                        sum.0 += self.q[i] * 0.25;
-                        sum.1 += self.cr[i] * 0.25;
-                        sum.2 += self.cb[i] * 0.25;
-                    });
+                [2 * x, (2 * x + 1).min(self.w - 1)].iter().for_each(|&sx| {
+                    let i = self.at(sx, sy);
+                    sum.0 += self.q[i] * 0.25;
+                    sum.1 += self.cr[i] * 0.25;
+                    sum.2 += self.cb[i] * 0.25;
+                });
             });
             sum
         })
@@ -3154,12 +3171,8 @@ impl ChromaPlanes {
                             (R - 1..=R + 1).for_each(|i| {
                                 let o = at(j, i);
                                 let sp = spatial[j * D + i];
-                                let (qs, crs, cbs, rs) = (
-                                    &q[o..o + n],
-                                    &cr[o..o + n],
-                                    &cb[o..o + n],
-                                    &rel[o..o + n],
-                                );
+                                let (qs, crs, cbs, rs) =
+                                    (&q[o..o + n], &cr[o..o + n], &cb[o..o + n], &rel[o..o + n]);
                                 (0..n).for_each(|k| {
                                     let d = qs[k] - qc[k];
                                     let t = (1.0 - d * d * kq * wc[k]).max(0.0);
@@ -3188,19 +3201,14 @@ impl ChromaPlanes {
                         (0..D).for_each(|i| {
                             let o = at(j, i);
                             let sp = spatial[j * D + i];
-                            let (qs, crs, cbs, rs) = (
-                                &q[o..o + n],
-                                &cr[o..o + n],
-                                &cb[o..o + n],
-                                &rel[o..o + n],
-                            );
+                            let (qs, crs, cbs, rs) =
+                                (&q[o..o + n], &cr[o..o + n], &cb[o..o + n], &rel[o..o + n]);
                             (0..n).for_each(|k| {
                                 let d = qs[k] - qc[k];
                                 let er = crs[k] - ref_r[k];
                                 let eb = cbs[k] - ref_b[k];
-                                let t = (1.0
-                                    - (d * d * kq + (er * er + eb * eb) * kc) * wc[k])
-                                .max(0.0);
+                                let t = (1.0 - (d * d * kq + (er * er + eb * eb) * kc) * wc[k])
+                                    .max(0.0);
                                 let wt = sp * rs[k] * t * t;
                                 let wd = wt * d;
                                 sw[k] += wt;
@@ -3438,8 +3446,7 @@ fn reduce_raw_chroma_noise(buffer: &mut Rgb32FImage, amount: f32) -> Vec<f32> {
                     wy,
                 )
             });
-            row
-                .chunks_mut(ChromaPlanes::CHUNK * 3)
+            row.chunks_mut(ChromaPlanes::CHUNK * 3)
                 .enumerate()
                 .for_each(|(cx, px)| {
                     let x0 = cx * ChromaPlanes::CHUNK;
@@ -3468,10 +3475,9 @@ fn reduce_raw_chroma_noise(buffer: &mut Rgb32FImage, amount: f32) -> Vec<f32> {
                         let er = cr[k] - up.r[k];
                         let eb = cb[k] - up.b[k];
                         let edge = up.q_range[k] * edge_scale;
-                        let keep = ((er * er + eb * eb).sqrt()
-                            / (core + texture * up.q_range[k])
+                        let keep = ((er * er + eb * eb).sqrt() / (core + texture * up.q_range[k])
                             - 1.0)
-                        .clamp(0.0, 1.0)
+                            .clamp(0.0, 1.0)
                             / (1.0 + edge * edge);
                         let nr = (up.r[k] + er * keep).max(up.r_min[k]).min(up.r_max[k]);
                         let nb = (up.b[k] + eb * keep).max(up.b_min[k]).min(up.b_max[k]);
@@ -3535,14 +3541,14 @@ fn apply_gentle_detail_enhance(buffer: &mut Rgb32FImage, q: &[f32], amount: f32)
     let blur_row = |y: usize, v: &mut [f32], out: &mut [f32]| {
         let r: [&[f32]; 5] = std::array::from_fn(|k| row_at(y as isize + k as isize - 2));
         (0..w).for_each(|x| {
-            v[x + 2] = (r[0][x] + r[4][x] + 4.0 * (r[1][x] + r[3][x]) + 6.0 * r[2][x])
-                * (1.0 / 16.0);
+            v[x + 2] =
+                (r[0][x] + r[4][x] + 4.0 * (r[1][x] + r[3][x]) + 6.0 * r[2][x]) * (1.0 / 16.0);
         });
         (v[0], v[1]) = (v[2], v[2]);
         (v[w + 2], v[w + 3]) = (v[w + 1], v[w + 1]);
         (0..w).for_each(|x| {
-            out[x] = (v[x] + v[x + 4] + 4.0 * (v[x + 1] + v[x + 3]) + 6.0 * v[x + 2])
-                * (1.0 / 16.0);
+            out[x] =
+                (v[x] + v[x + 4] + 4.0 * (v[x + 1] + v[x + 3]) + 6.0 * v[x + 2]) * (1.0 / 16.0);
         });
     };
 
@@ -3666,23 +3672,18 @@ pub fn calculate_histogram(frame: &AnalyticsFrame) -> anyhow::Result<HistogramDa
         .with_min_len(16)
         .fold(empty, |mut acc, y| {
             let first = (y * width) & 1;
-            frame
-                .row(y)
-                .iter()
-                .skip(first)
-                .step_by(2)
-                .for_each(|px| {
-                    let r = px[0] as usize;
-                    let g = px[1] as usize;
-                    let b = px[2] as usize;
+            frame.row(y).iter().skip(first).step_by(2).for_each(|px| {
+                let r = px[0] as usize;
+                let g = px[1] as usize;
+                let b = px[2] as usize;
 
-                    acc[0][r] += 1;
-                    acc[1][g] += 1;
-                    acc[2][b] += 1;
+                acc[0][r] += 1;
+                acc[1][g] += 1;
+                acc[2][b] += 1;
 
-                    let luma = (r * 218 + g * 732 + b * 74) >> 10;
-                    acc[3][luma.min(255)] += 1;
-                });
+                let luma = (r * 218 + g * 732 + b * 74) >> 10;
+                acc[3][luma.min(255)] += 1;
+            });
             acc
         })
         .reduce(empty, |mut a, b| {
@@ -3752,22 +3753,19 @@ fn apply_gaussian_smoothing(histogram: &mut [f32], sigma: f32) {
     let len = histogram.len();
     let len_i = len as i32;
 
-    histogram
-        .iter_mut()
-        .enumerate()
-        .for_each(|(i, hist_val)| {
-            let smoothed_val = kernel
-                .iter()
-                .enumerate()
-                .map(|(k, &kernel_val)| {
-                    let offset = k as i32 - kernel_radius_i;
-                    let sample_index = i as i32 + offset;
-                    let clamped_index = sample_index.clamp(0, len_i - 1) as usize;
-                    original[clamped_index] * kernel_val
-                })
-                .sum();
-            *hist_val = smoothed_val;
-        });
+    histogram.iter_mut().enumerate().for_each(|(i, hist_val)| {
+        let smoothed_val = kernel
+            .iter()
+            .enumerate()
+            .map(|(k, &kernel_val)| {
+                let offset = k as i32 - kernel_radius_i;
+                let sample_index = i as i32 + offset;
+                let clamped_index = sample_index.clamp(0, len_i - 1) as usize;
+                original[clamped_index] * kernel_val
+            })
+            .sum();
+        *hist_val = smoothed_val;
+    });
 }
 
 fn normalize_histogram_range(histogram: &mut [f32], percentile_clip: f32) {
@@ -3938,7 +3936,8 @@ pub fn calculate_waveform(
                 bins.blue[(255 - b as usize) * W + out_x] += 1;
             }
             if do_luma {
-                let l = ((u32::from(r) * 218 + u32::from(g) * 732 + u32::from(b) * 74) >> 10).min(255) as usize;
+                let l = ((u32::from(r) * 218 + u32::from(g) * 732 + u32::from(b) * 74) >> 10)
+                    .min(255) as usize;
                 bins.luma[(255 - l) * W + out_x] += 1;
             }
             if do_parade {
@@ -3977,13 +3976,9 @@ pub fn calculate_waveform(
         .map(|band| {
             let mut bins = WaveformBins::new(do_rgb, do_luma, do_parade, do_vectorscope);
             (band * rows_per_band..((band + 1) * rows_per_band).min(height)).for_each(|y| {
-                frame
-                    .row(y)
-                    .iter()
-                    .enumerate()
-                    .for_each(|(x, px)| {
-                        process_pixel(&mut bins, px[0], px[1], px[2], x_buckets[x], x);
-                    });
+                frame.row(y).iter().enumerate().for_each(|(x, px)| {
+                    process_pixel(&mut bins, px[0], px[1], px[2], x_buckets[x], x);
+                });
             });
             bins
         })
@@ -4280,7 +4275,8 @@ pub fn perform_auto_analysis(image: &DynamicImage, exposure: f32) -> AutoAdjustm
         contrast *= HIGHLIGHT_CONTRAST_REDUCE;
     }
 
-    let shadow_percent = f64::from(luma_hist[0..SHADOW_LUMA_MAX].iter().sum::<u32>()) / total_pixels;
+    let shadow_percent =
+        f64::from(luma_hist[0..SHADOW_LUMA_MAX].iter().sum::<u32>()) / total_pixels;
 
     let mut shadows = 0.0f64;
     if shadow_percent > SHADOW_PERCENT_THRESHOLD {
@@ -4550,8 +4546,9 @@ fn compute_white_balance_sample(
     let r = (sum[0] / f64::from(count)) as f32;
     let g = (sum[1] / f64::from(count)) as f32;
     let b = (sum[2] / f64::from(count)) as f32;
-    let picked = white_balance::pick_white_balance([f64::from(r), f64::from(g), f64::from(b)], as_shot)
-        .unwrap_or(as_shot);
+    let picked =
+        white_balance::pick_white_balance([f64::from(r), f64::from(g), f64::from(b)], as_shot)
+            .unwrap_or(as_shot);
 
     Ok(WhiteBalanceSample {
         r,

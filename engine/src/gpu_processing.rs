@@ -11,11 +11,11 @@ use std::num::NonZero;
 
 use wgpu::util::{DeviceExt, TextureDataOrder};
 
+use crate::app_state::{AppState, GpuImageCache, GpuImageEntry};
 use crate::image_processing::{
     AllAdjustments, AnalyticsFrame, AnalyticsPixels, GpuContext, MAX_MASKS, MaskAdjustments,
 };
 use crate::lut_processing::Lut;
-use crate::app_state::{AppState, GpuImageCache, GpuImageEntry};
 
 #[derive(Clone, Copy, Debug)]
 pub struct Roi {
@@ -237,7 +237,6 @@ pub fn get_or_init_gpu_context(
     state: &AppState,
     host: &dyn crate::host::Host,
 ) -> anyhow::Result<GpuContext> {
-
     let mut context_lock = match state.gpu_context.lock() {
         Ok(guard) => guard,
         Err(poisoned) => {
@@ -252,7 +251,10 @@ pub fn get_or_init_gpu_context(
     if GPU_DEVICE_LOST.load(Ordering::Acquire) {
         log::warn!("Recreating GPU context after the device was lost.");
         if let Some(context) = context_lock.take() {
-            *context.display.lock().unwrap_or_else(std::sync::PoisonError::into_inner) = None;
+            *context
+                .display
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner) = None;
         }
         *lock_or_reset(&state.gpu_processor, "GPU processor") = None;
         *lock_or_reset(&state.gpu_image_cache, "GPU image cache") = None;
@@ -270,7 +272,11 @@ pub fn get_or_init_gpu_context(
         instance_desc.backends = wgpu::Backends::PRIMARY;
     }
 
-    let flag_path = state.gpu_crash_flag_path.lock().unwrap_or_else(std::sync::PoisonError::into_inner).clone();
+    let flag_path = state
+        .gpu_crash_flag_path
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner)
+        .clone();
     if let Some(p) = &flag_path {
         if let Some(parent) = p.parent() {
             best_effort(std::fs::create_dir_all(parent));
@@ -280,9 +286,15 @@ pub fn get_or_init_gpu_context(
 
     let instance = wgpu::Instance::new(instance_desc);
 
-    #[cfg_attr(any(target_os = "android", target_os = "linux"), allow(unused_variables))]
+    #[cfg_attr(
+        any(target_os = "android", target_os = "linux"),
+        allow(unused_variables)
+    )]
     let (surface_opt, inner_size) = match host.display_setup() {
-        Some(setup) => ((setup.create_surface)(&instance).ok(), Some(setup.inner_size)),
+        Some(setup) => (
+            (setup.create_surface)(&instance).ok(),
+            Some(setup.inner_size),
+        ),
         None => (None, None),
     };
 
@@ -591,26 +603,28 @@ fn read_texture_data_roi(
         .map_err(|e| format!("Failed receiving GPU map result: {e}"))?;
     map_result.map_err(|e| e.to_string())?;
 
-    std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| -> Result<Vec<u8>, String> {
-        let Ok(mapped) = buffer_slice.get_mapped_range() else {
-            return Err("GPU device was lost while reading back the image".to_string());
-        };
-        let data = if padded_bytes_per_row == unpadded_bytes_per_row {
-            mapped.to_vec()
-        } else {
-            let mut unpadded_data =
-                Vec::with_capacity((unpadded_bytes_per_row * size.height) as usize);
-            mapped
-                .chunks(padded_bytes_per_row as usize)
-                .for_each(|chunk| {
-                    unpadded_data.extend_from_slice(&chunk[..unpadded_bytes_per_row as usize]);
-                });
-            unpadded_data
-        };
-        drop(mapped);
-        output_buffer.unmap();
-        Ok(data)
-    }))
+    std::panic::catch_unwind(std::panic::AssertUnwindSafe(
+        || -> Result<Vec<u8>, String> {
+            let Ok(mapped) = buffer_slice.get_mapped_range() else {
+                return Err("GPU device was lost while reading back the image".to_string());
+            };
+            let data = if padded_bytes_per_row == unpadded_bytes_per_row {
+                mapped.to_vec()
+            } else {
+                let mut unpadded_data =
+                    Vec::with_capacity((unpadded_bytes_per_row * size.height) as usize);
+                mapped
+                    .chunks(padded_bytes_per_row as usize)
+                    .for_each(|chunk| {
+                        unpadded_data.extend_from_slice(&chunk[..unpadded_bytes_per_row as usize]);
+                    });
+                unpadded_data
+            };
+            drop(mapped);
+            output_buffer.unmap();
+            Ok(data)
+        },
+    ))
     .map_err(|_| "GPU device was lost while reading back the image".to_string())
     .and_then(|r| r)
 }
@@ -770,7 +784,9 @@ type ReadbackPool = Arc<std::sync::Mutex<Vec<wgpu::Buffer>>>;
 const READBACK_POOL_SIZE: usize = 3;
 
 fn recycle_readback_buffer(pool: &ReadbackPool, buffer: wgpu::Buffer) {
-    let mut pool = pool.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
+    let mut pool = pool
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
     if pool.len() >= READBACK_POOL_SIZE {
         pool.remove(0);
     }
@@ -821,9 +837,11 @@ fn analytics_readback_sender() -> &'static std::sync::mpsc::Sender<AnalyticsRead
                     recycle_readback_buffer(&readback.pool, readback.buffer);
                     readback = newer;
                 }
-                drop(std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-                    complete_analytics_readback(readback);
-                })));
+                drop(std::panic::catch_unwind(std::panic::AssertUnwindSafe(
+                    || {
+                        complete_analytics_readback(readback);
+                    },
+                )));
             }
         });
         tx
@@ -1996,7 +2014,10 @@ impl GpuProcessor {
         let layers_us = layers as usize;
         let buffer_size = width_us * height_us * layers_us;
 
-        let mut cache = self.mask_cache.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
+        let mut cache = self
+            .mask_cache
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
         if let (Some(c), Some(key)) = (cache.as_ref(), cache_key)
             && c.width == width
             && c.height == height
@@ -2073,7 +2094,10 @@ impl GpuProcessor {
     }
 
     fn lut_view(&self, lut: &Arc<Lut>) -> (wgpu::TextureView, wgpu::Sampler) {
-        let mut cache = self.lut_cache.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
+        let mut cache = self
+            .lut_cache
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
         if let Some(c) = cache.as_ref()
             && Arc::ptr_eq(&c.lut, lut)
         {
@@ -2184,7 +2208,10 @@ impl GpuProcessor {
 
     fn readback_buffer(&self, size: u64) -> wgpu::Buffer {
         let pooled = {
-            let mut pool = self.readback_pool.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
+            let mut pool = self
+                .readback_pool
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner);
             pool.iter()
                 .position(|buffer| buffer.size() == size)
                 .map(|index| pool.swap_remove(index))
@@ -2467,376 +2494,407 @@ impl GpuProcessor {
         let end_tile_x = (bounds.x + bounds.width).div_ceil(TILE_SIZE);
         let end_tile_y = (bounds.y + bounds.height).div_ceil(TILE_SIZE);
 
-        (start_tile_y..end_tile_y).try_for_each(|tile_y| {
-            (start_tile_x..end_tile_x)
-                .try_for_each(|tile_x| -> anyhow::Result<()> {
-                let x_start_unclamped = tile_x * TILE_SIZE;
-                let y_start_unclamped = tile_y * TILE_SIZE;
+        (start_tile_y..end_tile_y)
+            .try_for_each(|tile_y| {
+                (start_tile_x..end_tile_x).try_for_each(|tile_x| -> anyhow::Result<()> {
+                    let x_start_unclamped = tile_x * TILE_SIZE;
+                    let y_start_unclamped = tile_y * TILE_SIZE;
 
-                let x_start = x_start_unclamped.max(bounds.x);
-                let y_start = y_start_unclamped.max(bounds.y);
-                let x_end = (x_start_unclamped + TILE_SIZE)
-                    .min(bounds.x + bounds.width)
-                    .min(width);
-                let y_end = (y_start_unclamped + TILE_SIZE)
-                    .min(bounds.y + bounds.height)
-                    .min(height);
+                    let x_start = x_start_unclamped.max(bounds.x);
+                    let y_start = y_start_unclamped.max(bounds.y);
+                    let x_end = (x_start_unclamped + TILE_SIZE)
+                        .min(bounds.x + bounds.width)
+                        .min(width);
+                    let y_end = (y_start_unclamped + TILE_SIZE)
+                        .min(bounds.y + bounds.height)
+                        .min(height);
 
-                let tile_width = x_end - x_start;
-                let tile_height = y_end - y_start;
+                    let tile_width = x_end - x_start;
+                    let tile_height = y_end - y_start;
 
-                let x_start_i32 = x_start as i32;
-                let y_start_i32 = y_start as i32;
-                let overlap_i32 = TILE_OVERLAP as i32;
-                let input_x_start = (x_start_i32 - overlap_i32).max(0) as u32;
-                let input_y_start = (y_start_i32 - overlap_i32).max(0) as u32;
-                let input_x_end = (x_end + TILE_OVERLAP).min(width);
-                let input_y_end = (y_end + TILE_OVERLAP).min(height);
-                let input_width = input_x_end - input_x_start;
-                let input_height = input_y_end - input_y_start;
+                    let x_start_i32 = x_start as i32;
+                    let y_start_i32 = y_start as i32;
+                    let overlap_i32 = TILE_OVERLAP as i32;
+                    let input_x_start = (x_start_i32 - overlap_i32).max(0) as u32;
+                    let input_y_start = (y_start_i32 - overlap_i32).max(0) as u32;
+                    let input_x_end = (x_end + TILE_OVERLAP).min(width);
+                    let input_y_end = (y_end + TILE_OVERLAP).min(height);
+                    let input_width = input_x_end - input_x_start;
+                    let input_height = input_y_end - input_y_start;
 
-                let run_blur = |slot: usize,
-                                base_radius: f32,
-                                output_view: &wgpu::TextureView|
-                 -> bool {
-                    let radius = (base_radius * scale).ceil().max(1.0) as u32;
-                    if radius == 0 {
-                        return false;
-                    }
+                    let run_blur = |slot: usize,
+                                    base_radius: f32,
+                                    output_view: &wgpu::TextureView|
+                     -> bool {
+                        let radius = (base_radius * scale).ceil().max(1.0) as u32;
+                        if radius == 0 {
+                            return false;
+                        }
 
-                    let params = BlurParams {
-                        radius,
-                        tile_offset_x: input_x_start,
-                        tile_offset_y: input_y_start,
-                        input_width,
-                        input_height,
-                        _pad1: 0,
-                        _pad2: 0,
-                        _pad3: 0,
+                        let params = BlurParams {
+                            radius,
+                            tile_offset_x: input_x_start,
+                            tile_offset_y: input_y_start,
+                            input_width,
+                            input_height,
+                            _pad1: 0,
+                            _pad2: 0,
+                            _pad3: 0,
+                        };
+
+                        let source = Some((input.id, params));
+                        if self
+                            .blur_sources
+                            .lock()
+                            .unwrap_or_else(std::sync::PoisonError::into_inner)[slot]
+                            == source
+                        {
+                            return true;
+                        }
+
+                        queue.write_buffer(
+                            &self.blur_params_buffer,
+                            0,
+                            bytemuck::bytes_of(&params),
+                        );
+
+                        let mut blur_encoder = device.create_command_encoder(&Default::default());
+
+                        let h_blur_bg = device.create_bind_group(&wgpu::BindGroupDescriptor {
+                            label: Some("H-Blur BG"),
+                            layout: &self.blur_bgl,
+                            entries: &[
+                                wgpu::BindGroupEntry {
+                                    binding: 0,
+                                    resource: wgpu::BindingResource::TextureView(
+                                        input_texture_view,
+                                    ),
+                                },
+                                wgpu::BindGroupEntry {
+                                    binding: 1,
+                                    resource: wgpu::BindingResource::TextureView(
+                                        &self.ping_pong_view,
+                                    ),
+                                },
+                                wgpu::BindGroupEntry {
+                                    binding: 2,
+                                    resource: self.blur_params_buffer.as_entire_binding(),
+                                },
+                            ],
+                        });
+
+                        let direct = radius <= DIRECT_BLUR_MAX_RADIUS;
+
+                        {
+                            let mut cpass = blur_encoder.begin_compute_pass(&Default::default());
+                            cpass.set_pipeline(if direct {
+                                &self.h_blur_direct_pipeline
+                            } else {
+                                &self.h_blur_pipeline
+                            });
+                            cpass.set_bind_group(0, &h_blur_bg, &[]);
+                            cpass.dispatch_workgroups(
+                                input_width.div_ceil(BLUR_H_GROUP_WIDTH),
+                                input_height,
+                                1,
+                            );
+                        }
+
+                        let v_blur_bg = device.create_bind_group(&wgpu::BindGroupDescriptor {
+                            label: Some("V-Blur BG"),
+                            layout: &self.blur_bgl,
+                            entries: &[
+                                wgpu::BindGroupEntry {
+                                    binding: 0,
+                                    resource: wgpu::BindingResource::TextureView(
+                                        &self.ping_pong_view,
+                                    ),
+                                },
+                                wgpu::BindGroupEntry {
+                                    binding: 1,
+                                    resource: wgpu::BindingResource::TextureView(output_view),
+                                },
+                                wgpu::BindGroupEntry {
+                                    binding: 2,
+                                    resource: self.blur_params_buffer.as_entire_binding(),
+                                },
+                            ],
+                        });
+
+                        {
+                            let mut cpass = blur_encoder.begin_compute_pass(&Default::default());
+                            cpass.set_bind_group(0, &v_blur_bg, &[]);
+                            if direct {
+                                cpass.set_pipeline(&self.v_blur_direct_pipeline);
+                                cpass.dispatch_workgroups(
+                                    input_width,
+                                    input_height.div_ceil(256),
+                                    1,
+                                );
+                            } else {
+                                cpass.set_pipeline(&self.v_blur_pipeline);
+                                cpass.dispatch_workgroups(
+                                    input_width.div_ceil(BLUR_V_GROUP_SIZE.0),
+                                    input_height.div_ceil(BLUR_V_GROUP_SIZE.1),
+                                    1,
+                                );
+                            }
+                        }
+
+                        queue.submit(Some(blur_encoder.finish()));
+                        self.blur_sources
+                            .lock()
+                            .unwrap_or_else(std::sync::PoisonError::into_inner)[slot] = source;
+                        true
                     };
 
-                    let source = Some((input.id, params));
-                    if self.blur_sources.lock().unwrap_or_else(std::sync::PoisonError::into_inner)[slot] == source {
-                        return true;
-                    }
+                    let active_masks = adjustments
+                        .mask_adjustments
+                        .iter()
+                        .take(adjustments.mask_count as usize);
+                    let any_term =
+                        |global: f32, pick: &dyn Fn(&MaskAdjustments) -> f32, positive: bool| {
+                            let hit = |v: f32| if positive { v > 0.0 } else { v != 0.0 };
+                            hit(global) || active_masks.clone().any(|m| hit(pick(m)))
+                        };
+                    let need_sharpen =
+                        any_term(adjustments.global.sharpness, &|m| m.sharpness, false);
+                    let need_halation = any_term(
+                        adjustments.global.halation_amount,
+                        &|m| m.halation_amount,
+                        true,
+                    );
+                    let need_structure =
+                        any_term(adjustments.global.glow_amount, &|m| m.glow_amount, true);
 
-                    queue.write_buffer(&self.blur_params_buffer, 0, bytemuck::bytes_of(&params));
+                    let did_create_sharpness_blur =
+                        need_sharpen && run_blur(0, 1.0, &self.sharpness_blur_view);
+                    let did_create_tonal_blur =
+                        need_sharpen && run_blur(1, 3.5, &self.tonal_blur_view);
+                    let did_create_clarity_blur =
+                        need_halation && run_blur(2, 8.0, &self.clarity_blur_view);
+                    let did_create_structure_blur =
+                        need_structure && run_blur(3, 40.0, &self.structure_blur_view);
 
-                    let mut blur_encoder = device.create_command_encoder(&Default::default());
+                    let mut main_encoder = device.create_command_encoder(&Default::default());
 
-                    let h_blur_bg = device.create_bind_group(&wgpu::BindGroupDescriptor {
-                        label: Some("H-Blur BG"),
-                        layout: &self.blur_bgl,
-                        entries: &[
-                            wgpu::BindGroupEntry {
-                                binding: 0,
-                                resource: wgpu::BindingResource::TextureView(input_texture_view),
-                            },
-                            wgpu::BindGroupEntry {
-                                binding: 1,
-                                resource: wgpu::BindingResource::TextureView(&self.ping_pong_view),
-                            },
-                            wgpu::BindGroupEntry {
-                                binding: 2,
-                                resource: self.blur_params_buffer.as_entire_binding(),
-                            },
-                        ],
+                    let mut tile_adjustments = adjustments;
+                    tile_adjustments.tile_offset_x = input_x_start;
+                    tile_adjustments.tile_offset_y = input_y_start;
+                    queue.write_buffer(
+                        &self.adjustments_buffer,
+                        0,
+                        bytemuck::bytes_of(&tile_adjustments),
+                    );
+
+                    let mut bind_group_entries = vec![
+                        wgpu::BindGroupEntry {
+                            binding: 0,
+                            resource: wgpu::BindingResource::TextureView(input_texture_view),
+                        },
+                        wgpu::BindGroupEntry {
+                            binding: 1,
+                            resource: wgpu::BindingResource::TextureView(output_tile_view),
+                        },
+                        wgpu::BindGroupEntry {
+                            binding: 2,
+                            resource: self.adjustments_buffer.as_entire_binding(),
+                        },
+                    ];
+                    bind_group_entries.push(wgpu::BindGroupEntry {
+                        binding: 3,
+                        resource: wgpu::BindingResource::TextureView(&mask_texture_view),
+                    });
+                    bind_group_entries.push(wgpu::BindGroupEntry {
+                        binding: 3 + MAX_MASK_BINDINGS,
+                        resource: wgpu::BindingResource::TextureView(&lut_texture_view),
+                    });
+                    bind_group_entries.push(wgpu::BindGroupEntry {
+                        binding: 4 + MAX_MASK_BINDINGS,
+                        resource: wgpu::BindingResource::Sampler(&lut_sampler),
                     });
 
-                    let direct = radius <= DIRECT_BLUR_MAX_RADIUS;
+                    bind_group_entries.push(wgpu::BindGroupEntry {
+                        binding: 5 + MAX_MASK_BINDINGS,
+                        resource: wgpu::BindingResource::TextureView(
+                            if did_create_sharpness_blur {
+                                &self.sharpness_blur_view
+                            } else {
+                                &self.dummy_blur_view
+                            },
+                        ),
+                    });
+                    bind_group_entries.push(wgpu::BindGroupEntry {
+                        binding: 6 + MAX_MASK_BINDINGS,
+                        resource: wgpu::BindingResource::TextureView(if did_create_tonal_blur {
+                            &self.tonal_blur_view
+                        } else {
+                            &self.dummy_blur_view
+                        }),
+                    });
+                    bind_group_entries.push(wgpu::BindGroupEntry {
+                        binding: 7 + MAX_MASK_BINDINGS,
+                        resource: wgpu::BindingResource::TextureView(if did_create_clarity_blur {
+                            &self.clarity_blur_view
+                        } else {
+                            &self.dummy_blur_view
+                        }),
+                    });
+                    bind_group_entries.push(wgpu::BindGroupEntry {
+                        binding: 8 + MAX_MASK_BINDINGS,
+                        resource: wgpu::BindingResource::TextureView(
+                            if did_create_structure_blur {
+                                &self.structure_blur_view
+                            } else {
+                                &self.dummy_blur_view
+                            },
+                        ),
+                    });
+
+                    let use_flare = adjustments.global.flare_amount > 0.0;
+                    bind_group_entries.push(wgpu::BindGroupEntry {
+                        binding: 9 + MAX_MASK_BINDINGS,
+                        resource: wgpu::BindingResource::TextureView(if use_flare {
+                            &self.flare_ghosts_view
+                        } else {
+                            &self.dummy_blur_view
+                        }),
+                    });
+                    bind_group_entries.push(wgpu::BindGroupEntry {
+                        binding: 10 + MAX_MASK_BINDINGS,
+                        resource: wgpu::BindingResource::Sampler(&self.flare_sampler),
+                    });
+                    bind_group_entries.push(wgpu::BindGroupEntry {
+                        binding: 11 + MAX_MASK_BINDINGS,
+                        resource: wgpu::BindingResource::TextureView(gf_coeffs_view),
+                    });
+                    bind_group_entries.push(wgpu::BindGroupEntry {
+                        binding: 12 + MAX_MASK_BINDINGS,
+                        resource: wgpu::BindingResource::TextureView(gf_structure_view),
+                    });
+                    bind_group_entries.push(wgpu::BindGroupEntry {
+                        binding: 13 + MAX_MASK_BINDINGS,
+                        resource: wgpu::BindingResource::TextureView(haze_view),
+                    });
+                    bind_group_entries.push(wgpu::BindGroupEntry {
+                        binding: 14 + MAX_MASK_BINDINGS,
+                        resource: wgpu::BindingResource::TextureView(airlight_view),
+                    });
+
+                    let bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
+                        label: Some("Tile Bind Group"),
+                        layout: output_bgl,
+                        entries: &bind_group_entries,
+                    });
 
                     {
-                        let mut cpass = blur_encoder.begin_compute_pass(&Default::default());
-                        cpass.set_pipeline(if direct {
-                            &self.h_blur_direct_pipeline
-                        } else {
-                            &self.h_blur_pipeline
-                        });
-                        cpass.set_bind_group(0, &h_blur_bg, &[]);
-                        cpass.dispatch_workgroups(
-                            input_width.div_ceil(BLUR_H_GROUP_WIDTH),
-                            input_height,
+                        let mut compute_pass = main_encoder.begin_compute_pass(&Default::default());
+                        compute_pass.set_pipeline(&output_pipeline);
+                        compute_pass.set_bind_group(0, &bind_group, &[]);
+                        compute_pass.dispatch_workgroups(
+                            input_width.div_ceil(8),
+                            input_height.div_ceil(8),
                             1,
                         );
                     }
 
-                    let v_blur_bg = device.create_bind_group(&wgpu::BindGroupDescriptor {
-                        label: Some("V-Blur BG"),
-                        layout: &self.blur_bgl,
-                        entries: &[
-                            wgpu::BindGroupEntry {
-                                binding: 0,
-                                resource: wgpu::BindingResource::TextureView(&self.ping_pong_view),
-                            },
-                            wgpu::BindGroupEntry {
-                                binding: 1,
-                                resource: wgpu::BindingResource::TextureView(output_view),
-                            },
-                            wgpu::BindGroupEntry {
-                                binding: 2,
-                                resource: self.blur_params_buffer.as_entire_binding(),
-                            },
-                        ],
-                    });
+                    let crop_x_start = x_start - input_x_start;
+                    let crop_y_start = y_start - input_y_start;
 
-                    {
-                        let mut cpass = blur_encoder.begin_compute_pass(&Default::default());
-                        cpass.set_bind_group(0, &v_blur_bg, &[]);
-                        if direct {
-                            cpass.set_pipeline(&self.v_blur_direct_pipeline);
-                            cpass.dispatch_workgroups(input_width, input_height.div_ceil(256), 1);
-                        } else {
-                            cpass.set_pipeline(&self.v_blur_pipeline);
-                            cpass.dispatch_workgroups(
-                                input_width.div_ceil(BLUR_V_GROUP_SIZE.0),
-                                input_height.div_ceil(BLUR_V_GROUP_SIZE.1),
-                                1,
-                            );
-                        }
+                    if output_to_display {
+                        main_encoder.copy_texture_to_texture(
+                            wgpu::TexelCopyTextureInfo {
+                                texture: &self.tile_output_texture,
+                                mip_level: 0,
+                                origin: wgpu::Origin3d {
+                                    x: crop_x_start,
+                                    y: crop_y_start,
+                                    z: 0,
+                                },
+                                aspect: wgpu::TextureAspect::All,
+                            },
+                            wgpu::TexelCopyTextureInfo {
+                                texture: &self.display_textures().working_texture,
+                                mip_level: 0,
+                                origin: wgpu::Origin3d {
+                                    x: x_start,
+                                    y: y_start,
+                                    z: 0,
+                                },
+                                aspect: wgpu::TextureAspect::All,
+                            },
+                            wgpu::Extent3d {
+                                width: tile_width,
+                                height: tile_height,
+                                depth_or_array_layers: 1,
+                            },
+                        );
                     }
 
-                    queue.submit(Some(blur_encoder.finish()));
-                    self.blur_sources.lock().unwrap_or_else(std::sync::PoisonError::into_inner)[slot] = source;
-                    true
-                };
+                    queue.submit(Some(main_encoder.finish()));
 
-                let active_masks = adjustments
-                    .mask_adjustments
-                    .iter()
-                    .take(adjustments.mask_count as usize);
-                let any_term =
-                    |global: f32, pick: &dyn Fn(&MaskAdjustments) -> f32, positive: bool| {
-                        let hit = |v: f32| if positive { v > 0.0 } else { v != 0.0 };
-                        hit(global) || active_masks.clone().any(|m| hit(pick(m)))
-                    };
-                let need_sharpen = any_term(adjustments.global.sharpness, &|m| m.sharpness, false);
-                let need_halation = any_term(
-                    adjustments.global.halation_amount,
-                    &|m| m.halation_amount,
-                    true,
-                );
-                let need_structure =
-                    any_term(adjustments.global.glow_amount, &|m| m.glow_amount, true);
-
-                let did_create_sharpness_blur =
-                    need_sharpen && run_blur(0, 1.0, &self.sharpness_blur_view);
-                let did_create_tonal_blur = need_sharpen && run_blur(1, 3.5, &self.tonal_blur_view);
-                let did_create_clarity_blur =
-                    need_halation && run_blur(2, 8.0, &self.clarity_blur_view);
-                let did_create_structure_blur =
-                    need_structure && run_blur(3, 40.0, &self.structure_blur_view);
-
-                let mut main_encoder = device.create_command_encoder(&Default::default());
-
-                let mut tile_adjustments = adjustments;
-                tile_adjustments.tile_offset_x = input_x_start;
-                tile_adjustments.tile_offset_y = input_y_start;
-                queue.write_buffer(
-                    &self.adjustments_buffer,
-                    0,
-                    bytemuck::bytes_of(&tile_adjustments),
-                );
-
-                let mut bind_group_entries = vec![
-                    wgpu::BindGroupEntry {
-                        binding: 0,
-                        resource: wgpu::BindingResource::TextureView(input_texture_view),
-                    },
-                    wgpu::BindGroupEntry {
-                        binding: 1,
-                        resource: wgpu::BindingResource::TextureView(output_tile_view),
-                    },
-                    wgpu::BindGroupEntry {
-                        binding: 2,
-                        resource: self.adjustments_buffer.as_entire_binding(),
-                    },
-                ];
-                bind_group_entries.push(wgpu::BindGroupEntry {
-                    binding: 3,
-                    resource: wgpu::BindingResource::TextureView(&mask_texture_view),
-                });
-                bind_group_entries.push(wgpu::BindGroupEntry {
-                    binding: 3 + MAX_MASK_BINDINGS,
-                    resource: wgpu::BindingResource::TextureView(&lut_texture_view),
-                });
-                bind_group_entries.push(wgpu::BindGroupEntry {
-                    binding: 4 + MAX_MASK_BINDINGS,
-                    resource: wgpu::BindingResource::Sampler(&lut_sampler),
-                });
-
-                bind_group_entries.push(wgpu::BindGroupEntry {
-                    binding: 5 + MAX_MASK_BINDINGS,
-                    resource: wgpu::BindingResource::TextureView(if did_create_sharpness_blur {
-                        &self.sharpness_blur_view
-                    } else {
-                        &self.dummy_blur_view
-                    }),
-                });
-                bind_group_entries.push(wgpu::BindGroupEntry {
-                    binding: 6 + MAX_MASK_BINDINGS,
-                    resource: wgpu::BindingResource::TextureView(if did_create_tonal_blur {
-                        &self.tonal_blur_view
-                    } else {
-                        &self.dummy_blur_view
-                    }),
-                });
-                bind_group_entries.push(wgpu::BindGroupEntry {
-                    binding: 7 + MAX_MASK_BINDINGS,
-                    resource: wgpu::BindingResource::TextureView(if did_create_clarity_blur {
-                        &self.clarity_blur_view
-                    } else {
-                        &self.dummy_blur_view
-                    }),
-                });
-                bind_group_entries.push(wgpu::BindGroupEntry {
-                    binding: 8 + MAX_MASK_BINDINGS,
-                    resource: wgpu::BindingResource::TextureView(if did_create_structure_blur {
-                        &self.structure_blur_view
-                    } else {
-                        &self.dummy_blur_view
-                    }),
-                });
-
-                let use_flare = adjustments.global.flare_amount > 0.0;
-                bind_group_entries.push(wgpu::BindGroupEntry {
-                    binding: 9 + MAX_MASK_BINDINGS,
-                    resource: wgpu::BindingResource::TextureView(if use_flare {
-                        &self.flare_ghosts_view
-                    } else {
-                        &self.dummy_blur_view
-                    }),
-                });
-                bind_group_entries.push(wgpu::BindGroupEntry {
-                    binding: 10 + MAX_MASK_BINDINGS,
-                    resource: wgpu::BindingResource::Sampler(&self.flare_sampler),
-                });
-                bind_group_entries.push(wgpu::BindGroupEntry {
-                    binding: 11 + MAX_MASK_BINDINGS,
-                    resource: wgpu::BindingResource::TextureView(gf_coeffs_view),
-                });
-                bind_group_entries.push(wgpu::BindGroupEntry {
-                    binding: 12 + MAX_MASK_BINDINGS,
-                    resource: wgpu::BindingResource::TextureView(gf_structure_view),
-                });
-                bind_group_entries.push(wgpu::BindGroupEntry {
-                    binding: 13 + MAX_MASK_BINDINGS,
-                    resource: wgpu::BindingResource::TextureView(haze_view),
-                });
-                bind_group_entries.push(wgpu::BindGroupEntry {
-                    binding: 14 + MAX_MASK_BINDINGS,
-                    resource: wgpu::BindingResource::TextureView(airlight_view),
-                });
-
-                let bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
-                    label: Some("Tile Bind Group"),
-                    layout: output_bgl,
-                    entries: &bind_group_entries,
-                });
-
-                {
-                    let mut compute_pass = main_encoder.begin_compute_pass(&Default::default());
-                    compute_pass.set_pipeline(&output_pipeline);
-                    compute_pass.set_bind_group(0, &bind_group, &[]);
-                    compute_pass.dispatch_workgroups(
-                        input_width.div_ceil(8),
-                        input_height.div_ceil(8),
-                        1,
-                    );
-                }
-
-                let crop_x_start = x_start - input_x_start;
-                let crop_y_start = y_start - input_y_start;
-
-                if output_to_display {
-                    main_encoder.copy_texture_to_texture(
-                        wgpu::TexelCopyTextureInfo {
-                            texture: &self.tile_output_texture,
-                            mip_level: 0,
-                            origin: wgpu::Origin3d {
+                    if !output_to_display {
+                        let processed_tile_data = read_texture_data_roi(
+                            device,
+                            queue,
+                            output_tile_texture,
+                            wgpu::Origin3d {
                                 x: crop_x_start,
                                 y: crop_y_start,
                                 z: 0,
                             },
-                            aspect: wgpu::TextureAspect::All,
-                        },
-                        wgpu::TexelCopyTextureInfo {
-                            texture: &self.display_textures().working_texture,
-                            mip_level: 0,
-                            origin: wgpu::Origin3d {
-                                x: x_start,
-                                y: y_start,
-                                z: 0,
+                            wgpu::Extent3d {
+                                width: tile_width,
+                                height: tile_height,
+                                depth_or_array_layers: 1,
                             },
-                            aspect: wgpu::TextureAspect::All,
-                        },
-                        wgpu::Extent3d {
-                            width: tile_width,
-                            height: tile_height,
-                            depth_or_array_layers: 1,
-                        },
-                    );
-                }
+                            bytes_per_pixel,
+                        )
+                        .map_err(|e| anyhow::anyhow!("{e}"))?;
 
-                queue.submit(Some(main_encoder.finish()));
+                        match &mut final_pixels {
+                            RenderedPixels::U8(final_pixels) => {
+                                (0..tile_height).for_each(|row| {
+                                    let final_y = y_start + row - bounds.y;
+                                    let final_x = x_start - bounds.x;
+                                    let final_row_offset =
+                                        (final_y * out_width + final_x) as usize * 4;
+                                    let source_row_offset = (row * tile_width) as usize * 4;
+                                    let copy_bytes = (tile_width * 4) as usize;
 
-                if !output_to_display {
-                    let processed_tile_data = read_texture_data_roi(
-                        device,
-                        queue,
-                        output_tile_texture,
-                        wgpu::Origin3d {
-                            x: crop_x_start,
-                            y: crop_y_start,
-                            z: 0,
-                        },
-                        wgpu::Extent3d {
-                            width: tile_width,
-                            height: tile_height,
-                            depth_or_array_layers: 1,
-                        },
-                        bytes_per_pixel,
-                    )
-                    .map_err(|e| anyhow::anyhow!("{e}"))?;
-
-                    match &mut final_pixels {
-                        RenderedPixels::U8(final_pixels) => {
-                            (0..tile_height).for_each(|row| {
-                                let final_y = y_start + row - bounds.y;
-                                let final_x = x_start - bounds.x;
-                                let final_row_offset = (final_y * out_width + final_x) as usize * 4;
-                                let source_row_offset = (row * tile_width) as usize * 4;
-                                let copy_bytes = (tile_width * 4) as usize;
-
-                                final_pixels[final_row_offset..final_row_offset + copy_bytes]
-                                    .copy_from_slice(
-                                        &processed_tile_data
-                                            [source_row_offset..source_row_offset + copy_bytes],
-                                    );
-                            });
-                        }
-                        RenderedPixels::U16(final_pixels) => {
-                            (0..tile_height).for_each(|row| {
-                                let final_y = y_start + row - bounds.y;
-                                let final_x = x_start - bounds.x;
-                                let final_row_offset = (final_y * out_width + final_x) as usize * 4;
-                                let source_pixel_offset = (row * tile_width) as usize;
-
-                                (0..tile_width as usize * 4).for_each(|sample| {
-                                    let source_byte_offset = (source_pixel_offset * 4 + sample) * 2;
-                                    final_pixels[final_row_offset + sample] = u16::from_ne_bytes([
-                                        processed_tile_data[source_byte_offset],
-                                        processed_tile_data[source_byte_offset + 1],
-                                    ]);
+                                    final_pixels[final_row_offset..final_row_offset + copy_bytes]
+                                        .copy_from_slice(
+                                            &processed_tile_data
+                                                [source_row_offset..source_row_offset + copy_bytes],
+                                        );
                                 });
-                            });
+                            }
+                            RenderedPixels::U16(final_pixels) => {
+                                (0..tile_height).for_each(|row| {
+                                    let final_y = y_start + row - bounds.y;
+                                    let final_x = x_start - bounds.x;
+                                    let final_row_offset =
+                                        (final_y * out_width + final_x) as usize * 4;
+                                    let source_pixel_offset = (row * tile_width) as usize;
+
+                                    (0..tile_width as usize * 4).for_each(|sample| {
+                                        let source_byte_offset =
+                                            (source_pixel_offset * 4 + sample) * 2;
+                                        final_pixels[final_row_offset + sample] =
+                                            u16::from_ne_bytes([
+                                                processed_tile_data[source_byte_offset],
+                                                processed_tile_data[source_byte_offset + 1],
+                                            ]);
+                                    });
+                                });
+                            }
                         }
                     }
-                }
 
-                Ok(())
+                    Ok(())
+                })
             })
-        })
-        .map_err(|e| e.to_string())?;
+            .map_err(|e| e.to_string())?;
 
         Ok((final_pixels, out_width, out_height, bounds.x, bounds.y))
     }
@@ -2975,9 +3033,7 @@ fn process_and_get_dynamic_image_inner(
             .map_or((0, 0), |p| (p.width, p.height));
         let new_width = ((width + 255) & !255).max(old_width);
         let new_height = ((height + 255) & !255).max(old_height);
-        log::info!(
-            "Creating new GPU Processor for dimensions up to {new_width}x{new_height}"
-        );
+        log::info!("Creating new GPU Processor for dimensions up to {new_width}x{new_height}");
 
         let old_processor = processor_lock.take();
         drop(old_processor);
@@ -2996,7 +3052,9 @@ fn process_and_get_dynamic_image_inner(
         });
     }
 
-    let processor_state = processor_lock.as_ref().ok_or_else(|| anyhow!("GPU processor state missing after initialisation"))?;
+    let processor_state = processor_lock
+        .as_ref()
+        .ok_or_else(|| anyhow!("GPU processor state missing after initialisation"))?;
     let processor = &processor_state.processor;
 
     let cache = cache_lock.get_or_insert_with(|| GpuImageCache {
@@ -3063,9 +3121,9 @@ fn process_and_get_dynamic_image_inner(
 
     let skip_readback = output_to_display;
 
-    let (processed_pixels, out_w, out_h, out_x, out_y) =
-        processor.run(cache, request, output_to_display, output_precision)
-            .map_err(|e| anyhow!("{e}"))?;
+    let (processed_pixels, out_w, out_h, out_x, out_y) = processor
+        .run(cache, request, output_to_display, output_precision)
+        .map_err(|e| anyhow!("{e}"))?;
 
     let mut final_encoder = device.create_command_encoder(&wgpu::CommandEncoderDescriptor {
         label: Some("Final Passes Encoder"),
@@ -3114,8 +3172,12 @@ fn process_and_get_dynamic_image_inner(
         submit_final_encoder = true;
     }
 
-    let mut display_lock =
-        output_to_display.then(|| context.display.lock().unwrap_or_else(std::sync::PoisonError::into_inner));
+    let mut display_lock = output_to_display.then(|| {
+        context
+            .display
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+    });
     let mut display = display_lock.as_mut().and_then(|d| d.as_mut());
 
     let display_target = match display_layer {

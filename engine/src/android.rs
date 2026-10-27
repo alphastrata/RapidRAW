@@ -13,7 +13,6 @@ use std::path::PathBuf;
 #[cfg(target_os = "android")]
 static INIT_NDK_CONTEXT: std::sync::Once = std::sync::Once::new();
 
-
 #[cfg(target_os = "android")]
 pub use crate::best_effort::best_effort;
 
@@ -28,7 +27,6 @@ fn ndk_context_is_initialized() -> bool {
     std::panic::set_hook(previous_hook);
     initialized
 }
-
 
 #[must_use]
 pub fn is_android_content_uri(path: &str) -> bool {
@@ -165,7 +163,6 @@ pub fn parse_android_uri<'local>(
 
     Ok(uri)
 }
-
 
 #[cfg(target_os = "android")]
 pub fn read_android_content_uri(uri_str: &str) -> anyhow::Result<Vec<u8>> {

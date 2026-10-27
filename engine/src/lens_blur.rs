@@ -325,13 +325,10 @@ fn dof_despeckle(buf: &mut [f32], w: usize, h: usize) {
         .for_each(|(y, row)| {
             let base = y * w;
             row[0] = buf[base];
-            row[1..w - 1]
-                .iter_mut()
-                .enumerate()
-                .for_each(|(j, v)| {
-                    let x = j + 1;
-                    *v = dof_med3(buf[base + x - 1], buf[base + x], buf[base + x + 1]);
-                });
+            row[1..w - 1].iter_mut().enumerate().for_each(|(j, v)| {
+                let x = j + 1;
+                *v = dof_med3(buf[base + x - 1], buf[base + x], buf[base + x + 1]);
+            });
             row[w - 1] = buf[base + w - 1];
         });
 

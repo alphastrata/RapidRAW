@@ -10,7 +10,8 @@ use std::sync::{Mutex, MutexGuard, OnceLock, PoisonError};
 use std::time::Duration;
 
 use crate::formats::is_raw_file;
-use crate::image_processing::{ImageFlag, ImageMetadata};use crate::tagging::{COLOR_TAG_PREFIX, USER_TAG_PREFIX};
+use crate::image_processing::{ImageFlag, ImageMetadata};
+use crate::tagging::{COLOR_TAG_PREFIX, USER_TAG_PREFIX};
 use chrono::{DateTime, Local, LocalResult, NaiveDateTime, TimeZone, Utc};
 use exif::{Exif, In, Value};
 use image::ImageDecoder;
@@ -122,9 +123,8 @@ pub fn clear_disk_cache() -> anyhow::Result<()> {
         .map(|e| e.path())
         .filter(|path| path.is_file())
         .try_for_each(|path| {
-            fs::remove_file(&path).map_err(|e| {
-                anyhow::anyhow!("Failed to remove {}: {}", path.display(), e)
-            })
+            fs::remove_file(&path)
+                .map_err(|e| anyhow::anyhow!("Failed to remove {}: {}", path.display(), e))
         })?;
     Ok(())
 }
@@ -368,7 +368,9 @@ fn write_sidecar(
     metadata: &ImageMetadata,
 ) -> std::io::Result<()> {
     if is_default_sidecar(sidecar_path, source_path, metadata) {
-        let layout_guard = SIDECAR_LAYOUT_LOCK.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
+        let layout_guard = SIDECAR_LAYOUT_LOCK
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
         drop(layout_guard);
         if !has_virtual_copy_sidecars(source_path) {
             return match fs::remove_file(sidecar_path) {
@@ -761,130 +763,128 @@ pub fn extract_metadata(file_bytes: &[u8]) -> Option<HashMap<String, String>> {
     let mut map = HashMap::new();
 
     if let Some(exif_obj) = read_exif(file_bytes) {
-        exif_obj.fields().for_each(|field| {
-            match field.tag {
-                exif::Tag::ExposureTime => {
-                    if let exif::Value::Rational(ref v) = field.value
-                        && !v.is_empty()
-                    {
-                        let r = &v[0];
-                        if r.num == 1 && r.denom > 1 {
-                            map.insert("ExposureTime".to_string(), format!("1/{} s", r.denom));
-                        } else {
-                            let val = r.num as f32 / r.denom as f32;
-                            if val < 1.0 && val > 0.0 {
-                                map.insert(
-                                    "ExposureTime".to_string(),
-                                    format!("1/{} s", (1.0 / val).round()),
-                                );
-                            } else {
-                                map.insert("ExposureTime".to_string(), format!("{val} s"));
-                            }
-                        }
-                    }
-                }
-                exif::Tag::ShutterSpeedValue => {
-                    if let exif::Value::SRational(ref v) = field.value
-                        && !v.is_empty()
-                    {
-                        let val = v[0].num as f32 / v[0].denom as f32;
-                        map.insert("ShutterSpeedValue".to_string(), val.to_string());
-                    }
-                }
-                exif::Tag::FNumber => {
-                    if let exif::Value::Rational(ref v) = field.value
-                        && !v.is_empty()
-                    {
-                        let val = v[0].num as f32 / v[0].denom as f32;
-                        map.insert("FNumber".to_string(), format!("f/{val}"));
-                    }
-                }
-                exif::Tag::ApertureValue => {
-                    if let exif::Value::Rational(ref v) = field.value
-                        && !v.is_empty()
-                    {
-                        let val = v[0].num as f32 / v[0].denom as f32;
-                        map.insert("ApertureValue".to_string(), format!("f/{val}"));
-                    }
-                }
-                exif::Tag::FocalLength => {
-                    if let exif::Value::Rational(ref v) = field.value
-                        && !v.is_empty()
-                    {
-                        let val = v[0].num as f32 / v[0].denom as f32;
-                        map.insert("FocalLength".to_string(), val.to_string());
-                        map.insert("FocalLengthIn35mmFilm".to_string(), val.to_string());
-                    }
-                }
-                exif::Tag::PhotographicSensitivity | exif::Tag::ISOSpeed => {
-                    map.insert(
-                        "PhotographicSensitivity".to_string(),
-                        field.display_value().to_string(),
-                    );
-                    map.insert("ISOSpeed".to_string(), field.display_value().to_string());
-                }
-                exif::Tag::DateTimeOriginal => {
-                    map.insert(
-                        "DateTimeOriginal".to_string(),
-                        fmt_date_str(field.display_value().to_string()),
-                    );
-                }
-                exif::Tag::DateTime => {
-                    map.insert(
-                        "CreateDate".to_string(),
-                        fmt_date_str(field.display_value().to_string()),
-                    );
-                }
-                exif::Tag::DateTimeDigitized => {
-                    map.insert(
-                        "ModifyDate".to_string(),
-                        fmt_date_str(field.display_value().to_string()),
-                    );
-                }
-                exif::Tag::LensSpecification => {
-                    if let exif::Value::Rational(ref v) = field.value
-                        && v.len() >= 4
-                        && let (Some(focal_min), Some(focal_max)) = (
-                            rational_to_f32_checked(&v[0]),
-                            rational_to_f32_checked(&v[1]),
-                        )
-                    {
-                        let aperture = match (
-                            rational_to_f32_checked(&v[2]),
-                            rational_to_f32_checked(&v[3]),
-                        ) {
-                            (Some(amin), Some(amax)) => Some((amin, amax)),
-                            _ => read_raw_metadata(file_bytes).and_then(|meta| {
-                                let lens_desc = meta.lens?;
-                                let amin =
-                                    rawler_rational_to_f32_checked(&lens_desc.aperture_range[0])?;
-                                let amax =
-                                    rawler_rational_to_f32_checked(&lens_desc.aperture_range[1])?;
-                                Some((amin, amax))
-                            }),
-                        };
-
-                        let aperture = aperture.filter(|(amin, amax)| *amin > 0.0 || *amax > 0.0);
-
-                        map.insert(
-                            "LensSpecification".to_string(),
-                            format_lens_spec(focal_min, focal_max, aperture),
-                        );
-                    }
-                }
-                _ => {
-                    let tag = field.tag.to_string();
-                    if let exif::Value::Ascii(_) = &field.value {
-                        if let Some(val) = clean_ascii_value(&field.value) {
-                            map.insert(tag, truncate_large_exif(&val));
-                        }
+        exif_obj.fields().for_each(|field| match field.tag {
+            exif::Tag::ExposureTime => {
+                if let exif::Value::Rational(ref v) = field.value
+                    && !v.is_empty()
+                {
+                    let r = &v[0];
+                    if r.num == 1 && r.denom > 1 {
+                        map.insert("ExposureTime".to_string(), format!("1/{} s", r.denom));
                     } else {
-                        let val = field.display_value().with_unit(&exif_obj).to_string();
-                        if !val.trim().is_empty() {
-                            map.insert(tag, truncate_large_exif(&val));
+                        let val = r.num as f32 / r.denom as f32;
+                        if val < 1.0 && val > 0.0 {
+                            map.insert(
+                                "ExposureTime".to_string(),
+                                format!("1/{} s", (1.0 / val).round()),
+                            );
+                        } else {
+                            map.insert("ExposureTime".to_string(), format!("{val} s"));
                         }
                     }
-                 },
+                }
+            }
+            exif::Tag::ShutterSpeedValue => {
+                if let exif::Value::SRational(ref v) = field.value
+                    && !v.is_empty()
+                {
+                    let val = v[0].num as f32 / v[0].denom as f32;
+                    map.insert("ShutterSpeedValue".to_string(), val.to_string());
+                }
+            }
+            exif::Tag::FNumber => {
+                if let exif::Value::Rational(ref v) = field.value
+                    && !v.is_empty()
+                {
+                    let val = v[0].num as f32 / v[0].denom as f32;
+                    map.insert("FNumber".to_string(), format!("f/{val}"));
+                }
+            }
+            exif::Tag::ApertureValue => {
+                if let exif::Value::Rational(ref v) = field.value
+                    && !v.is_empty()
+                {
+                    let val = v[0].num as f32 / v[0].denom as f32;
+                    map.insert("ApertureValue".to_string(), format!("f/{val}"));
+                }
+            }
+            exif::Tag::FocalLength => {
+                if let exif::Value::Rational(ref v) = field.value
+                    && !v.is_empty()
+                {
+                    let val = v[0].num as f32 / v[0].denom as f32;
+                    map.insert("FocalLength".to_string(), val.to_string());
+                    map.insert("FocalLengthIn35mmFilm".to_string(), val.to_string());
+                }
+            }
+            exif::Tag::PhotographicSensitivity | exif::Tag::ISOSpeed => {
+                map.insert(
+                    "PhotographicSensitivity".to_string(),
+                    field.display_value().to_string(),
+                );
+                map.insert("ISOSpeed".to_string(), field.display_value().to_string());
+            }
+            exif::Tag::DateTimeOriginal => {
+                map.insert(
+                    "DateTimeOriginal".to_string(),
+                    fmt_date_str(field.display_value().to_string()),
+                );
+            }
+            exif::Tag::DateTime => {
+                map.insert(
+                    "CreateDate".to_string(),
+                    fmt_date_str(field.display_value().to_string()),
+                );
+            }
+            exif::Tag::DateTimeDigitized => {
+                map.insert(
+                    "ModifyDate".to_string(),
+                    fmt_date_str(field.display_value().to_string()),
+                );
+            }
+            exif::Tag::LensSpecification => {
+                if let exif::Value::Rational(ref v) = field.value
+                    && v.len() >= 4
+                    && let (Some(focal_min), Some(focal_max)) = (
+                        rational_to_f32_checked(&v[0]),
+                        rational_to_f32_checked(&v[1]),
+                    )
+                {
+                    let aperture = match (
+                        rational_to_f32_checked(&v[2]),
+                        rational_to_f32_checked(&v[3]),
+                    ) {
+                        (Some(amin), Some(amax)) => Some((amin, amax)),
+                        _ => read_raw_metadata(file_bytes).and_then(|meta| {
+                            let lens_desc = meta.lens?;
+                            let amin =
+                                rawler_rational_to_f32_checked(&lens_desc.aperture_range[0])?;
+                            let amax =
+                                rawler_rational_to_f32_checked(&lens_desc.aperture_range[1])?;
+                            Some((amin, amax))
+                        }),
+                    };
+
+                    let aperture = aperture.filter(|(amin, amax)| *amin > 0.0 || *amax > 0.0);
+
+                    map.insert(
+                        "LensSpecification".to_string(),
+                        format_lens_spec(focal_min, focal_max, aperture),
+                    );
+                }
+            }
+            _ => {
+                let tag = field.tag.to_string();
+                if let exif::Value::Ascii(_) = &field.value {
+                    if let Some(val) = clean_ascii_value(&field.value) {
+                        map.insert(tag, truncate_large_exif(&val));
+                    }
+                } else {
+                    let val = field.display_value().with_unit(&exif_obj).to_string();
+                    if !val.trim().is_empty() {
+                        map.insert(tag, truncate_large_exif(&val));
+                    }
+                }
             }
         });
     }
@@ -1154,7 +1154,8 @@ pub fn get_creation_date_from_path(path: &Path) -> DateTime<Utc> {
 
     fs::metadata(path)
         .ok()
-        .and_then(|m| m.created().ok()).map_or_else(Utc::now, DateTime::<Utc>::from)
+        .and_then(|m| m.created().ok())
+        .map_or_else(Utc::now, DateTime::<Utc>::from)
 }
 
 #[must_use]
@@ -1891,10 +1892,7 @@ fn export_xmp_description(xmp: &ExportXmp, keywords: &[String]) -> String {
     }
     if !keywords.is_empty() {
         let escaped: Vec<Cow<str>> = keywords.iter().map(|k| escape(k.as_str())).collect();
-        properties.push_str(&format!(
-            "   {}\n",
-            xmp_subject_bag(&escaped)
-        ));
+        properties.push_str(&format!("   {}\n", xmp_subject_bag(&escaped)));
     }
     if properties.is_empty() {
         return properties;
@@ -2210,10 +2208,7 @@ pub fn persist_exif_if_missing(source_path: &Path, source_path_str: &str, file_b
     }
 }
 
-pub fn write_rrexif_sidecar(
-    source_path_str: &str,
-    target_image_path: &Path,
-) -> anyhow::Result<()> {
+pub fn write_rrexif_sidecar(source_path_str: &str, target_image_path: &Path) -> anyhow::Result<()> {
     let source_path = Path::new(source_path_str);
 
     let exif_data = if let Some(existing) = read_rrexif_sidecar(source_path) {

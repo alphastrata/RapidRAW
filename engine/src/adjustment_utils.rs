@@ -52,7 +52,10 @@ pub fn hydrate_sub_masks(
 }
 
 pub fn hydrate_adjustments(state: &AppState, adjustments: &mut serde_json::Value) {
-    let mut cache = state.patch_cache.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
+    let mut cache = state
+        .patch_cache
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
 
     if let Some(patches) = adjustments
         .get_mut("aiPatches")

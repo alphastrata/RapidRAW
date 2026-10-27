@@ -39,7 +39,10 @@ impl MemoryBudget {
         cancellation_token: Option<&AtomicBool>,
     ) -> Option<MemoryReservation> {
         let bytes = bytes.min(self.total);
-        let mut available = self.available.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
+        let mut available = self
+            .available
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
         while *available < bytes {
             if cancellation_token.is_some_and(|token| token.load(Ordering::SeqCst)) {
                 return None;

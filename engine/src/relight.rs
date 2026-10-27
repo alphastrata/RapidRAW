@@ -407,7 +407,9 @@ pub fn apply_relight<'a>(
         .filter(|c| c.key == cache_key)
         .cloned();
 
-    let mut cache = if let Some(cache) = cached { cache } else {
+    let mut cache = if let Some(cache) = cached {
+        cache
+    } else {
         let normal_map = match crate::effect_maps::resolve_rgba_map(normal_b64, adjustments) {
             Some(map) => map,
             None => return Cow::Owned(DynamicImage::ImageRgb32F(out)),
@@ -516,7 +518,9 @@ pub fn apply_relight<'a>(
         _ => Vec::new(),
     };
 
-    *RELIGHT_CACHE.lock().unwrap_or_else(std::sync::PoisonError::into_inner) = Some(cache.clone());
+    *RELIGHT_CACHE
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner) = Some(cache.clone());
 
     let surface_models = &cache.surface_models;
 

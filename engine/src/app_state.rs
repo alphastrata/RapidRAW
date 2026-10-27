@@ -15,12 +15,12 @@ use wgpu::{Texture, TextureView};
 use crate::ai_processing::AiState;
 use crate::as_shot::AsShot;
 use crate::cache_utils::{DecodeFlights, DecodedImageCache};
-use crate::tethering::CameraSession;
 use crate::gpu_processing::{DisplayLayer, GpuProcessor};
 use crate::image_processing::GpuContext;
 use crate::launch_request::ExternalEditSession;
 use crate::lens_correction::LensDatabase;
 use crate::lut_processing::Lut;
+use crate::tethering::CameraSession;
 
 pub struct AiTaskToken {
     cancelled: AtomicBool,
@@ -86,7 +86,10 @@ impl<'a> AiTaskGuard<'a> {
 
 impl Drop for AiTaskGuard<'_> {
     fn drop(&mut self) {
-        let mut tasks = self.active_ai_tasks.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
+        let mut tasks = self
+            .active_ai_tasks
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
         if let Some(existing) = tasks.get(&self.task_id)
             && Arc::ptr_eq(existing, &self.token)
         {
@@ -191,7 +194,6 @@ pub struct ThumbnailManager {
 impl AppState {
     pub fn new() -> Self {
         Self {
-
             window_setup_complete: AtomicBool::new(false),
             gpu_crash_flag_path: Mutex::new(None),
             original_image: Mutex::new(None),
@@ -211,7 +213,10 @@ impl AppState {
             initial_file_path: Mutex::new(None),
             pending_edit_session: Mutex::new(None),
             thumbnail_cancellation_token: Arc::new(AtomicBool::new(false)),
-            thumbnail_progress: Mutex::new(ThumbnailProgressTracker { total: 0, completed: 0 }),
+            thumbnail_progress: Mutex::new(ThumbnailProgressTracker {
+                total: 0,
+                completed: 0,
+            }),
             preview_worker_tx: Mutex::new(None),
             analytics_worker_tx: Mutex::new(None),
             analytics_channel: Mutex::new(None),
@@ -236,7 +241,7 @@ impl AppState {
             metadata_manager: MetadataManager::new(),
             disks_cache: Mutex::new(None),
             disks_cache_refreshing: AtomicBool::new(false),
-            camera_session: Mutex::new(crate::tethering::CameraSession::new())
+            camera_session: Mutex::new(crate::tethering::CameraSession::new()),
         }
     }
 }

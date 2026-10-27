@@ -178,7 +178,8 @@ fn pick_name(names: &[MultiName], fallback: &str) -> String {
     names
         .iter()
         .find(|n| n.lang.as_deref() == Some("en"))
-        .or_else(|| names.first()).map_or_else(|| fallback.to_string(), |n| n.value.clone())
+        .or_else(|| names.first())
+        .map_or_else(|| fallback.to_string(), |n| n.value.clone())
 }
 
 fn any_name_matches(names: &[MultiName], needle: &str) -> bool {
@@ -205,7 +206,8 @@ impl Lens {
         self.model
             .iter()
             .find(|m| m.lang.as_deref() == Some("en"))
-            .or_else(|| self.model.first()).map_or_else(|| "Unknown Model".to_string(), |m| m.value.clone())
+            .or_else(|| self.model.first())
+            .map_or_else(|| "Unknown Model".to_string(), |m| m.value.clone())
     }
 
     #[must_use]
@@ -213,7 +215,8 @@ impl Lens {
         self.model
             .iter()
             .find(|m| m.lang.is_none())
-            .or_else(|| self.model.first()).map_or_else(|| "Unknown Model".to_string(), |m| m.value.clone())
+            .or_else(|| self.model.first())
+            .map_or_else(|| "Unknown Model".to_string(), |m| m.value.clone())
     }
 
     #[must_use]
@@ -238,7 +241,8 @@ impl Lens {
         self.maker
             .iter()
             .find(|m| m.lang.as_deref() == Some("en"))
-            .or_else(|| self.maker.first()).map_or_else(|| "Misc".to_string(), |m| m.value.clone())
+            .or_else(|| self.maker.first())
+            .map_or_else(|| "Misc".to_string(), |m| m.value.clone())
     }
 
     #[must_use]
@@ -541,7 +545,10 @@ fn extract_dist_params(dist: &Distortion) -> (f64, f64, f64, u32) {
 }
 
 fn extract_tca_params(tca: &Tca) -> (f64, f64) {
-    (f64::from(tca.vr.unwrap_or(1.0)), f64::from(tca.vb.unwrap_or(1.0)))
+    (
+        f64::from(tca.vr.unwrap_or(1.0)),
+        f64::from(tca.vb.unwrap_or(1.0)),
+    )
 }
 
 fn extract_vig_params(vig: &Vignetting) -> (f64, f64, f64) {

@@ -38,55 +38,53 @@ fn hash_ai_patches(adjustments: &serde_json::Value, hasher: &mut DefaultHasher) 
     {
         patches_arr.len().hash(hasher);
 
-        patches_arr
-            .iter()
-            .for_each(|patch| {
-                if let Some(id) = patch.get("id").and_then(|v| v.as_str()) {
-                    id.hash(hasher);
-                }
+        patches_arr.iter().for_each(|patch| {
+            if let Some(id) = patch.get("id").and_then(|v| v.as_str()) {
+                id.hash(hasher);
+            }
 
-                let is_visible = patch
-                    .get("visible")
-                    .and_then(serde_json::Value::as_bool)
-                    .unwrap_or(true);
-                is_visible.hash(hasher);
+            let is_visible = patch
+                .get("visible")
+                .and_then(serde_json::Value::as_bool)
+                .unwrap_or(true);
+            is_visible.hash(hasher);
 
-                let mask_from_sub_masks = if let Some(patch_data) = patch.get("patchData") {
-                    let color_len = patch_data
-                        .get("color")
-                        .and_then(|v| v.as_str())
-                        .unwrap_or("")
-                        .len();
-                    color_len.hash(hasher);
+            let mask_from_sub_masks = if let Some(patch_data) = patch.get("patchData") {
+                let color_len = patch_data
+                    .get("color")
+                    .and_then(|v| v.as_str())
+                    .unwrap_or("")
+                    .len();
+                color_len.hash(hasher);
 
-                    let mask_len = patch_data
-                        .get("mask")
-                        .and_then(|v| v.as_str())
-                        .unwrap_or("")
-                        .len();
-                    mask_len.hash(hasher);
+                let mask_len = patch_data
+                    .get("mask")
+                    .and_then(|v| v.as_str())
+                    .unwrap_or("")
+                    .len();
+                mask_len.hash(hasher);
 
-                    color_len > 0 && mask_len == 0
-                } else {
-                    let data_len = patch
-                        .get("patchDataBase64")
-                        .and_then(|v| v.as_str())
-                        .unwrap_or("")
-                        .len();
-                    data_len.hash(hasher);
-                    true
-                };
+                color_len > 0 && mask_len == 0
+            } else {
+                let data_len = patch
+                    .get("patchDataBase64")
+                    .and_then(|v| v.as_str())
+                    .unwrap_or("")
+                    .len();
+                data_len.hash(hasher);
+                true
+            };
 
-                if mask_from_sub_masks && let Some(sub_masks_val) = patch.get("subMasks") {
-                    sub_masks_val.to_string().hash(hasher);
-                }
+            if mask_from_sub_masks && let Some(sub_masks_val) = patch.get("subMasks") {
+                sub_masks_val.to_string().hash(hasher);
+            }
 
-                let invert = patch
-                    .get("invert")
-                    .and_then(serde_json::Value::as_bool)
-                    .unwrap_or(false);
-                invert.hash(hasher);
-            });
+            let invert = patch
+                .get("invert")
+                .and_then(serde_json::Value::as_bool)
+                .unwrap_or(false);
+            invert.hash(hasher);
+        });
     }
 }
 
@@ -132,8 +130,7 @@ fn hash_orientation(adjustments: &serde_json::Value, hasher: &mut DefaultHasher)
 }
 
 fn hash_effect_keys(adjustments: &serde_json::Value, keys: &[&str], hasher: &mut DefaultHasher) {
-    keys
-        .iter()
+    keys.iter()
         .filter_map(|key| adjustments.get(*key).map(|val| (*key, val)))
         .for_each(|(key, val)| {
             key.hash(hasher);
@@ -654,9 +651,15 @@ pub struct Flight {
 
 impl Flight {
     pub fn wait(&self) {
-        let mut done = self.done.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
+        let mut done = self
+            .done
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
         while !*done {
-            done = self.finished.wait(done).unwrap_or_else(std::sync::PoisonError::into_inner);
+            done = self
+                .finished
+                .wait(done)
+                .unwrap_or_else(std::sync::PoisonError::into_inner);
         }
     }
 }
@@ -680,14 +683,21 @@ impl Drop for FlightGuard<'_> {
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner)
             .remove(&self.path);
-        *self.flight.done.lock().unwrap_or_else(std::sync::PoisonError::into_inner) = true;
+        *self
+            .flight
+            .done
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner) = true;
         self.flight.finished.notify_all();
     }
 }
 
 impl DecodeFlights {
     pub fn begin(&self, path: &str) -> FlightRole<'_> {
-        let mut inflight = self.inflight.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
+        let mut inflight = self
+            .inflight
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
         if let Some(flight) = inflight.get(path) {
             return FlightRole::Follower(Arc::clone(flight));
         }
@@ -707,7 +717,10 @@ pub fn clear_preview_stage_caches(state: &AppState) {
         .patched_cache
         .lock()
         .unwrap_or_else(std::sync::PoisonError::into_inner) = None;
-    *state.warped_cache.lock().unwrap_or_else(std::sync::PoisonError::into_inner) = None;
+    *state
+        .warped_cache
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner) = None;
     *state
         .working_cache
         .lock()

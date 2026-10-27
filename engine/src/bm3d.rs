@@ -68,8 +68,7 @@ pub fn denoise(
         let blurred_y = gaussian_blur_1ch(&original_y, width as usize, height as usize, 3.0);
         let detail_strength = (intensity * 0.5_f32).clamp(0.0_f32, 0.5_f32);
         let y_ch = &mut denoised_channels[0];
-        y_ch
-            .iter_mut()
+        y_ch.iter_mut()
             .zip(&original_y)
             .zip(&blurred_y)
             .for_each(|((y, &orig), &blur)| {
@@ -171,7 +170,11 @@ fn run_bm3d_step_joint(
 
     let ref_patches: Vec<(usize, usize)> = (0..h.saturating_sub(BLOCK_SIZE))
         .step_by(STRIDE)
-        .flat_map(|y| (0..w.saturating_sub(BLOCK_SIZE)).step_by(STRIDE).map(move |x| (x, y)))
+        .flat_map(|y| {
+            (0..w.saturating_sub(BLOCK_SIZE))
+                .step_by(STRIDE)
+                .map(move |x| (x, y))
+        })
         .collect();
 
     ref_patches.par_iter().for_each(|&(rx, ry)| {
@@ -366,8 +369,7 @@ fn block_matching_joint(
     .take(MAX_CANDIDATES)
     .collect();
 
-    candidates
-        .sort_unstable_by(|a, b| a.dist.partial_cmp(&b.dist).unwrap_or(Ordering::Equal));
+    candidates.sort_unstable_by(|a, b| a.dist.partial_cmp(&b.dist).unwrap_or(Ordering::Equal));
 
     let limit = MAX_GROUP_SIZE.min(candidates.len());
     let p2_limit = prev_power_of_two(limit);

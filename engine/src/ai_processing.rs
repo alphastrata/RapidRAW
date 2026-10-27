@@ -1,14 +1,16 @@
 use crate::best_effort::best_effort;
 use std::collections::HashSet;
-use std::ops::ControlFlow;
 use std::fs;
 use std::io::{Read, Write};
+use std::ops::ControlFlow;
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicU8, Ordering};
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 
+use crate::host::Host;
 use anyhow::Result;
+use futures::StreamExt;
 use image::imageops::{self, FilterType};
 use image::{
     DynamicImage, GenericImageView, GrayImage, ImageBuffer, Luma, Rgb32FImage, RgbImage, RgbaImage,
@@ -23,8 +25,6 @@ use ort::value::{Tensor, TensorRef, ValueType};
 use rayon::prelude::*;
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
-use crate::host::Host;
-use futures::StreamExt;
 use tokenizers::Tokenizer;
 use tokio::sync::Mutex as TokioMutex;
 
@@ -320,7 +320,9 @@ impl AiModels {
         filename: &str,
         use_gpu: bool,
     ) -> Result<SharedSession> {
-        let mut slot = slot.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
+        let mut slot = slot
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
         if let Some(session) = slot.as_ref() {
             return Ok(Arc::clone(session));
         }
@@ -396,7 +398,9 @@ impl AiModels {
         slot: &Mutex<Option<Arc<Esam3Prompt>>>,
         filename: &str,
     ) -> Result<Arc<Esam3Prompt>> {
-        let mut slot = slot.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
+        let mut slot = slot
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
         if let Some(prompt) = slot.as_ref() {
             return Ok(Arc::clone(prompt));
         }
@@ -427,8 +431,13 @@ impl AiModels {
 
     pub fn esam3_text_prompt(&self, text: &str) -> Result<Esam3Prompt> {
         let tokenizer = {
-            let mut slot = self.clip_tokenizer.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
-            if let Some(tokenizer) = slot.as_ref() { Arc::clone(tokenizer) } else {
+            let mut slot = self
+                .clip_tokenizer
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner);
+            if let Some(tokenizer) = slot.as_ref() {
+                Arc::clone(tokenizer)
+            } else {
                 let tokenizer = Arc::new(
                     Tokenizer::from_file(self.models_dir.join(CLIP_TOKENIZER_FILENAME))
                         .map_err(|e| anyhow::anyhow!(e.to_string()))?,
@@ -453,7 +462,9 @@ impl AiModels {
         }
 
         let session = self.session(&self.esam3_text_encoder, ESAM3_TEXT_ENCODER_FILENAME, false)?;
-        let mut session = session.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
+        let mut session = session
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
         let outputs = session.run(ort::inputs!["tokens" => Tensor::from_array(tokens)?])?;
         Ok(Esam3Prompt {
             features: outputs["language_features"]
@@ -641,16 +652,18 @@ pub fn gpu_inference<T>(result: ort::Result<T>) -> Result<T> {
             .compare_exchange(GPU_ACTIVE, GPU_FAILED, Ordering::AcqRel, Ordering::Acquire)
             .is_ok()
         {
-            log::warn!(
-                "GPU inference failed, using the CPU for AI models from now on: {e}"
-            );
+            log::warn!("GPU inference failed, using the CPU for AI models from now on: {e}");
         }
         e.into()
     })
 }
 
 pub fn reset_ai_sessions(ai_state_mutex: &Mutex<Option<AiState>>) {
-    if let Some(ai_state) = ai_state_mutex.lock().unwrap_or_else(std::sync::PoisonError::into_inner).as_mut() {
+    if let Some(ai_state) = ai_state_mutex
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner)
+        .as_mut()
+    {
         ai_state.release_sessions();
     }
     GPU_STATUS.store(GPU_IDLE, Ordering::Release);
@@ -702,7 +715,9 @@ fn cached_ai_state<T>(
     ai_state_mutex: &Mutex<Option<AiState>>,
     get: impl Fn(&AiState) -> Option<T>,
 ) -> Option<T> {
-    let mut ai_state = ai_state_mutex.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
+    let mut ai_state = ai_state_mutex
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
     if GPU_STATUS
         .compare_exchange(
             GPU_FAILED,
@@ -731,8 +746,7 @@ fn edt_1d(f: &mut [f32], v: &mut [usize], z: &mut [f32], d: &mut [f32]) {
         let q_f = q as f32;
         let vk = v[k];
         let vk_f = vk as f32;
-        let mut s = ((f[q] + q_f * q_f) - (f[vk] + vk_f * vk_f))
-            / (2.0 * (q_f - vk_f));
+        let mut s = ((f[q] + q_f * q_f) - (f[vk] + vk_f * vk_f)) / (2.0 * (q_f - vk_f));
         while s <= z[k] {
             if k == 0 {
                 break;
@@ -740,8 +754,7 @@ fn edt_1d(f: &mut [f32], v: &mut [usize], z: &mut [f32], d: &mut [f32]) {
             k -= 1;
             let nk = v[k];
             let nk_f = nk as f32;
-            s = ((f[q] + q_f * q_f) - (f[nk] + nk_f * nk_f))
-                / (2.0 * (q_f - nk_f));
+            s = ((f[q] + q_f * q_f) - (f[nk] + nk_f * nk_f)) / (2.0 * (q_f - nk_f));
         }
         k += 1;
         v[k] = q;
@@ -775,9 +788,13 @@ fn edt_2d(grid: &[bool], width: usize, height: usize) -> Vec<f32> {
 
     let mut col = vec![0.0; height];
     (0..width).for_each(|x| {
-        col.iter_mut().enumerate().for_each(|(y, c)| *c = f[y * width + x]);
+        col.iter_mut()
+            .enumerate()
+            .for_each(|(y, c)| *c = f[y * width + x]);
         edt_1d(&mut col, &mut v, &mut z, &mut d);
-        col.iter().enumerate().for_each(|(y, &c)| f[y * width + x] = c);
+        col.iter()
+            .enumerate()
+            .for_each(|(y, &c)| f[y * width + x] = c);
     });
 
     f.into_iter().map(f32::sqrt).collect()
@@ -902,12 +919,10 @@ pub fn fast_guided_filter(
     box_filter_opt(&b, &mut mean_b, &mut temp1, &mut temp2, w, h, r);
     drop((a, b, temp1, temp2));
 
-    let Some(mean_a_img) = ImageBuffer::<Luma<f32>, Vec<f32>>::from_raw(lr_w, lr_h, mean_a)
-    else {
+    let Some(mean_a_img) = ImageBuffer::<Luma<f32>, Vec<f32>>::from_raw(lr_w, lr_h, mean_a) else {
         unreachable!("guided filter buffers match their dimensions")
     };
-    let Some(mean_b_img) = ImageBuffer::<Luma<f32>, Vec<f32>>::from_raw(lr_w, lr_h, mean_b)
-    else {
+    let Some(mean_b_img) = ImageBuffer::<Luma<f32>, Vec<f32>>::from_raw(lr_w, lr_h, mean_b) else {
         unreachable!("guided filter buffers match their dimensions")
     };
 
@@ -964,7 +979,11 @@ pub fn fast_color_guided_filter(
     let guide: [Vec<f32>; 3] =
         std::array::from_fn(|c| guide_lr.pixels().map(|p| f32::from(p[c]) / 255.0).collect());
     drop(guide_lr);
-    let p: Vec<f32> = mask_lr.as_raw().iter().map(|&v| f32::from(v) / 255.0).collect();
+    let p: Vec<f32> = mask_lr
+        .as_raw()
+        .iter()
+        .map(|&v| f32::from(v) / 255.0)
+        .collect();
 
     let mut temp1 = vec![0.0; area];
     let mut temp2 = vec![0.0; area];
@@ -1032,17 +1051,17 @@ pub fn fast_color_guided_filter(
                 .zip(guide_row.as_chunks::<3>().0)
                 .enumerate()
                 .for_each(|(x, (out, pixel))| {
-                let (x0, x1, tx) = x_samples[x];
-                let sample = |values: &[f32]| {
-                    let top = values[y0 * w + x0] * (1.0 - tx) + values[y0 * w + x1] * tx;
-                    let bottom = values[y1 * w + x0] * (1.0 - tx) + values[y1 * w + x1] * tx;
-                    top * (1.0 - ty) + bottom * ty
-                };
-                let q = (0..3)
-                    .map(|c| sample(&mean_coefficients[c]) * f32::from(pixel[c]) / 255.0)
-                    .sum::<f32>()
-                    + sample(&mean_coefficients[3]);
-                *out = (q.clamp(0.0, 1.0) * 255.0).round() as u8;
+                    let (x0, x1, tx) = x_samples[x];
+                    let sample = |values: &[f32]| {
+                        let top = values[y0 * w + x0] * (1.0 - tx) + values[y0 * w + x1] * tx;
+                        let bottom = values[y1 * w + x0] * (1.0 - tx) + values[y1 * w + x1] * tx;
+                        top * (1.0 - ty) + bottom * ty
+                    };
+                    let q = (0..3)
+                        .map(|c| sample(&mean_coefficients[c]) * f32::from(pixel[c]) / 255.0)
+                        .sum::<f32>()
+                        + sample(&mean_coefficients[3]);
+                    *out = (q.clamp(0.0, 1.0) * 255.0).round() as u8;
                 });
         });
 
@@ -1100,11 +1119,7 @@ fn persist_downloaded_asset(dest: &Path, bytes: &[u8]) -> Result<()> {
     Ok(())
 }
 
-async fn download_model(
-    host: &dyn Host,
-    asset: &ModelAsset,
-    dest: &Path,
-) -> Result<()> {
+async fn download_model(host: &dyn Host, asset: &ModelAsset, dest: &Path) -> Result<()> {
     let mut response = reqwest::get(asset.url).await?.error_for_status()?;
     let total = response.content_length().unwrap_or(0);
     let mut bytes = Vec::with_capacity(total as usize);
@@ -1171,7 +1186,9 @@ async fn download_and_verify_model(
             Ok(())
         }
         .await;
-        host.emit_json("ai-model-download-finish", serde_json::json!({
+        host.emit_json(
+            "ai-model-download-finish",
+            serde_json::json!({
                 "name": asset.name,
                 "error": download_result.as_ref().err().map(std::string::ToString::to_string),
             }),
@@ -1187,7 +1204,13 @@ pub async fn get_or_init_ai_models(
     ai_init_lock: &TokioMutex<()>,
     model: AiMaskModel,
 ) -> Result<Arc<AiModels>> {
-    let is_downloaded = |models: &AiModels| models.downloaded.lock().unwrap_or_else(std::sync::PoisonError::into_inner).contains(&model);
+    let is_downloaded = |models: &AiModels| {
+        models
+            .downloaded
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .contains(&model)
+    };
 
     if let Some(models) = cached_ai_state(ai_state_mutex, |state| state.models.clone())
         && is_downloaded(&models)
@@ -1197,7 +1220,10 @@ pub async fn get_or_init_ai_models(
 
     let _guard = ai_init_lock.lock().await;
 
-    let models = if let Some(models) = cached_ai_state(ai_state_mutex, |state| state.models.clone()) { models } else {
+    let models = if let Some(models) = cached_ai_state(ai_state_mutex, |state| state.models.clone())
+    {
+        models
+    } else {
         drop(ort::init().with_name("AI").commit());
         crate::host::register_exit_once(host);
 
@@ -1231,7 +1257,11 @@ pub async fn get_or_init_ai_models(
             .then(|asset| download_and_verify_model(host, &models.models_dir, asset))
             .for_each(|_: Result<()>| async {})
             .await;
-        models.downloaded.lock().unwrap_or_else(std::sync::PoisonError::into_inner).insert(model);
+        models
+            .downloaded
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .insert(model);
     }
 
     Ok(models)
@@ -1446,9 +1476,15 @@ fn extract_tile_mirror(img: &Rgb32FImage, x0: i32, y0: i32, cs: usize) -> Array4
 fn tile_origins(len: usize, params: TileParams) -> Vec<i32> {
     let valid = params.cs - 2 * params.margin;
     let step = (valid - params.overlap).max(1);
-    std::iter::successors(Some(0), |&s| if s + valid >= len { None } else { Some(s + step) })
-        .map(|start| start as i32 - params.margin as i32)
-        .collect()
+    std::iter::successors(Some(0), |&s| {
+        if s + valid >= len {
+            None
+        } else {
+            Some(s + step)
+        }
+    })
+    .map(|start| start as i32 - params.margin as i32)
+    .collect()
 }
 
 fn tile_blend_weights(params: TileParams) -> Vec<f32> {
@@ -1481,8 +1517,7 @@ fn run_native_denoise(
     let margin_i = params.margin as i32;
     let width_i = width as i32;
     let height_i = height as i32;
-    ys
-        .iter()
+    ys.iter()
         .flat_map(|y| xs.iter().map(move |x| (y, x)))
         .enumerate()
         .try_for_each(|(i, (&y0, &x0))| {
@@ -1492,7 +1527,9 @@ fn run_native_denoise(
             let t_input = Tensor::from_array(crop.as_standard_layout().to_owned())?;
 
             let tile = {
-                let mut sess = session.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
+                let mut sess = session
+                    .lock()
+                    .unwrap_or_else(std::sync::PoisonError::into_inner);
                 let outputs = gpu_inference(sess.run(ort::inputs![t_input]))?;
                 outputs[0]
                     .try_extract_array::<f32>()?
@@ -1510,8 +1547,8 @@ fn run_native_denoise(
                             let w = weights[ty] * weights[tx];
                             let idx = gy as usize * width + gx as usize;
                             (0..3).for_each(|c| {
-                                let v =
-                                    tile[[0, c, params.margin + ty, params.margin + tx]].clamp(0.0, 1.0);
+                                let v = tile[[0, c, params.margin + ty, params.margin + tx]]
+                                    .clamp(0.0, 1.0);
                                 accumulator[idx * 3 + c] += v * w;
                             });
                             weight_sum[idx] += w;
@@ -1622,22 +1659,21 @@ fn patch_distance(
 ) -> f32 {
     let h_i = h as i32;
     let w_i = w as i32;
-    let result = (-LAMA_PATCH_RADIUS..=LAMA_PATCH_RADIUS)
-        .try_fold(0.0f32, |mut d, dy| {
-            if d >= limit {
-                return ControlFlow::Break(d);
-            }
-            let ty = (t.1 + dy).clamp(0, h_i - 1) as usize;
-            let srow = (s.1 + dy) as usize * w;
-            (-LAMA_PATCH_RADIUS..=LAMA_PATCH_RADIUS).for_each(|dx| {
-                let tx = (t.0 + dx).clamp(0, w_i - 1) as usize;
-                let a = target[ty * w + tx];
-                let b = source[srow + (s.0 + dx) as usize];
-                let (e0, e1, e2) = (a[0] - b[0], a[1] - b[1], a[2] - b[2]);
-                d += e0 * e0 + e1 * e1 + e2 * e2;
-            });
-            ControlFlow::Continue(d)
+    let result = (-LAMA_PATCH_RADIUS..=LAMA_PATCH_RADIUS).try_fold(0.0f32, |mut d, dy| {
+        if d >= limit {
+            return ControlFlow::Break(d);
+        }
+        let ty = (t.1 + dy).clamp(0, h_i - 1) as usize;
+        let srow = (s.1 + dy) as usize * w;
+        (-LAMA_PATCH_RADIUS..=LAMA_PATCH_RADIUS).for_each(|dx| {
+            let tx = (t.0 + dx).clamp(0, w_i - 1) as usize;
+            let a = target[ty * w + tx];
+            let b = source[srow + (s.0 + dx) as usize];
+            let (e0, e1, e2) = (a[0] - b[0], a[1] - b[1], a[2] - b[2]);
+            d += e0 * e0 + e1 * e1 + e2 * e2;
         });
+        ControlFlow::Continue(d)
+    });
     match result {
         ControlFlow::Break(d) | ControlFlow::Continue(d) => d,
     }
@@ -1652,10 +1688,7 @@ fn lama_patch_match(
     is_source: &[bool],
 ) -> Option<Vec<Option<(i32, i32)>>> {
     let coords = |i: usize| ((i % w) as i32, (i / w) as i32);
-    let sources: Vec<(i32, i32)> = (0..w * h)
-        .filter(|&i| is_source[i])
-        .map(coords)
-        .collect();
+    let sources: Vec<(i32, i32)> = (0..w * h).filter(|&i| is_source[i]).map(coords).collect();
     let targets: Vec<usize> = (0..w * h).filter(|&i| is_target[i]).collect();
     if sources.is_empty() || targets.is_empty() {
         return None;
@@ -1663,11 +1696,7 @@ fn lama_patch_match(
 
     let valid = |p: (i32, i32)| {
         let (px, py) = (p.0 as usize, p.1 as usize);
-        p.0 >= 0
-            && p.1 >= 0
-            && px < w
-            && py < h
-            && is_source[py * w + px]
+        p.0 >= 0 && p.1 >= 0 && px < w && py < h && is_source[py * w + px]
     };
     let random_source = |seed: u64| sources[(seed % sources.len() as u64) as usize];
 
@@ -1841,7 +1870,9 @@ pub fn run_lama_inpainting(
     let t_msk = Tensor::from_array(msk_tensor.into_dyn().as_standard_layout().into_owned())?;
 
     let output_tensor = {
-        let mut session = lama_session.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
+        let mut session = lama_session
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
         let outputs = session.run(ort::inputs!["image" => t_img, "mask" => t_msk])?;
         outputs[0].try_extract_array::<f32>()?.to_owned()
     };
@@ -1955,9 +1986,7 @@ pub fn run_lama_inpainting(
                         );
                         let detail = [0, 1, 2].map(|c| f32::from(o[c]) / 255.0 - low[c]);
                         let shift = (qx - x_i, qy - y_i);
-                        if let Some(g) =
-                            groups[..group_count].iter_mut().find(|g| g.0 == shift)
-                        {
+                        if let Some(g) = groups[..group_count].iter_mut().find(|g| g.0 == shift) {
                             g.1 += wgt;
                         } else {
                             groups[group_count] = (shift, wgt, detail);
@@ -1983,7 +2012,7 @@ pub fn run_lama_inpainting(
                 (0..3).for_each(|c| {
                     px[c] = (value[c].clamp(0.0, 1.0) * 255.0 * alpha
                         + f32::from(px[c]) * (1.0 - alpha))
-                    .round() as u8;
+                        .round() as u8;
                 });
             });
         });
@@ -2028,7 +2057,9 @@ pub fn generate_image_embeddings(
     let input_tensor_dyn = input_tensor.into_dyn();
     let input_values = input_tensor_dyn.as_standard_layout();
     let input_tensor_ort = Tensor::from_array(input_values.into_owned())?;
-    let mut session = encoder.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
+    let mut session = encoder
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
     let outputs = session.run(ort::inputs![input_tensor_ort])?;
 
     let embeddings = outputs[0].try_extract_array::<f32>()?.to_owned();
@@ -2085,8 +2116,7 @@ pub fn run_sam_decoder(
         let pc_len = point_coords.len();
         let pl_len = point_labels.len();
 
-        let coords_flat: Vec<f32> =
-            point_coords.iter().flat_map(|&(x, y)| [x, y]).collect();
+        let coords_flat: Vec<f32> = point_coords.iter().flat_map(|&(x, y)| [x, y]).collect();
         let coords_array = Array::from_shape_vec((1, pc_len, 2), coords_flat)?.into_dyn();
         let labels_array = Array::from_shape_vec((1, pl_len), point_labels.clone())?.into_dyn();
 
@@ -2111,7 +2141,9 @@ pub fn run_sam_decoder(
             Tensor::from_array(orig_im_size.clone().as_standard_layout().into_owned())?;
 
         let mask_tensor = {
-            let mut session = decoder.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
+            let mut session = decoder
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner);
             let outputs = session.run(ort::inputs![
                 t_embeddings,
                 t_point_coords,
@@ -2134,7 +2166,10 @@ pub fn run_sam_decoder(
         let first_mask_slice = &mask_slice[0..area];
 
         if i == iters - 1 {
-            final_mask_data = first_mask_slice.iter().map(|&val| if val > 0.0 { 255 } else { 0 }).collect();
+            final_mask_data = first_mask_slice
+                .iter()
+                .map(|&val| if val > 0.0 { 255 } else { 0 })
+                .collect();
             final_w = w;
             final_h = h;
             return Ok(());
@@ -2176,23 +2211,27 @@ pub fn run_sam_decoder(
             });
 
         if mask_area == 0.0 || min_x > max_x {
-            final_mask_data = first_mask_slice.iter().map(|&val| if val > 0.0 { 255 } else { 0 }).collect();
+            final_mask_data = first_mask_slice
+                .iter()
+                .map(|&val| if val > 0.0 { 255 } else { 0 })
+                .collect();
             final_w = w;
             final_h = h;
             return Ok(());
         }
 
         let dt_in = edt_2d(&binary_mask, w, h);
-        let (max_in, pos_idx) = dt_in
-            .iter()
-            .enumerate()
-            .fold((0.0f32, 0), |(max_in, pos_idx), (idx, &v)| {
-                if v > max_in {
-                    (v, idx)
-                } else {
-                    (max_in, pos_idx)
-                }
-            });
+        let (max_in, pos_idx) =
+            dt_in
+                .iter()
+                .enumerate()
+                .fold((0.0f32, 0), |(max_in, pos_idx), (idx, &v)| {
+                    if v > max_in {
+                        (v, idx)
+                    } else {
+                        (max_in, pos_idx)
+                    }
+                });
         let pos_y = pos_idx / w;
         let pos_x = pos_idx % w;
 
@@ -2210,7 +2249,10 @@ pub fn run_sam_decoder(
         let neg_idx = dt_out
             .iter()
             .enumerate()
-            .fold((0.0f32, 0), |(hi, acc), (idx, &v)| if v > hi { (v, idx) } else { (hi, acc) })
+            .fold(
+                (0.0f32, 0),
+                |(hi, acc), (idx, &v)| if v > hi { (v, idx) } else { (hi, acc) },
+            )
             .1;
         let neg_y = neg_idx / w;
         let neg_x = neg_idx % w;
@@ -2349,7 +2391,9 @@ pub fn run_esam3_image_encoder(
         });
     });
 
-    let mut session = encoder_session.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
+    let mut session = encoder_session
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
     let outputs =
         gpu_inference(session.run(ort::inputs!["image" => Tensor::from_array(input_tensor)?]))?;
     let extract = |name: &str| -> Result<Array<f32, IxDyn>> {
@@ -2373,7 +2417,9 @@ fn run_esam3_queries<T>(
     let exemplar_labels = Array::<i64, _>::zeros((ESAM3_EXEMPLAR_SLOTS, 1));
     let exemplar_mask = Array::<f32, _>::ones((1, ESAM3_EXEMPLAR_SLOTS));
 
-    let mut session = decoder_session.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
+    let mut session = decoder_session
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
     let outputs = gpu_inference(session.run(ort::inputs![
         "fpn_0" => TensorRef::from_array_view(&features.fpn[0])?,
         "fpn_1" => TensorRef::from_array_view(&features.fpn[1])?,
@@ -2566,7 +2612,9 @@ pub fn run_birefnet_model(
     birefnet_session: &Mutex<Session>,
 ) -> Result<GrayImage> {
     let (width, height) = image.dimensions();
-    let mut session = birefnet_session.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
+    let mut session = birefnet_session
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
     let coarse = run_birefnet_pass(image, &mut session)?;
     let mut mask = imageops::resize(&coarse, width, height, FilterType::Triangle);
 
@@ -2747,7 +2795,9 @@ pub fn run_depth_anything_model(
     let input_tensor_dyn = input_tensor.into_dyn();
     let t_input = Tensor::from_array(input_tensor_dyn.as_standard_layout().into_owned())?;
 
-    let mut session = depth_session.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
+    let mut session = depth_session
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
     let outputs = gpu_inference(session.run(ort::inputs![t_input]))?;
     let output_tensor = outputs[0].try_extract_array::<f32>()?.to_owned();
     let out_slice = output_tensor
@@ -2859,7 +2909,9 @@ pub fn run_normal_model(
     let t_image = Tensor::from_array(input_tensor.into_dyn())?;
     let t_num_tokens = Tensor::from_array(ndarray::arr0(NORMAL_NUM_TOKENS))?;
 
-    let mut session = normal_session.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
+    let mut session = normal_session
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
     let outputs = gpu_inference(session.run(ort::inputs![
         "image" => t_image,
         "num_tokens" => t_num_tokens,
