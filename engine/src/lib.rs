@@ -14,6 +14,7 @@ pub mod cache_utils;
 pub mod culling;
 pub mod effect_maps;
 pub mod exif_processing;
+pub mod export_geometry;
 pub mod face_masking;
 pub mod focus_stacking;
 pub mod fog;

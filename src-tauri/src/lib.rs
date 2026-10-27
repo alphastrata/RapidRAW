@@ -50,7 +50,6 @@ pub mod export_processing;
 pub use engine::highlight_reconstruction;
 mod immich;
 pub mod tagging;
-mod tagging_utils;
 mod window_customizer;
 
 use std::collections::hash_map::DefaultHasher;
@@ -107,7 +106,6 @@ pub use app_settings::*;
 pub use app_state::*;
 use engine::paths::parse_virtual_path;
 pub use launch_request::*;
-use tagging_utils::{candidates, hierarchy};
 
 #[cfg(target_os = "macos")]
 static SHUTTING_DOWN: AtomicBool = AtomicBool::new(false);
