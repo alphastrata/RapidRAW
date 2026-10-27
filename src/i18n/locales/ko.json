@@ -1761,32 +1761,6 @@
     },
     "processing": {
       "ai": {
-        "cloud": {
-          "description": "더 간단한 솔루션을 원하는 사용자를 위해, 선택적 구독은 번거로움 없이 셀프 호스팅과 동일한 고품질 결과를 제공합니다. 가장 편리한 옵션이며 프로젝트를 지원하는 가장 좋은 방법입니다.",
-          "feature1": "최대의 편의성, 설정 불필요",
-          "feature2": "셀프 호스팅과 동일한 결과",
-          "feature3": "고성능 하드웨어 불필요",
-          "signedIn": {
-            "active": "클라우드 구독 활성화됨",
-            "inactive": "활성 구독 없음",
-            "logout": "로그아웃",
-            "manage": "관리",
-            "usage": "월간 사용량",
-            "usageStats": "{{requests}} / {{limit}} 요청"
-          },
-          "signedOut": {
-            "noAccount": "계정이 없으신가요?",
-            "signup": "웹사이트에서 가입하기",
-            "upgradeBtn": "웹사이트에서 업그레이드",
-            "upgradeDesc": "클라우드 AI 기능을 사용하려면 클라우드 구독이 필요합니다."
-          },
-          "statuses": {
-            "connecting": "연결 중…",
-            "retry": "연결 재시도",
-            "unsupported": "클라우드 로그인은 현재 데스크톱에서만 사용할 수 있습니다."
-          },
-          "title": "클라우드 서비스"
-        },
         "connector": {
           "address": "AI 커넥터 주소",
           "addressDesc": "실행 중인 AI 커넥터 인스턴스의 주소와 포트를 입력하세요. 생성형 AI 기능에 필요합니다.",
@@ -1818,7 +1792,6 @@
         "providers": {
           "aiConnector": "AI 커넥터",
           "aiFree": "AI 없음",
-          "cloud": "클라우드",
           "cpu": "CPU"
         },
         "title": "생성형 AI"

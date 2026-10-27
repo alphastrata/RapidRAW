@@ -1799,32 +1799,6 @@
     },
     "processing": {
       "ai": {
-        "cloud": {
-          "description": "Pour ceux qui souhaitent une solution plus simple, un abonnement optionnel fournit les mêmes résultats de haute qualité que l'auto-hébergement, sans aucun tracas. C'est l'option la plus pratique et la meilleure façon de soutenir le projet.",
-          "feature1": "Praticité maximale, aucune configuration",
-          "feature2": "Mêmes résultats que l'auto-hébergement",
-          "feature3": "Aucun matériel puissant requis",
-          "signedIn": {
-            "active": "Abonnement Cloud Actif",
-            "inactive": "Aucun abonnement actif",
-            "logout": "Se déconnecter",
-            "manage": "Gérer",
-            "usage": "Utilisation mensuelle",
-            "usageStats": "{{requests}} / {{limit}} requêtes"
-          },
-          "signedOut": {
-            "noAccount": "Vous n'avez pas de compte ?",
-            "signup": "Inscrivez-vous sur le site web",
-            "upgradeBtn": "Mettre à niveau sur le site",
-            "upgradeDesc": "Pour utiliser les fonctionnalités de l'IA Cloud, vous avez besoin d'un abonnement Cloud."
-          },
-          "statuses": {
-            "connecting": "Connexion…",
-            "retry": "Réessayer la connexion",
-            "unsupported": "La connexion au cloud n'est actuellement disponible que sur ordinateur."
-          },
-          "title": "Service Cloud"
-        },
         "connector": {
           "address": "Adresse AI Connector",
           "addressDesc": "Saisissez l'adresse et le port de votre instance AI Connector en cours d'exécution. Requis pour les fonctionnalités d'IA générative.",
@@ -1856,7 +1830,6 @@
         "providers": {
           "aiConnector": "AI Connector",
           "aiFree": "Sans IA",
-          "cloud": "Cloud",
           "cpu": "CPU"
         },
         "title": "IA Générative"

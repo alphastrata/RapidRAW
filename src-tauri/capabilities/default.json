@@ -15,10 +15,6 @@
     "os:allow-os-type",
     "core:window:allow-set-fullscreen",
     "core:window:allow-set-decorations",
-    "shell:default",
-    {
-      "identifier": "http:default",
-      "allow": [{ "url": "https://clerk.getrapidraw.com/*" }, { "url": "https://www.getrapidraw.com/*" }]
-    }
+    "shell:default"
   ]
 }

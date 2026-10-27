@@ -26,19 +26,6 @@ struct MiddlewareResponse {
     color: String,
 }
 
-#[derive(Serialize)]
-struct CloudInpaintRequest {
-    image_base64: String,
-    mask_image_base64: String,
-    prompt: String,
-    seed: i64,
-}
-
-#[derive(Deserialize)]
-struct CloudInpaintResponse {
-    color: String,
-}
-
 pub fn generate_source_id(path_str: &str) -> Result<String> {
     let path = Path::new(path_str);
     let metadata = fs::metadata(path)?;
@@ -60,13 +47,6 @@ fn image_to_base64(img: &DynamicImage) -> Result<String> {
     Ok(general_purpose::STANDARD.encode(buf.get_ref()))
 }
 
-fn image_to_base64_jpeg(img: &DynamicImage, quality: u8) -> Result<String> {
-    let mut buf = Cursor::new(Vec::new());
-    let mut encoder = JpegEncoder::new_with_quality(&mut buf, quality);
-    encoder.encode_image(&img.to_rgb8())?;
-    Ok(general_purpose::STANDARD.encode(buf.get_ref()))
-}
-
 fn image_to_jpeg_bytes(img: &DynamicImage, quality: u8) -> Result<Vec<u8>> {
     let mut buf = Cursor::new(Vec::new());
     let mut encoder = JpegEncoder::new_with_quality(&mut buf, quality);
@@ -79,7 +59,6 @@ async fn upload_source_image(
     base_url: &str,
     source_id: &str,
     image: &DynamicImage,
-    token: Option<&str>,
 ) -> Result<()> {
     let jpeg_bytes = image_to_jpeg_bytes(image, 95)?;
 
@@ -91,15 +70,11 @@ async fn upload_source_image(
         .text("source_id", source_id.to_string())
         .part("file", part);
 
-    let mut req = client
+    let res = client
         .post(format!("{}/upload_source", base_url))
-        .multipart(form);
-
-    if let Some(auth_token) = token {
-        req = req.bearer_auth(auth_token);
-    }
-
-    let res = req.send().await?;
+        .multipart(form)
+        .send()
+        .await?;
 
     if !res.status().is_success() {
         return Err(anyhow!("Upload failed: {}", res.text().await?));
@@ -141,7 +116,6 @@ pub async fn process_inpainting(
     full_source_image: &DynamicImage,
     mask_image: &DynamicImage,
     prompt: String,
-    token: Option<&str>,
 ) -> Result<RgbaImage> {
     let client = Client::new();
     let source_id = generate_source_id(source_path)?;
@@ -158,22 +132,12 @@ pub async fn process_inpainting(
 
     let url = format!("{}/inpaint", base_url);
 
-    let mut req = client.post(&url).json(&payload);
-    if let Some(auth_token) = token {
-        req = req.bearer_auth(auth_token);
-    }
-
-    let response = req.send().await?;
+    let response = client.post(&url).json(&payload).send().await?;
 
     let middleware_data: MiddlewareResponse = if response.status() == 404 {
-        upload_source_image(&client, base_url, &source_id, full_source_image, token).await?;
+        upload_source_image(&client, base_url, &source_id, full_source_image).await?;
 
-        let mut retry_req = client.post(&url).json(&payload);
-        if let Some(auth_token) = token {
-            retry_req = retry_req.bearer_auth(auth_token);
-        }
-
-        let retry_res = retry_req.send().await?;
+        let retry_res = client.post(&url).json(&payload).send().await?;
         if !retry_res.status().is_success() {
             return Err(anyhow!(
                 "AI generation failed after upload: {}",
@@ -188,37 +152,4 @@ pub async fn process_inpainting(
     };
 
     composite_full_res(middleware_data, w, h)
-}
-
-pub async fn process_cloud_inpainting(
-    base_url: &str,
-    source_crop: &DynamicImage,
-    mask_crop: &DynamicImage,
-    prompt: String,
-    token: &str,
-) -> Result<DynamicImage> {
-    let client = Client::new();
-
-    let req_payload = CloudInpaintRequest {
-        image_base64: image_to_base64_jpeg(source_crop, 95)?,
-        mask_image_base64: image_to_base64(mask_crop)?,
-        prompt,
-        seed: 0,
-    };
-
-    let res = client
-        .post(format!("{}/inpaint", base_url))
-        .bearer_auth(token)
-        .json(&req_payload)
-        .send()
-        .await?;
-
-    if !res.status().is_success() {
-        return Err(anyhow!("Cloud generation failed: {}", res.text().await?));
-    }
-
-    let response: CloudInpaintResponse = res.json().await?;
-    let decoded = general_purpose::STANDARD.decode(&response.color)?;
-
-    Ok(image::load_from_memory(&decoded)?)
 }

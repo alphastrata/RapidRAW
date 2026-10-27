@@ -2,7 +2,6 @@ import { type PointerEvent as ReactPointerEvent, useState, useEffect, useCallbac
 import { invoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
 import { getCurrentWindow } from '@tauri-apps/api/window';
-import { useCloudStore } from './store/useCloudStore';
 import { ToastContainer, toast, Slide } from 'react-toastify';
 import {
   DndContext,
@@ -1073,10 +1072,6 @@ function App() {
 }
 
 const AppWrapper = () => {
-  useEffect(() => {
-    useCloudStore.getState().initAuth();
-  }, []);
-
   return (
     <ContextMenuProvider>
       <App />

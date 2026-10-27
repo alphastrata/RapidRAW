@@ -1763,32 +1763,6 @@
     },
     "processing": {
       "ai": {
-        "cloud": {
-          "description": "For those who want a simpler solution, an optional subscription provides the same high-quality results as self-hosting without any hassle. This is the most convenient option and the best way to support the project.",
-          "feature1": "Maximum convenience, no setup",
-          "feature2": "Same results as self-hosting",
-          "feature3": "No powerful hardware required",
-          "signedIn": {
-            "active": "Cloud Subscription Active",
-            "inactive": "No Active Subscription",
-            "logout": "Log Out",
-            "manage": "Manage",
-            "usage": "Monthly Usage",
-            "usageStats": "{{requests}} / {{limit}} requests"
-          },
-          "signedOut": {
-            "noAccount": "Don't have an account?",
-            "signup": "Sign up on the website",
-            "upgradeBtn": "Upgrade on Website",
-            "upgradeDesc": "To use Cloud AI features, you need a Cloud subscription."
-          },
-          "statuses": {
-            "connecting": "Connecting…",
-            "retry": "Retry connection",
-            "unsupported": "Cloud sign-in is currently only available on desktop."
-          },
-          "title": "Cloud Service"
-        },
         "connector": {
           "address": "AI Connector Address",
           "addressDesc": "Enter the address and port of your running AI Connector instance. Required for generative AI features.",
@@ -1820,7 +1794,6 @@
         "providers": {
           "aiConnector": "AI Connector",
           "aiFree": "AI-Free",
-          "cloud": "Cloud",
           "cpu": "CPU"
         },
         "title": "Generative AI"
