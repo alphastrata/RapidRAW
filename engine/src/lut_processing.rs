@@ -633,7 +633,8 @@ pub async fn generate_lut_previews_impl(
 ) -> Result<Vec<LutPreview>, String> {
     tokio::task::spawn_blocking(move || {
         let state = host.app_state();
-        let context = crate::image_processing::get_or_init_gpu_context(&state, host.as_ref())?;
+        let context = crate::image_processing::get_or_init_gpu_context(&state, host.as_ref())
+            .map_err(|e| e.to_string())?;
         let loaded_image = state
             .original_image
             .lock()
