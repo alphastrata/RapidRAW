@@ -1,0 +1,40 @@
+[default.extend-words]
+color = "color"
+colors = "colors"
+center = "center"
+centers = "centers"
+centered = "centered"
+serializing = "serializing"
+serialization = "serialization"
+digitized = "digitized"
+initialize = "initialize"
+initialized = "initialized"
+finalize = "finalize"
+finalized = "finalized"
+normalize = "normalize"
+normalized = "normalized"
+specialized = "specialized"
+optimization = "optimization"
+stabilize = "stabilize"
+neutralize = "neutralize"
+neutralized = "neutralized"
+linearize = "linearize"
+analyze = "analyze"
+artifacts = "artifacts"
+iy = "iy"
+ax = "ax"
+gaus = "gaus"
+thr = "thr"
+hom = "hom"
+hald = "hald"
+HALD = "HALD"
+
+[files]
+extend-exclude = [
+    "src/locales",
+    "src-tauri/lensfun_db",
+    "data",
+    "i18n",
+    "src/i18n/locales",
+    "README.md",
+]
