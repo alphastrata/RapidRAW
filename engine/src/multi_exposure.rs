@@ -1,3 +1,4 @@
+#[must_use]
 pub fn is_incamera_multiexposure_canon(file_bytes: &[u8]) -> bool {
     assert!(file_bytes.len() >= 8, "CR2 file must be at least 8 bytes");
 
@@ -50,6 +51,7 @@ fn _find_ifd_entry(file_bytes: &[u8], ifd_offset: usize, tag_id: u16) -> Option<
     None
 }
 
+#[must_use]
 pub fn neutralize_wb_if_multiexposure(wb_coeffs: [f32; 4], file_bytes: &[u8]) -> [f32; 4] {
     if is_incamera_multiexposure_canon(file_bytes) {
         log::info!("[raw_hdr_wb] multi-exposure CR2 detected, neutralizing WB");

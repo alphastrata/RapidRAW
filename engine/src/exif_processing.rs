@@ -45,7 +45,7 @@ impl ExifCacheState {
         let hash = blake3::hash(folder.to_string_lossy().as_bytes())
             .to_hex()
             .to_string();
-        Some(base_dir.join(format!("{}.json", hash)))
+        Some(base_dir.join(format!("{hash}.json")))
     }
 }
 
@@ -114,7 +114,7 @@ pub fn clear_disk_cache() -> Result<(), String> {
     else {
         return Ok(());
     };
-    for path in read_dir.filter_map(|e| e.ok()).map(|e| e.path()) {
+    for path in read_dir.filter_map(std::result::Result::ok).map(|e| e.path()) {
         if path.is_file() {
             fs::remove_file(&path)
                 .map_err(|e| format!("Failed to remove {}: {}", path.display(), e))?;
@@ -215,6 +215,7 @@ fn save_exif_to_rrcache(image_path: &Path, exif: HashMap<String, String>) {
     state.dirty.insert(folder.to_path_buf());
 }
 
+#[must_use]
 pub fn truncate_large_exif(value: &str) -> String {
     if value.len() <= 500 {
         return value.to_string();
@@ -233,7 +234,7 @@ pub fn truncate_large_exif(value: &str) -> String {
     if start_idx < end_idx {
         let start_str = &value[..start_idx];
         let end_str = &value[end_idx..];
-        return format!("{}...{}", start_str, end_str);
+        return format!("{start_str}...{end_str}");
     }
 
     value.to_string()
@@ -313,6 +314,7 @@ fn write_sidecar_json(sidecar_path: &Path, metadata: &ImageMetadata) -> std::io:
     crate::paths::write_file_atomic(sidecar_path, json.as_bytes())
 }
 
+#[must_use]
 pub fn load_sidecar(sidecar_path: &Path) -> ImageMetadata {
     let (meta, healed) = read_sidecar(sidecar_path).unwrap_or_else(|e| {
         log::warn!("Failed to read sidecar {}: {}", sidecar_path.display(), e);
@@ -359,7 +361,8 @@ fn write_sidecar(
     metadata: &ImageMetadata,
 ) -> std::io::Result<()> {
     if is_default_sidecar(sidecar_path, source_path, metadata) {
-        let _layout = SIDECAR_LAYOUT_LOCK.lock().unwrap();
+        let layout_guard = SIDECAR_LAYOUT_LOCK.lock().unwrap();
+        drop(layout_guard);
         if !has_virtual_copy_sidecars(source_path) {
             return match fs::remove_file(sidecar_path) {
                 Err(e) if e.kind() != std::io::ErrorKind::NotFound => Err(e),
@@ -597,6 +600,7 @@ fn format_lens_specification(components: &[exif::Rational]) -> Option<String> {
     Some(format_lens_spec(focal_min, focal_max, aperture))
 }
 
+#[must_use]
 pub fn read_exif(file_bytes: &[u8]) -> Option<Exif> {
     let exifreader = exif::Reader::new();
     exifreader
@@ -604,6 +608,7 @@ pub fn read_exif(file_bytes: &[u8]) -> Option<Exif> {
         .ok()
 }
 
+#[must_use]
 pub fn read_raw_metadata(file_bytes: &[u8]) -> Option<RawMetadata> {
     raw_metadata_from_source(&rawler::rawsource::RawSource::new_from_slice(file_bytes))
 }
@@ -642,6 +647,7 @@ fn insert_missing_lens_fields(map: &mut HashMap<String, String>, lens: &LensDesc
     }
 }
 
+#[must_use]
 pub fn read_exposure_time_secs(path: &str, file_bytes: &[u8]) -> Option<f32> {
     if let Some(map) = read_rrexif_sidecar(Path::new(path))
         && let Some(val_str) = map.get("ExposureTime").or(map.get("ShutterSpeedValue"))
@@ -713,6 +719,7 @@ pub fn read_exposure_time_secs(path: &str, file_bytes: &[u8]) -> Option<f32> {
     None
 }
 
+#[must_use]
 pub fn read_iso(path: &str, file_bytes: &[u8]) -> Option<u32> {
     if let Some(map) = read_rrexif_sidecar(Path::new(path))
         && let Some(val_str) = map
@@ -730,7 +737,7 @@ pub fn read_iso(path: &str, file_bytes: &[u8]) -> Option<u32> {
         if let Some(r) = meta.exif.iso_speed {
             return Some(r);
         } else if let Some(r) = meta.exif.iso_speed_ratings {
-            return Some(r as u32);
+            return Some(u32::from(r));
         }
     }
 
@@ -744,6 +751,7 @@ pub fn read_iso(path: &str, file_bytes: &[u8]) -> Option<u32> {
     None
 }
 
+#[must_use]
 pub fn extract_metadata(file_bytes: &[u8]) -> Option<HashMap<String, String>> {
     let mut map = HashMap::new();
 
@@ -765,7 +773,7 @@ pub fn extract_metadata(file_bytes: &[u8]) -> Option<HashMap<String, String>> {
                                     format!("1/{} s", (1.0 / val).round()),
                                 );
                             } else {
-                                map.insert("ExposureTime".to_string(), format!("{} s", val));
+                                map.insert("ExposureTime".to_string(), format!("{val} s"));
                             }
                         }
                     }
@@ -783,7 +791,7 @@ pub fn extract_metadata(file_bytes: &[u8]) -> Option<HashMap<String, String>> {
                         && !v.is_empty()
                     {
                         let val = v[0].num as f32 / v[0].denom as f32;
-                        map.insert("FNumber".to_string(), format!("f/{}", val));
+                        map.insert("FNumber".to_string(), format!("f/{val}"));
                     }
                 }
                 exif::Tag::ApertureValue => {
@@ -791,7 +799,7 @@ pub fn extract_metadata(file_bytes: &[u8]) -> Option<HashMap<String, String>> {
                         && !v.is_empty()
                     {
                         let val = v[0].num as f32 / v[0].denom as f32;
-                        map.insert("ApertureValue".to_string(), format!("f/{}", val));
+                        map.insert("ApertureValue".to_string(), format!("f/{val}"));
                     }
                 }
                 exif::Tag::FocalLength => {
@@ -859,17 +867,14 @@ pub fn extract_metadata(file_bytes: &[u8]) -> Option<HashMap<String, String>> {
                         );
                     }
                 }
-                _ => match &field.value {
-                    exif::Value::Ascii(_) => {
-                        if let Some(val) = clean_ascii_value(&field.value) {
-                            map.insert(field.tag.to_string(), truncate_large_exif(&val));
-                        }
+                _ => if let exif::Value::Ascii(_) = &field.value {
+                    if let Some(val) = clean_ascii_value(&field.value) {
+                        map.insert(field.tag.to_string(), truncate_large_exif(&val));
                     }
-                    _ => {
-                        let val = field.display_value().with_unit(&exif_obj).to_string();
-                        if !val.trim().is_empty() {
-                            map.insert(field.tag.to_string(), truncate_large_exif(&val));
-                        }
+                } else {
+                    let val = field.display_value().with_unit(&exif_obj).to_string();
+                    if !val.trim().is_empty() {
+                        map.insert(field.tag.to_string(), truncate_large_exif(&val));
                     }
                 },
             }
@@ -981,12 +986,12 @@ pub fn extract_metadata(file_bytes: &[u8]) -> Option<HashMap<String, String>> {
 
     if let Some(r) = exif.fnumber {
         let val = fmt_rat(&r);
-        insert_if_present("FNumber", format!("f/{}", val));
+        insert_if_present("FNumber", format!("f/{val}"));
     }
 
     if let Some(r) = exif.aperture_value {
         let val = fmt_rat(&r);
-        insert_if_present("ApertureValue", format!("f/{}", val));
+        insert_if_present("ApertureValue", format!("f/{val}"));
     }
 
     if let Some(r) = exif.max_aperture_value {
@@ -1001,7 +1006,7 @@ pub fn extract_metadata(file_bytes: &[u8]) -> Option<HashMap<String, String>> {
             if val < 1.0 && val > 0.0 {
                 insert_if_present("ExposureTime", format!("1/{} s", (1.0 / val).round()));
             } else {
-                insert_if_present("ExposureTime", format!("{} s", val));
+                insert_if_present("ExposureTime", format!("{val} s"));
             }
         }
     }
@@ -1141,11 +1146,10 @@ pub fn get_creation_date_from_path(path: &Path) -> DateTime<Utc> {
 
     fs::metadata(path)
         .ok()
-        .and_then(|m| m.created().ok())
-        .map(DateTime::<Utc>::from)
-        .unwrap_or_else(Utc::now)
+        .and_then(|m| m.created().ok()).map_or_else(Utc::now, DateTime::<Utc>::from)
 }
 
+#[must_use]
 pub fn try_get_exif_creation_date(path: &Path) -> Option<DateTime<Utc>> {
     if let Some(map) = read_rrexif_sidecar(path)
         && let Some(dt_str) = map.get("DateTimeOriginal").or(map.get("CreateDate"))
@@ -1383,7 +1387,7 @@ fn apply_gps_from_kamadak(metadata: &mut Metadata, original_path: &Path) {
             _ => field
                 .display_value()
                 .to_string()
-                .replace("\"", "")
+                .replace('"', "")
                 .trim()
                 .to_string(),
         }
@@ -1458,7 +1462,6 @@ pub fn write_image_with_metadata(
     xmp: &ExportXmp,
     dpi: Option<u16>,
 ) -> Result<(), String> {
-    // FIXME: temporary solution until I find a way to write metadata to TIFF
     if !keep_metadata || output_format.to_lowercase() == "tiff" {
         return Ok(());
     }
@@ -1494,7 +1497,6 @@ fn write_exif_metadata(
         return Ok(());
     }
 
-    // Skip TIFF sources to avoid potential tag corruption issues
     let original_ext = original_path
         .extension()
         .and_then(|s| s.to_str())
@@ -1529,7 +1531,7 @@ fn write_exif_metadata(
                 .replace("f/", "")
                 .replace(" s", "")
                 .replace(" mm", "")
-                .replace("\"", "");
+                .replace('"', "");
 
             let val = cleaned_string.trim();
 
@@ -1603,7 +1605,7 @@ fn write_exif_metadata(
             metadata.set_tag(ExifTag::FocalLength(vec![ur]));
         }
         if let Some(val) = map.get("FocalLengthIn35mmFilm") {
-            let cleaned = val.replace(" mm", "").replace("\"", "");
+            let cleaned = val.replace(" mm", "").replace('"', "");
             let trimmed = cleaned.trim();
             if let Ok(f_val) = trimmed.parse::<f32>() {
                 metadata.set_tag(ExifTag::FocalLengthIn35mmFormat(vec![f_val.round() as u16]));
@@ -1635,7 +1637,7 @@ fn write_exif_metadata(
                     _ => field
                         .display_value()
                         .to_string()
-                        .replace("\"", "")
+                        .replace('"', "")
                         .trim()
                         .to_string(),
                 }
@@ -1758,7 +1760,7 @@ fn write_exif_metadata(
     }
 
     if let Err(e) = metadata.write_to_vec(image_bytes, file_type) {
-        log::warn!("Failed to write metadata: {}", e);
+        log::warn!("Failed to write metadata: {e}");
     }
 
     Ok(())
@@ -1771,6 +1773,7 @@ pub struct ExportXmp {
 }
 
 impl ExportXmp {
+    #[must_use]
     pub fn from_metadata(metadata: &ImageMetadata) -> Self {
         let tags = metadata.tags.as_deref().unwrap_or_default();
         let mut keywords = Vec::new();
@@ -1833,8 +1836,7 @@ fn read_source_xmp(path: &Path) -> Option<String> {
 fn build_export_xmp(xmp: &ExportXmp, source_xmp: Option<&str>) -> Option<String> {
     let mut keywords = xmp.keywords.clone();
     for tag in source_xmp
-        .map(extract_xmp_tags)
-        .unwrap_or_default()
+        .map_or_default(extract_xmp_tags)
     {
         push_keyword(
             &mut keywords,
@@ -1855,17 +1857,16 @@ fn build_export_xmp(xmp: &ExportXmp, source_xmp: Option<&str>) -> Option<String>
         "<?xpacket begin=\"\u{feff}\" id=\"W5M0MpCehiHzreSzNTczkc9d\"?>\n\
 <x:xmpmeta xmlns:x=\"adobe:ns:meta/\" x:xmptk=\"RapidRAW\">\n \
 <rdf:RDF xmlns:rdf=\"http://www.w3.org/1999/02/22-rdf-syntax-ns#\">\n\
-{} </rdf:RDF>\n\
+{description} </rdf:RDF>\n\
 </x:xmpmeta>\n\
-<?xpacket end=\"w\"?>",
-        description
+<?xpacket end=\"w\"?>"
     ))
 }
 
 fn export_xmp_description(xmp: &ExportXmp, keywords: &[String]) -> String {
     let mut properties = String::new();
     if let Some(rating) = &xmp.rating {
-        properties.push_str(&format!("   <xmp:Rating>{}</xmp:Rating>\n", rating));
+        properties.push_str(&format!("   <xmp:Rating>{rating}</xmp:Rating>\n"));
     }
     if let Some(label) = &xmp.label {
         properties.push_str(&format!(
@@ -1885,8 +1886,7 @@ fn export_xmp_description(xmp: &ExportXmp, keywords: &[String]) -> String {
     }
 
     format!(
-        "  <rdf:Description rdf:about=\"\"\n    xmlns:xmp=\"http://ns.adobe.com/xap/1.0/\"\n    xmlns:dc=\"http://purl.org/dc/elements/1.1/\">\n{}  </rdf:Description>\n",
-        properties
+        "  <rdf:Description rdf:about=\"\"\n    xmlns:xmp=\"http://ns.adobe.com/xap/1.0/\"\n    xmlns:dc=\"http://purl.org/dc/elements/1.1/\">\n{properties}  </rdf:Description>\n"
     )
 }
 
@@ -2061,12 +2061,14 @@ fn update_riff_size(image_bytes: &mut [u8]) {
     image_bytes[4..8].copy_from_slice(&riff_size.to_le_bytes());
 }
 
+#[must_use]
 pub fn get_primary_sidecar_path(image_path: &Path) -> PathBuf {
     let mut filename = image_path.file_name().unwrap_or_default().to_os_string();
     filename.push(".rrdata");
     image_path.with_file_name(filename)
 }
 
+#[must_use]
 pub fn get_rrexif_path(image_path: &Path) -> PathBuf {
     let mut filename = image_path.file_name().unwrap_or_default().to_os_string();
     filename.push(".rrexif");
@@ -2089,6 +2091,7 @@ fn update_primary_metadata(
     write_sidecar_json(&primary, &metadata)
 }
 
+#[must_use]
 pub fn read_rrexif_sidecar(image_path: &Path) -> Option<HashMap<String, String>> {
     let primary = get_primary_sidecar_path(image_path);
 
@@ -2116,6 +2119,7 @@ pub fn read_rrexif_sidecar(image_path: &Path) -> Option<HashMap<String, String>>
     None
 }
 
+#[must_use]
 pub fn read_exif_data_from_bytes(path: &str, file_bytes: &[u8]) -> HashMap<String, String> {
     if is_raw_file(path)
         && let Some(map) = extract_metadata(file_bytes)
@@ -2145,6 +2149,7 @@ pub fn read_exif_data_from_bytes(path: &str, file_bytes: &[u8]) -> HashMap<Strin
     exif_data
 }
 
+#[must_use]
 pub fn read_exif_data(path: &str, file_bytes: &[u8]) -> HashMap<String, String> {
     let source_path = Path::new(path);
 
@@ -2206,9 +2211,10 @@ pub fn write_rrexif_sidecar(source_path_str: &str, target_image_path: &Path) -> 
     update_primary_metadata(target_image_path, |metadata| {
         metadata.exif = Some(exif_data);
     })
-    .map_err(|e| format!("Failed to write sidecar: {}", e))
+    .map_err(|e| format!("Failed to write sidecar: {e}"))
 }
 
+#[must_use]
 pub fn xmp_rating(metadata: &crate::image_processing::ImageMetadata) -> String {
     if metadata.flag == Some(ImageFlag::Reject) {
         XMP_REJECTED_RATING.to_string()
@@ -2217,6 +2223,7 @@ pub fn xmp_rating(metadata: &crate::image_processing::ImageMetadata) -> String {
     }
 }
 
+#[must_use]
 pub fn xmp_label(tags: &[String]) -> Option<String> {
     tags.iter()
         .rev()
@@ -2230,6 +2237,7 @@ pub fn xmp_label(tags: &[String]) -> Option<String> {
         })
 }
 
+#[must_use]
 pub fn extract_xmp_tags(content: &str) -> Vec<String> {
     let mut tags = Vec::new();
     if let Some(start_idx) = content.find("<dc:subject>")

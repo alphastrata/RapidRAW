@@ -105,6 +105,7 @@ pub fn mark_baseline_exposure(adjustments: &mut Value) {
     }
 }
 
+#[must_use]
 pub fn default_adjustments() -> Value {
     let mut adjustments = json!({});
     mark_baseline_exposure(&mut adjustments);
@@ -116,7 +117,7 @@ fn default_adjustment_values() -> Option<&'static serde_json::Map<String, Value>
     DEFAULTS
         .get_or_init(|| {
             serde_json::from_str(include_str!("../../src/utils/defaultAdjustments.json"))
-                .map_err(|e| log::error!("Failed to parse defaultAdjustments.json: {}", e))
+                .map_err(|e| log::error!("Failed to parse defaultAdjustments.json: {e}"))
                 .ok()
         })
         .as_ref()
@@ -176,6 +177,7 @@ fn uses_baseline_exposure(adjustments: &Value) -> bool {
             .unwrap_or(false)
 }
 
+#[must_use]
 pub fn effective_baseline_exposure(
     adjustments: &Value,
     as_shot: AsShot,
@@ -259,6 +261,7 @@ impl Default for GeometryParams {
     }
 }
 
+#[must_use]
 pub fn get_geometry_params_from_json(adjustments: &serde_json::Value) -> GeometryParams {
     let lens_params = adjustments
         .get("lensDistortionParams")
@@ -267,7 +270,7 @@ pub fn get_geometry_params_from_json(adjustments: &serde_json::Value) -> Geometr
     let guided = adjustments.get("guidedPerspective");
     let guided_perspective_enabled = guided
         .and_then(|g| g.get("enabled"))
-        .and_then(|v| v.as_bool())
+        .and_then(serde_json::Value::as_bool)
         .unwrap_or(false);
     let guided_lines: Vec<GuideLine> = guided
         .and_then(|g| g.get("lines"))
@@ -298,37 +301,38 @@ pub fn get_geometry_params_from_json(adjustments: &serde_json::Value) -> Geometr
         lens_vignette_enabled: adjustments["lensVignetteEnabled"].as_bool().unwrap_or(true),
 
         lens_dist_k1: lens_params
-            .and_then(|p| p.get("k1").and_then(|k| k.as_f64()))
+            .and_then(|p| p.get("k1").and_then(serde_json::Value::as_f64))
             .unwrap_or(0.0) as f32,
         lens_dist_k2: lens_params
-            .and_then(|p| p.get("k2").and_then(|k| k.as_f64()))
+            .and_then(|p| p.get("k2").and_then(serde_json::Value::as_f64))
             .unwrap_or(0.0) as f32,
         lens_dist_k3: lens_params
-            .and_then(|p| p.get("k3").and_then(|k| k.as_f64()))
+            .and_then(|p| p.get("k3").and_then(serde_json::Value::as_f64))
             .unwrap_or(0.0) as f32,
         lens_model: lens_params
-            .and_then(|p| p.get("model").and_then(|m| m.as_u64()))
+            .and_then(|p| p.get("model").and_then(serde_json::Value::as_u64))
             .unwrap_or(0) as u32,
         tca_vr: lens_params
-            .and_then(|p| p.get("tca_vr").and_then(|k| k.as_f64()))
+            .and_then(|p| p.get("tca_vr").and_then(serde_json::Value::as_f64))
             .unwrap_or(1.0) as f32,
         tca_vb: lens_params
-            .and_then(|p| p.get("tca_vb").and_then(|k| k.as_f64()))
+            .and_then(|p| p.get("tca_vb").and_then(serde_json::Value::as_f64))
             .unwrap_or(1.0) as f32,
         vig_k1: lens_params
-            .and_then(|p| p.get("vig_k1").and_then(|k| k.as_f64()))
+            .and_then(|p| p.get("vig_k1").and_then(serde_json::Value::as_f64))
             .unwrap_or(0.0) as f32,
         vig_k2: lens_params
-            .and_then(|p| p.get("vig_k2").and_then(|k| k.as_f64()))
+            .and_then(|p| p.get("vig_k2").and_then(serde_json::Value::as_f64))
             .unwrap_or(0.0) as f32,
         vig_k3: lens_params
-            .and_then(|p| p.get("vig_k3").and_then(|k| k.as_f64()))
+            .and_then(|p| p.get("vig_k3").and_then(serde_json::Value::as_f64))
             .unwrap_or(0.0) as f32,
         guided_lines,
         guided_perspective_enabled,
     }
 }
 
+#[must_use]
 pub fn downscale_f32_image(image: &DynamicImage, nwidth: u32, nheight: u32) -> DynamicImage {
     downscale_f32_image_if_needed(image, nwidth, nheight).unwrap_or_else(|| image.clone())
 }
@@ -346,6 +350,7 @@ fn u8_to_f32_lut() -> &'static [f32; 256] {
     })
 }
 
+#[must_use]
 pub fn downscale_f32_image_if_needed(
     image: &DynamicImage,
     nwidth: u32,
@@ -460,15 +465,15 @@ pub fn downscale_f32_image_if_needed(
         DynamicImage::ImageRgb32F(rgb) => filter.run::<3, f32>(rgb.as_raw(), |v| v, &mut out_buf),
         DynamicImage::ImageRgb8(rgb) => {
             let lut = u8_to_f32_lut();
-            filter.run::<3, u8>(rgb.as_raw(), |v| lut[v as usize], &mut out_buf)
+            filter.run::<3, u8>(rgb.as_raw(), |v| lut[v as usize], &mut out_buf);
         }
         DynamicImage::ImageRgba8(rgba) => {
             let lut = u8_to_f32_lut();
-            filter.run::<4, u8>(rgba.as_raw(), |v| lut[v as usize], &mut out_buf)
+            filter.run::<4, u8>(rgba.as_raw(), |v| lut[v as usize], &mut out_buf);
         }
         _ => {
             let converted = image.to_rgb32f();
-            filter.run::<3, f32>(converted.as_raw(), |v| v, &mut out_buf)
+            filter.run::<3, f32>(converted.as_raw(), |v| v, &mut out_buf);
         }
     }
 
@@ -641,10 +646,10 @@ fn build_transform_matrices(
     let m_offset = NaMatrix3::new(1.0, 0.0, off_x, 0.0, 1.0, off_y, 0.0, 0.0, 1.0);
 
     let guided_m = if params.guided_perspective_enabled
-        && count_valid_lines(&params.guided_lines, width as f64, height as f64) >= 2
+        && count_valid_lines(&params.guided_lines, f64::from(width), f64::from(height)) >= 2
     {
         if let Some(res) =
-            compute_guided_homography(&params.guided_lines, width as f64, height as f64)
+            compute_guided_homography(&params.guided_lines, f64::from(width), f64::from(height))
         {
             let h = res.forward_h;
             NaMatrix3::new(
@@ -667,7 +672,7 @@ fn build_transform_matrices(
 
     let forward = t_center * m_offset * m_perspective * m_rotate * m_scale * guided_m * t_uncenter;
     let half_diagonal =
-        ((width as f64 * width as f64 + height as f64 * height as f64).sqrt()) / 2.0;
+        ((f64::from(width) * f64::from(width) + f64::from(height) * f64::from(height)).sqrt()) / 2.0;
 
     (forward, cx, cy, half_diagonal)
 }
@@ -773,17 +778,17 @@ fn solve_generic_distortion_inv(r_target: f64, k_scaled: f64) -> f64 {
 }
 
 fn compute_lens_auto_crop_scale(params: &GeometryParams, width: f32, height: f32) -> f64 {
-    let cx = (width / 2.0) as f64;
-    let cy = (height / 2.0) as f64;
+    let cx = f64::from(width / 2.0);
+    let cy = f64::from(height / 2.0);
     let half_diagonal = (cx * cx + cy * cy).sqrt();
     let max_radius_sq_inv = 1.0 / (cx * cx + cy * cy);
 
-    let lk1 = params.lens_dist_k1 as f64;
-    let lk2 = params.lens_dist_k2 as f64;
-    let lk3 = params.lens_dist_k3 as f64;
-    let lens_dist_amt = (params.lens_distortion_amount as f64) * 2.5;
+    let lk1 = f64::from(params.lens_dist_k1);
+    let lk2 = f64::from(params.lens_dist_k2);
+    let lk3 = f64::from(params.lens_dist_k3);
+    let lens_dist_amt = f64::from(params.lens_distortion_amount) * 2.5;
 
-    let k_distortion = (params.distortion as f64 / 100.0) * 2.5;
+    let k_distortion = (f64::from(params.distortion) / 100.0) * 2.5;
 
     let has_lens_correction = params.lens_distortion_enabled
         && (lk1.abs() > 1e-6 || lk2.abs() > 1e-6 || lk3.abs() > 1e-6);
@@ -791,13 +796,13 @@ fn compute_lens_auto_crop_scale(params: &GeometryParams, width: f32, height: f32
 
     let sample_points: [(f64, f64); 8] = [
         (cx, 0.0),
-        (cx, height as f64),
+        (cx, f64::from(height)),
         (0.0, cy),
-        (width as f64, cy),
+        (f64::from(width), cy),
         (0.0, 0.0),
-        (width as f64, 0.0),
-        (0.0, height as f64),
-        (width as f64, height as f64),
+        (f64::from(width), 0.0),
+        (0.0, f64::from(height)),
+        (f64::from(width), f64::from(height)),
     ];
 
     let mut max_scale: f64 = 1.0;
@@ -860,14 +865,12 @@ fn compute_lens_auto_crop_scale(params: &GeometryParams, width: f32, height: f32
     }
 }
 
+#[must_use]
 pub fn warp_image_geometry(image: &DynamicImage, params: GeometryParams) -> DynamicImage {
     let converted;
-    let src_img = match image.as_rgb32f() {
-        Some(buffer) => buffer,
-        None => {
-            converted = image.to_rgb32f();
-            &converted
-        }
+    let src_img = if let Some(buffer) = image.as_rgb32f() { buffer } else {
+        converted = image.to_rgb32f();
+        &converted
     };
     let (width, height) = src_img.dimensions();
     let mut out_buffer = vec![0.0f32; (width * height * 3) as usize];
@@ -882,14 +885,14 @@ pub fn warp_image_geometry(image: &DynamicImage, params: GeometryParams) -> Dyna
     let step_vec_y = NaVector3::new(inv[(0, 1)], inv[(1, 1)], inv[(2, 1)]);
     let origin_vec = NaVector3::new(inv[(0, 2)], inv[(1, 2)], inv[(2, 2)]);
 
-    let max_radius_sq_inv = 1.0 / ((cx * cx + cy * cy) as f64);
+    let max_radius_sq_inv = 1.0 / f64::from(cx * cx + cy * cy);
     let hd = half_diagonal;
 
-    let k_distortion = (params.distortion as f64 / 100.0) * 2.5;
-    let lk1 = params.lens_dist_k1 as f64;
-    let lk2 = params.lens_dist_k2 as f64;
-    let lk3 = params.lens_dist_k3 as f64;
-    let lens_dist_amt = (params.lens_distortion_amount as f64) * 2.5;
+    let k_distortion = (f64::from(params.distortion) / 100.0) * 2.5;
+    let lk1 = f64::from(params.lens_dist_k1);
+    let lk2 = f64::from(params.lens_dist_k2);
+    let lk3 = f64::from(params.lens_dist_k3);
+    let lens_dist_amt = f64::from(params.lens_distortion_amount) * 2.5;
 
     let has_lens_correction = params.lens_distortion_enabled
         && (lk1.abs() > 1e-6 || lk2.abs() > 1e-6 || lk3.abs() > 1e-6);
@@ -913,10 +916,10 @@ pub fn warp_image_geometry(image: &DynamicImage, params: GeometryParams) -> Dyna
     };
     let has_tca = params.lens_tca_enabled && ((vr - 1.0).abs() > 1e-5 || (vb - 1.0).abs() > 1e-5);
 
-    let vk1 = params.vig_k1 as f64;
-    let vk2 = params.vig_k2 as f64;
-    let vk3 = params.vig_k3 as f64;
-    let lens_vig_amt = (params.lens_vignette_amount as f64) * 0.8;
+    let vk1 = f64::from(params.vig_k1);
+    let vk2 = f64::from(params.vig_k2);
+    let vk3 = f64::from(params.vig_k3);
+    let lens_vig_amt = f64::from(params.lens_vignette_amount) * 0.8;
     let has_vignetting = params.lens_vignette_enabled
         && (vk1.abs() > 1e-6 || vk2.abs() > 1e-6 || vk3.abs() > 1e-6)
         && lens_vig_amt > 0.01;
@@ -951,8 +954,8 @@ pub fn warp_image_geometry(image: &DynamicImage, params: GeometryParams) -> Dyna
                     }
 
                     if has_lens_correction {
-                        let dx = (src_x - cx) as f64;
-                        let dy = (src_y - cy) as f64;
+                        let dx = f64::from(src_x - cx);
+                        let dy = f64::from(src_y - cy);
                         let ru = (dx * dx + dy * dy).sqrt();
 
                         if ru > 1e-6 {
@@ -982,8 +985,8 @@ pub fn warp_image_geometry(image: &DynamicImage, params: GeometryParams) -> Dyna
                     }
 
                     if k_distortion.abs() > 1e-5 {
-                        let dx = (src_x - cx) as f64;
-                        let dy = (src_y - cy) as f64;
+                        let dx = f64::from(src_x - cx);
+                        let dy = f64::from(src_y - cy);
                         let r2_norm = (dx * dx + dy * dy) * max_radius_sq_inv;
                         let f = 1.0 + k_distortion * r2_norm;
 
@@ -998,8 +1001,8 @@ pub fn warp_image_geometry(image: &DynamicImage, params: GeometryParams) -> Dyna
                     }
 
                     if has_vignetting {
-                        let dx = (src_x - cx) as f64;
-                        let dy = (src_y - cy) as f64;
+                        let dx = f64::from(src_x - cx);
+                        let dy = f64::from(src_y - cy);
                         let ru = (dx * dx + dy * dy).sqrt();
                         let ru_norm = ru / hd;
                         let ru_norm2 = ru_norm * ru_norm;
@@ -1027,28 +1030,26 @@ pub fn warp_image_geometry(image: &DynamicImage, params: GeometryParams) -> Dyna
     DynamicImage::ImageRgb32F(out_img)
 }
 
+#[must_use]
 pub fn unwarp_image_geometry(warped_image: &DynamicImage, params: GeometryParams) -> DynamicImage {
     let converted;
-    let src_img = match warped_image.as_rgb32f() {
-        Some(buffer) => buffer,
-        None => {
-            converted = warped_image.to_rgb32f();
-            &converted
-        }
+    let src_img = if let Some(buffer) = warped_image.as_rgb32f() { buffer } else {
+        converted = warped_image.to_rgb32f();
+        &converted
     };
     let (width, height) = src_img.dimensions();
     let mut out_buffer = vec![0.0f32; (width * height * 3) as usize];
 
     let (forward_transform, cx, cy, half_diagonal) =
         build_transform_matrices(&params, width as f32, height as f32);
-    let max_radius_sq_inv = 1.0 / ((cx * cx + cy * cy) as f64);
+    let max_radius_sq_inv = 1.0 / f64::from(cx * cx + cy * cy);
     let hd = half_diagonal;
 
-    let k_distortion = (params.distortion as f64 / 100.0) * 2.5;
-    let lk1 = params.lens_dist_k1 as f64;
-    let lk2 = params.lens_dist_k2 as f64;
-    let lk3 = params.lens_dist_k3 as f64;
-    let lens_dist_amt = (params.lens_distortion_amount as f64) * 2.5;
+    let k_distortion = (f64::from(params.distortion) / 100.0) * 2.5;
+    let lk1 = f64::from(params.lens_dist_k1);
+    let lk2 = f64::from(params.lens_dist_k2);
+    let lk3 = f64::from(params.lens_dist_k3);
+    let lens_dist_amt = f64::from(params.lens_distortion_amount) * 2.5;
 
     let has_lens_correction = params.lens_distortion_enabled
         && (lk1.abs() > 1e-6 || lk2.abs() > 1e-6 || lk3.abs() > 1e-6);
@@ -1076,8 +1077,8 @@ pub fn unwarp_image_geometry(warped_image: &DynamicImage, params: GeometryParams
                 let mut current_y = y_f;
 
                 if k_distortion.abs() > 1e-5 {
-                    let dx = (current_x - cx) as f64;
-                    let dy = (current_y - cy) as f64;
+                    let dx = f64::from(current_x - cx);
+                    let dy = f64::from(current_y - cy);
                     let r_distorted = (dx * dx + dy * dy).sqrt();
 
                     if r_distorted > 1e-6 {
@@ -1091,8 +1092,8 @@ pub fn unwarp_image_geometry(warped_image: &DynamicImage, params: GeometryParams
                 }
 
                 if has_lens_correction {
-                    let dx = (current_x - cx) as f64;
-                    let dy = (current_y - cy) as f64;
+                    let dx = f64::from(current_x - cx);
+                    let dy = f64::from(current_y - cy);
                     let rd = (dx * dx + dy * dy).sqrt();
 
                     if rd > 1e-6 {
@@ -1169,13 +1170,14 @@ pub fn unwarp_image_geometry(warped_image: &DynamicImage, params: GeometryParams
     DynamicImage::ImageRgb32F(out_img)
 }
 
+#[must_use]
 pub fn inverse_transform_mask(
     mask: image::GrayImage,
     adjustments: &serde_json::Value,
 ) -> image::GrayImage {
     let rotation_degrees = adjustments
         .get("rotation")
-        .and_then(|v| v.as_f64())
+        .and_then(serde_json::Value::as_f64)
         .unwrap_or(0.0) as f32;
     let mask_dyn = image::DynamicImage::ImageLuma8(mask);
 
@@ -1187,17 +1189,17 @@ pub fn inverse_transform_mask(
 
     let flip_h = adjustments
         .get("flipHorizontal")
-        .and_then(|v| v.as_bool())
+        .and_then(serde_json::Value::as_bool)
         .unwrap_or(false);
     let flip_v = adjustments
         .get("flipVertical")
-        .and_then(|v| v.as_bool())
+        .and_then(serde_json::Value::as_bool)
         .unwrap_or(false);
     let flipped = apply_flip(unrotated_fine, flip_h, flip_v).into_owned();
 
     let steps = adjustments
         .get("orientationSteps")
-        .and_then(|v| v.as_u64())
+        .and_then(serde_json::Value::as_u64)
         .unwrap_or(0) as u8;
     let inverse_steps = (4 - (steps % 4)) % 4;
     let unrotated_coarse = apply_coarse_rotation(flipped, inverse_steps).into_owned();
@@ -1207,6 +1209,7 @@ pub fn inverse_transform_mask(
     unwarped.into_luma8()
 }
 
+#[must_use]
 pub fn inverse_transform_point(
     mut x: f64,
     mut y: f64,
@@ -1216,7 +1219,7 @@ pub fn inverse_transform_point(
 ) -> (f64, f64) {
     let rotation_degrees = adjustments
         .get("rotation")
-        .and_then(|v| v.as_f64())
+        .and_then(serde_json::Value::as_f64)
         .unwrap_or(0.0);
     if rotation_degrees.abs() > 1e-5 {
         let cx = curr_w / 2.0;
@@ -1233,11 +1236,11 @@ pub fn inverse_transform_point(
 
     let flip_h = adjustments
         .get("flipHorizontal")
-        .and_then(|v| v.as_bool())
+        .and_then(serde_json::Value::as_bool)
         .unwrap_or(false);
     let flip_v = adjustments
         .get("flipVertical")
-        .and_then(|v| v.as_bool())
+        .and_then(serde_json::Value::as_bool)
         .unwrap_or(false);
     if flip_h {
         x = curr_w - x;
@@ -1248,7 +1251,7 @@ pub fn inverse_transform_point(
 
     let steps = adjustments
         .get("orientationSteps")
-        .and_then(|v| v.as_u64())
+        .and_then(serde_json::Value::as_u64)
         .unwrap_or(0) as u8;
     let inverse_steps = (4 - (steps % 4)) % 4;
     for _ in 0..inverse_steps {
@@ -1264,23 +1267,23 @@ pub fn inverse_transform_point(
     let height = curr_h as f32;
 
     let (forward_transform, cx_f32, cy_f32, hd) = build_transform_matrices(&params, width, height);
-    let cx = cx_f32 as f64;
-    let cy = cy_f32 as f64;
+    let cx = f64::from(cx_f32);
+    let cy = f64::from(cy_f32);
     let inv = forward_transform
         .try_inverse()
         .unwrap_or(nalgebra::Matrix3::identity());
 
     let vec = inv * nalgebra::Vector3::new(x as f32, y as f32, 1.0);
     if vec.z.abs() > 1e-6 {
-        let inv_z = 1.0 / (vec.z as f64);
-        let mut src_x = (vec.x as f64) * inv_z;
-        let mut src_y = (vec.y as f64) * inv_z;
+        let inv_z = 1.0 / f64::from(vec.z);
+        let mut src_x = f64::from(vec.x) * inv_z;
+        let mut src_y = f64::from(vec.y) * inv_z;
 
-        let k_distortion = (params.distortion as f64 / 100.0) * 2.5;
-        let lk1 = params.lens_dist_k1 as f64;
-        let lk2 = params.lens_dist_k2 as f64;
-        let lk3 = params.lens_dist_k3 as f64;
-        let lens_dist_amt = (params.lens_distortion_amount as f64) * 2.5;
+        let k_distortion = (f64::from(params.distortion) / 100.0) * 2.5;
+        let lk1 = f64::from(params.lens_dist_k1);
+        let lk2 = f64::from(params.lens_dist_k2);
+        let lk3 = f64::from(params.lens_dist_k3);
+        let lens_dist_amt = f64::from(params.lens_distortion_amount) * 2.5;
 
         let has_lens_correction = params.lens_distortion_enabled
             && (lk1.abs() > 1e-6 || lk2.abs() > 1e-6 || lk3.abs() > 1e-6);
@@ -1423,6 +1426,7 @@ fn map_color_channels_simd(
     image
 }
 
+#[must_use]
 pub fn apply_exposure(image: DynamicImage, exposure: f32) -> DynamicImage {
     if exposure == 0.0 {
         return image;
@@ -1458,6 +1462,7 @@ pub fn apply_linear_to_srgb(image: DynamicImage) -> DynamicImage {
     )
 }
 
+#[must_use]
 pub fn apply_orientation(image: DynamicImage, orientation: Orientation) -> DynamicImage {
     if let DynamicImage::ImageRgb32F(buffer) = &image
         && !matches!(orientation, Orientation::Normal | Orientation::Unknown)
@@ -1532,10 +1537,10 @@ pub fn apply_geometry_warp<'a>(
 ) -> Cow<'a, DynamicImage> {
     let image = image.into_cow();
     let params = get_geometry_params_from_json(adjustments);
-    if !is_geometry_identity(&params) {
-        Cow::Owned(warp_image_geometry(image.as_ref(), params))
-    } else {
+    if is_geometry_identity(&params) {
         image
+    } else {
+        Cow::Owned(warp_image_geometry(image.as_ref(), params))
     }
 }
 
@@ -1545,10 +1550,10 @@ pub fn apply_unwarp_geometry<'a>(
 ) -> Cow<'a, DynamicImage> {
     let image = image.into_cow();
     let params = get_geometry_params_from_json(adjustments);
-    if !is_geometry_identity(&params) {
-        Cow::Owned(unwarp_image_geometry(image.as_ref(), params))
-    } else {
+    if is_geometry_identity(&params) {
         image
+    } else {
+        Cow::Owned(unwarp_image_geometry(image.as_ref(), params))
     }
 }
 
@@ -1635,6 +1640,7 @@ pub fn apply_flip<'a>(
     Cow::Owned(img)
 }
 
+#[must_use]
 pub fn is_geometry_identity(params: &GeometryParams) -> bool {
     if params.guided_perspective_enabled && params.guided_lines.len() >= 2 {
         return false;
@@ -2010,7 +2016,7 @@ fn parse_hsl_adjustments(js_hsl: &serde_json::Value) -> [HslColor; 8] {
             ("purples", 6),
             ("magentas", 7),
         ];
-        for (name, index) in color_map.iter() {
+        for (name, index) in &color_map {
             if let Some(color_data) = hsl_map.get(*name) {
                 hsl_array[*index] = HslColor {
                     hue: color_data["hue"].as_f64().unwrap_or(0.0) as f32
@@ -2186,6 +2192,7 @@ fn calculate_agx_matrices() -> (GpuMat3, GpuMat3) {
     )
 }
 
+#[must_use]
 pub fn resolve_tonemapper_override(settings: &crate::settings::AppSettings, is_raw: bool) -> Option<u32> {
     if !settings.tonemapper_override_enabled.unwrap_or(false) {
         return None;
@@ -2198,7 +2205,7 @@ pub fn resolve_tonemapper_override(settings: &crate::settings::AppSettings, is_r
             .as_deref()
             .unwrap_or("basic")
     };
-    Some(if tm == "agx" { 1 } else { 0 })
+    Some(u32::from(tm == "agx"))
 }
 
 #[derive(Clone, Copy, Debug, Default)]
@@ -2208,6 +2215,7 @@ pub struct RenderOptions {
     pub baseline: BaselineOptions,
 }
 
+#[must_use]
 pub fn resolve_render_options(settings: &crate::settings::AppSettings, is_raw: bool) -> RenderOptions {
     RenderOptions {
         tonemapper_override: resolve_tonemapper_override(settings, is_raw),
@@ -2216,6 +2224,7 @@ pub fn resolve_render_options(settings: &crate::settings::AppSettings, is_raw: b
     }
 }
 
+#[must_use]
 pub fn resolve_render_options_from_settings(settings: &crate::settings::AppSettings, is_raw: bool) -> RenderOptions {
     resolve_render_options(settings, is_raw)
 }
@@ -2329,6 +2338,7 @@ pub fn apply_cpu_agx_tonemap(image: &mut DynamicImage) {
     });
 }
 
+#[must_use]
 pub fn is_image_edited(
     adj: &serde_json::Value,
     is_raw: bool,
@@ -2371,7 +2381,7 @@ pub fn is_image_edited(
 
     if adj
         .get("orientationSteps")
-        .and_then(|v| v.as_u64())
+        .and_then(serde_json::Value::as_u64)
         .unwrap_or(0)
         != 0
     {
@@ -2379,7 +2389,7 @@ pub fn is_image_edited(
     }
     if adj
         .get("rotation")
-        .and_then(|v| v.as_f64())
+        .and_then(serde_json::Value::as_f64)
         .unwrap_or(0.0)
         .abs()
         > 0.001
@@ -2388,14 +2398,14 @@ pub fn is_image_edited(
     }
     if adj
         .get("flipHorizontal")
-        .and_then(|v| v.as_bool())
+        .and_then(serde_json::Value::as_bool)
         .unwrap_or(false)
     {
         return true;
     }
     if adj
         .get("flipVertical")
-        .and_then(|v| v.as_bool())
+        .and_then(serde_json::Value::as_bool)
         .unwrap_or(false)
     {
         return true;
@@ -2423,7 +2433,7 @@ fn is_section_visible(adjustments: &serde_json::Value, section: &str) -> bool {
     adjustments
         .get("sectionVisibility")
         .and_then(|v| v.get(section))
-        .and_then(|s| s.as_bool())
+        .and_then(serde_json::Value::as_bool)
         .unwrap_or(true)
 }
 
@@ -2459,11 +2469,12 @@ const LEGACY_SECTION_TOOLS: &[(&str, &[&str])] = &[
     ),
 ];
 
+#[must_use]
 pub fn is_tool_active(adjustments: &serde_json::Value, tool: &str) -> bool {
     match adjustments.get("activeTools") {
         Some(active_tools) => active_tools
             .get(tool)
-            .and_then(|active| active.as_bool())
+            .and_then(serde_json::Value::as_bool)
             .unwrap_or(true),
         None => LEGACY_SECTION_TOOLS
             .iter()
@@ -2472,6 +2483,7 @@ pub fn is_tool_active(adjustments: &serde_json::Value, tool: &str) -> bool {
     }
 }
 
+#[must_use]
 pub fn active_tools(adjustments: &serde_json::Value) -> serde_json::Map<String, serde_json::Value> {
     match adjustments
         .get("activeTools")
@@ -2486,6 +2498,7 @@ pub fn active_tools(adjustments: &serde_json::Value) -> serde_json::Map<String, 
     }
 }
 
+#[must_use]
 pub fn is_effect_enabled(adjustments: &serde_json::Value, tool: &str, enabled_key: &str) -> bool {
     adjustments[enabled_key].as_bool().unwrap_or(false) && is_tool_active(adjustments, tool)
 }
@@ -2505,12 +2518,10 @@ fn get_global_adjustments_from_json(
                 .as_f64()
                 .unwrap_or(default.unwrap_or(0.0)) as f32
                 / scale
+        } else if let Some(d) = default {
+            d as f32 / scale
         } else {
-            if let Some(d) = default {
-                d as f32 / scale
-            } else {
-                0.0
-            }
+            0.0
         }
     };
 
@@ -2563,20 +2574,11 @@ fn get_global_adjustments_from_json(
 
     let (has_lut, lut_intensity, lut_is_scene_referred) = if is_visible("lut") {
         (
-            if js_adjustments["lutPath"].is_string() {
-                1
-            } else {
-                0
-            },
+            u32::from(js_adjustments["lutPath"].is_string()),
             js_adjustments["lutIntensity"].as_f64().unwrap_or(100.0) as f32 / 100.0,
-            if js_adjustments["lutIsSceneReferred"]
+            u32::from(js_adjustments["lutIsSceneReferred"]
                 .as_bool()
-                .unwrap_or(false)
-            {
-                1
-            } else {
-                0
-            },
+                .unwrap_or(false)),
         )
     } else {
         (0, 1.0, 0)
@@ -2661,19 +2663,15 @@ fn get_global_adjustments_from_json(
             SCALES.chromatic_aberration,
             None,
         ),
-        show_clipping: if js_adjustments["showClipping"].as_bool().unwrap_or(false) {
-            1
-        } else {
-            0
-        },
-        is_raw_image: if is_raw { 1 } else { 0 },
+        show_clipping: u32::from(js_adjustments["showClipping"].as_bool().unwrap_or(false)),
+        is_raw_image: u32::from(is_raw),
         _pad_ca1: 0.0,
 
         has_lut,
         lut_intensity,
 
         tonemapper_mode: tonemapper_override
-            .unwrap_or_else(|| if tone_mapper == "agx" { 1 } else { 0 }),
+            .unwrap_or_else(|| u32::from(tone_mapper == "agx")),
         lut_is_scene_referred,
         vignette_center_x: get_val("vignette", "vignetteCenterX", 1.0, Some(0.5)),
         vignette_center_y: get_val("vignette", "vignetteCenterY", 1.0, Some(0.5)),
@@ -2861,6 +2859,7 @@ fn get_mask_adjustments_from_json(
     }
 }
 
+#[must_use]
 pub fn get_all_adjustments_from_json(
     js_adjustments: &serde_json::Value,
     is_raw: bool,
@@ -3265,7 +3264,7 @@ impl ChromaPlanes {
             .for_each(|(y, ((r, b), (ref_r, ref_b)))| {
                 let rows: [&[f32]; 3] = std::array::from_fn(|j| {
                     let o = (y + Self::PAD + j - 1) * pw + Self::PAD;
-                    &self.q[o - 1..o + w + 1]
+                    &self.q[(o - 1)..=(o + w)]
                 });
                 for x in 0..w {
                     let (mut lo, mut hi) = (f32::MAX, f32::MIN);
@@ -3755,6 +3754,7 @@ pub struct WaveformData {
     pub height: u32,
 }
 
+#[must_use]
 pub fn encode_analytics_packet(
     path: &str,
     histogram: Option<&HistogramData>,
@@ -3773,7 +3773,7 @@ pub fn encode_analytics_packet(
         Some(h) => {
             put_u32(&mut out, h.red.len());
             for channel in [&h.red, &h.green, &h.blue, &h.luma] {
-                for v in channel.iter() {
+                for v in channel {
                     out.extend_from_slice(&v.to_le_bytes());
                 }
             }
@@ -3781,19 +3781,16 @@ pub fn encode_analytics_packet(
         None => put_u32(&mut out, 0),
     }
 
-    match waveform {
-        Some(w) => {
-            put_u32(&mut out, w.width as usize);
-            put_u32(&mut out, w.height as usize);
-            for plane in [&w.rgb, &w.luma, &w.parade, &w.vectorscope] {
-                put_u32(&mut out, plane.len());
-                out.extend_from_slice(plane);
-            }
+    if let Some(w) = waveform {
+        put_u32(&mut out, w.width as usize);
+        put_u32(&mut out, w.height as usize);
+        for plane in [&w.rgb, &w.luma, &w.parade, &w.vectorscope] {
+            put_u32(&mut out, plane.len());
+            out.extend_from_slice(plane);
         }
-        None => {
-            put_u32(&mut out, 0);
-            put_u32(&mut out, 0);
-        }
+    } else {
+        put_u32(&mut out, 0);
+        put_u32(&mut out, 0);
     }
 
     out
@@ -3891,7 +3888,7 @@ pub fn calculate_waveform(
                 bins.blue[(255 - b as usize) * W + out_x] += 1;
             }
             if do_luma {
-                let l = ((r as u32 * 218 + g as u32 * 732 + b as u32 * 74) >> 10).min(255) as usize;
+                let l = ((u32::from(r) * 218 + u32::from(g) * 732 + u32::from(b) * 74) >> 10).min(255) as usize;
                 bins.luma[(255 - l) * W + out_x] += 1;
             }
             if do_parade {
@@ -3900,9 +3897,9 @@ pub fn calculate_waveform(
                 bins.parade[(255 - b as usize) * W + x_buckets_parade_b[orig_x]] += 1;
             }
             if do_vectorscope {
-                let r_f = r as f32;
-                let g_f = g as f32;
-                let b_f = b as f32;
+                let r_f = f32::from(r);
+                let g_f = f32::from(g);
+                let b_f = f32::from(b);
 
                 let mut cb = (-0.1146 * r_f - 0.3854 * g_f + 0.5 * b_f) * 0.836;
                 let mut cr = (0.5 * r_f - 0.4542 * g_f - 0.0458 * b_f) * 0.836;
@@ -4081,6 +4078,7 @@ pub fn calculate_waveform(
     })
 }
 
+#[must_use]
 pub fn perform_auto_analysis(image: &DynamicImage, exposure: f32) -> AutoAdjustmentResults {
     const ANALYSIS_MAX_DIM: u32 = 1024;
 
@@ -4135,7 +4133,7 @@ pub fn perform_auto_analysis(image: &DynamicImage, exposure: f32) -> AutoAdjustm
         exposure,
     );
     let rgb_image = analysis_preview.to_rgb8();
-    let total_pixels = (rgb_image.width() * rgb_image.height()) as f64;
+    let total_pixels = f64::from(rgb_image.width() * rgb_image.height());
 
     let (width, height) = rgb_image.dimensions();
     let cx0 = (width as f32 * VIGNETTE_CENTER_LOW) as u32;
@@ -4151,9 +4149,9 @@ pub fn perform_auto_analysis(image: &DynamicImage, exposure: f32) -> AutoAdjustm
     let mut edge_n = 0u32;
 
     for (x, y, pixel) in rgb_image.enumerate_pixels() {
-        let r = pixel[0] as f32;
-        let g = pixel[1] as f32;
-        let b = pixel[2] as f32;
+        let r = f32::from(pixel[0]);
+        let g = f32::from(pixel[1]);
+        let b = f32::from(pixel[2]);
 
         let luma_f = LUMA_R * r + LUMA_G * g + LUMA_B * b;
         luma_hist[(luma_f.round() as usize).min(255)] += 1;
@@ -4201,9 +4199,9 @@ pub fn perform_auto_analysis(image: &DynamicImage, exposure: f32) -> AutoAdjustm
     let range = (white_point as f64 - black_point as f64).max(1.0);
 
     let highlight_percent =
-        luma_hist[HIGHLIGHT_LUMA_THRESHOLD..256].iter().sum::<u32>() as f64 / total_pixels;
+        f64::from(luma_hist[HIGHLIGHT_LUMA_THRESHOLD..256].iter().sum::<u32>()) / total_pixels;
     let clipped_percent =
-        luma_hist[CLIPPED_LUMA_THRESHOLD..256].iter().sum::<u32>() as f64 / total_pixels;
+        f64::from(luma_hist[CLIPPED_LUMA_THRESHOLD..256].iter().sum::<u32>()) / total_pixels;
 
     let mut exposure = (EXPOSURE_MIDPOINT - p50 as f64) * EXPOSURE_SCALE;
 
@@ -4226,7 +4224,7 @@ pub fn perform_auto_analysis(image: &DynamicImage, exposure: f32) -> AutoAdjustm
         contrast *= HIGHLIGHT_CONTRAST_REDUCE;
     }
 
-    let shadow_percent = luma_hist[0..SHADOW_LUMA_MAX].iter().sum::<u32>() as f64 / total_pixels;
+    let shadow_percent = f64::from(luma_hist[0..SHADOW_LUMA_MAX].iter().sum::<u32>()) / total_pixels;
 
     let mut shadows = 0.0f64;
     if shadow_percent > SHADOW_PERCENT_THRESHOLD {
@@ -4240,7 +4238,7 @@ pub fn perform_auto_analysis(image: &DynamicImage, exposure: f32) -> AutoAdjustm
 
     let mut vibrancy = 0.0f64;
     if mean_saturation < VIBRANCY_SAT_THRESHOLD {
-        vibrancy = (VIBRANCY_SAT_THRESHOLD - mean_saturation) as f64 * VIBRANCY_SCALE;
+        vibrancy = f64::from(VIBRANCY_SAT_THRESHOLD - mean_saturation) * VIBRANCY_SCALE;
     }
 
     let mut dehaze = 0.0f64;
@@ -4262,20 +4260,20 @@ pub fn perform_auto_analysis(image: &DynamicImage, exposure: f32) -> AutoAdjustm
 
         if e_avg < c_avg {
             let diff = c_avg - e_avg;
-            vignette_amount = -(diff as f64 * VIGNETTE_SCALE);
+            vignette_amount = -(f64::from(diff) * VIGNETTE_SCALE);
 
             if diff > VIGNETTE_CENTRE_DIFF_THRESHOLD {
-                centre = (diff as f64 * CENTRE_SCALE).min(CENTRE_MAX);
+                centre = (f64::from(diff) * CENTRE_SCALE).min(CENTRE_MAX);
             }
         }
     }
 
     let mut adjusted_luma_hist = vec![0u32; 256];
     for pixel in rgb_image.pixels() {
-        let r = pixel[0] as f64;
-        let g = pixel[1] as f64;
-        let b = pixel[2] as f64;
-        let mut luma = LUMA_R as f64 * r + LUMA_G as f64 * g + LUMA_B as f64 * b;
+        let r = f64::from(pixel[0]);
+        let g = f64::from(pixel[1]);
+        let b = f64::from(pixel[2]);
+        let mut luma = f64::from(LUMA_R) * r + f64::from(LUMA_G) * g + f64::from(LUMA_B) * b;
         luma += exposure;
         luma = (luma - MID_GRAY) * (1.0 + contrast / 100.0) + MID_GRAY;
         adjusted_luma_hist[luma.clamp(0.0, 255.0).round() as usize] += 1;
@@ -4312,6 +4310,7 @@ pub enum AutoAdjustMode {
     Strong,
 }
 
+#[must_use]
 pub fn auto_results_to_json(
     results: &AutoAdjustmentResults,
     mode: AutoAdjustMode,
@@ -4448,7 +4447,7 @@ fn compute_white_balance_sample(
 
     let quad: Vec<(f64, f64)> = corners
         .iter()
-        .map(|c| (c.x * width as f64, c.y * height as f64))
+        .map(|c| (c.x * f64::from(width), c.y * f64::from(height)))
         .collect();
 
     if quad.iter().any(|(x, y)| !x.is_finite() || !y.is_finite()) {
@@ -4460,12 +4459,12 @@ fn compute_white_balance_sample(
     let min_y = quad.iter().map(|p| p.1).fold(f64::INFINITY, f64::min);
     let max_y = quad.iter().map(|p| p.1).fold(f64::NEG_INFINITY, f64::max);
 
-    let start_x = min_x.floor().clamp(0.0, width as f64) as u32;
-    let end_x = max_x.ceil().clamp(0.0, width as f64) as u32;
-    let start_y = min_y.floor().clamp(0.0, height as f64) as u32;
-    let end_y = max_y.ceil().clamp(0.0, height as f64) as u32;
+    let start_x = min_x.floor().clamp(0.0, f64::from(width)) as u32;
+    let end_x = max_x.ceil().clamp(0.0, f64::from(width)) as u32;
+    let start_y = min_y.floor().clamp(0.0, f64::from(height)) as u32;
+    let end_y = max_y.ceil().clamp(0.0, f64::from(height)) as u32;
 
-    let area = (end_x.saturating_sub(start_x) as f64) * (end_y.saturating_sub(start_y) as f64);
+    let area = f64::from(end_x.saturating_sub(start_x)) * f64::from(end_y.saturating_sub(start_y));
     let stride = ((area / MAX_WB_SAMPLES).sqrt().ceil() as usize).max(1);
 
     let mut sum = [0.0f64; 3];
@@ -4473,13 +4472,13 @@ fn compute_white_balance_sample(
 
     for y in (start_y..end_y).step_by(stride) {
         for x in (start_x..end_x).step_by(stride) {
-            if !point_in_convex_quad(x as f64 + 0.5, y as f64 + 0.5, &quad) {
+            if !point_in_convex_quad(f64::from(x) + 0.5, f64::from(y) + 0.5, &quad) {
                 continue;
             }
             if let Some(rgb) = read_linear_rgb(image, x, y, is_raw) {
-                sum[0] += rgb[0] as f64;
-                sum[1] += rgb[1] as f64;
-                sum[2] += rgb[2] as f64;
+                sum[0] += f64::from(rgb[0]);
+                sum[1] += f64::from(rgb[1]);
+                sum[2] += f64::from(rgb[2]);
                 count += 1;
             }
         }
@@ -4491,14 +4490,14 @@ fn compute_white_balance_sample(
         let x = (cx.floor().max(0.0) as u32).min(width - 1);
         let y = (cy.floor().max(0.0) as u32).min(height - 1);
         let rgb = read_linear_rgb(image, x, y, is_raw).ok_or("Sampled pixel is invalid")?;
-        sum = [rgb[0] as f64, rgb[1] as f64, rgb[2] as f64];
+        sum = [f64::from(rgb[0]), f64::from(rgb[1]), f64::from(rgb[2])];
         count = 1;
     }
 
-    let r = (sum[0] / count as f64) as f32;
-    let g = (sum[1] / count as f64) as f32;
-    let b = (sum[2] / count as f64) as f32;
-    let picked = white_balance::pick_white_balance([r as f64, g as f64, b as f64], as_shot)
+    let r = (sum[0] / f64::from(count)) as f32;
+    let g = (sum[1] / f64::from(count)) as f32;
+    let b = (sum[2] / f64::from(count)) as f32;
+    let picked = white_balance::pick_white_balance([f64::from(r), f64::from(g), f64::from(b)], as_shot)
         .unwrap_or(as_shot);
 
     Ok(WhiteBalanceSample {

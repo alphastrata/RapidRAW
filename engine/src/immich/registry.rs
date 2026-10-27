@@ -30,8 +30,7 @@ pub fn set_listed_asset(path: &Path, listed_asset_id: &str) {
 pub fn is_placeholder(path: &Path) -> bool {
     let known = ENTRIES
         .read()
-        .map(|entries| entries.contains_key(path))
-        .unwrap_or(false);
+        .is_ok_and(|entries| entries.contains_key(path));
     known && !path.exists()
 }
 

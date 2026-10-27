@@ -33,6 +33,7 @@ pub struct RawExposure {
 }
 
 impl RawExposure {
+    #[must_use]
     pub fn compensation(&self, options: BaselineOptions) -> f32 {
         let baseline = options.baseline_exposure.map_or(0.0, |amount| {
             let scene_referred = if self.scene_referred { amount } else { 0.0 };
@@ -54,6 +55,7 @@ pub struct BaselineOptions {
 }
 
 impl BaselineOptions {
+    #[must_use]
     pub fn from_settings(settings: &AppSettings) -> Self {
         Self {
             baseline_exposure: settings
@@ -170,12 +172,11 @@ fn olympus_camera_settings(file_bytes: &[u8]) -> Option<IFD> {
 
 fn integers(ifd: &IFD, tag: u16) -> Vec<i32> {
     ifd.get_entry(tag)
-        .map(|entry| {
+        .map_or_default(|entry| {
             (0..entry.value.count())
                 .map_while(|index| entry.value.get_i32(index).ok().flatten())
                 .collect()
         })
-        .unwrap_or_default()
 }
 
 fn first_integer(ifd: &IFD, tag: u16) -> Option<i32> {

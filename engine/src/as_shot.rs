@@ -13,6 +13,7 @@ pub struct AsShot {
 }
 
 impl AsShot {
+    #[must_use]
     pub fn reference() -> Self {
         Self {
             white_balance: WhiteBalance::reference(),

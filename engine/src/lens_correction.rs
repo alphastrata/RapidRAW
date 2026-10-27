@@ -178,9 +178,7 @@ fn pick_name(names: &[MultiName], fallback: &str) -> String {
     names
         .iter()
         .find(|n| n.lang.as_deref() == Some("en"))
-        .or_else(|| names.first())
-        .map(|n| n.value.clone())
-        .unwrap_or_else(|| fallback.to_string())
+        .or_else(|| names.first()).map_or_else(|| fallback.to_string(), |n| n.value.clone())
 }
 
 fn any_name_matches(names: &[MultiName], needle: &str) -> bool {
@@ -190,34 +188,35 @@ fn any_name_matches(names: &[MultiName], needle: &str) -> bool {
 }
 
 impl Camera {
+    #[must_use]
     pub fn get_maker(&self) -> String {
         pick_name(&self.maker, "Misc")
     }
 
+    #[must_use]
     pub fn get_model(&self) -> String {
         pick_name(&self.model, "Unknown Model")
     }
 }
 
 impl Lens {
+    #[must_use]
     pub fn get_full_model_name(&self) -> String {
         self.model
             .iter()
             .find(|m| m.lang.as_deref() == Some("en"))
-            .or_else(|| self.model.first())
-            .map(|m| m.value.clone())
-            .unwrap_or_else(|| "Unknown Model".to_string())
+            .or_else(|| self.model.first()).map_or_else(|| "Unknown Model".to_string(), |m| m.value.clone())
     }
 
+    #[must_use]
     pub fn get_canonical_model_name(&self) -> String {
         self.model
             .iter()
             .find(|m| m.lang.is_none())
-            .or_else(|| self.model.first())
-            .map(|m| m.value.clone())
-            .unwrap_or_else(|| "Unknown Model".to_string())
+            .or_else(|| self.model.first()).map_or_else(|| "Unknown Model".to_string(), |m| m.value.clone())
     }
 
+    #[must_use]
     pub fn get_name(&self) -> String {
         let raw_name = self.get_full_model_name();
         let maker = self.get_maker();
@@ -234,15 +233,15 @@ impl Lens {
         raw_name
     }
 
+    #[must_use]
     pub fn get_maker(&self) -> String {
         self.maker
             .iter()
             .find(|m| m.lang.as_deref() == Some("en"))
-            .or_else(|| self.maker.first())
-            .map(|m| m.value.clone())
-            .unwrap_or_else(|| "Misc".to_string())
+            .or_else(|| self.maker.first()).map_or_else(|| "Misc".to_string(), |m| m.value.clone())
     }
 
+    #[must_use]
     pub fn get_display_name(&self, all_maker_lenses: &[&Lens]) -> String {
         let my_short = self.get_name();
         let short_count = all_maker_lenses
@@ -280,12 +279,13 @@ impl Lens {
         }
 
         if let Some(cf) = self.cropfactor {
-            format!("{} (crop {:.1}x)", my_canonical_short, cf)
+            format!("{my_canonical_short} (crop {cf:.1}x)")
         } else {
             my_canonical_short
         }
     }
 
+    #[must_use]
     pub fn get_distortion_params(
         &self,
         focal_length: f32,
@@ -359,9 +359,9 @@ impl Lens {
                         } else {
                             let t = (focal_length - d1.focal) / range;
                             res = (
-                                p1.0 + t as f64 * (p2.0 - p1.0),
-                                p1.1 + t as f64 * (p2.1 - p1.1),
-                                p1.2 + t as f64 * (p2.2 - p1.2),
+                                p1.0 + f64::from(t) * (p2.0 - p1.0),
+                                p1.1 + f64::from(t) * (p2.1 - p1.1),
+                                p1.2 + f64::from(t) * (p2.2 - p1.2),
                                 p1.3,
                             );
                         }
@@ -397,8 +397,8 @@ impl Lens {
                         } else {
                             let t = (focal_length - d1.focal) / range;
                             res = (
-                                p1.0 + t as f64 * (p2.0 - p1.0),
-                                p1.1 + t as f64 * (p2.1 - p1.1),
+                                p1.0 + f64::from(t) * (p2.0 - p1.0),
+                                p1.1 + f64::from(t) * (p2.1 - p1.1),
                             );
                         }
                         break;
@@ -486,9 +486,9 @@ impl Lens {
                         if range.abs() > 0.01 {
                             let t = (focal_length - f1) / range;
                             res = (
-                                p1.0 + t as f64 * (p2.0 - p1.0),
-                                p1.1 + t as f64 * (p2.1 - p1.1),
-                                p1.2 + t as f64 * (p2.2 - p1.2),
+                                p1.0 + f64::from(t) * (p2.0 - p1.0),
+                                p1.1 + f64::from(t) * (p2.1 - p1.1),
+                                p1.2 + f64::from(t) * (p2.2 - p1.2),
                             );
                         } else {
                             res = p1;
@@ -517,15 +517,15 @@ impl Lens {
 fn extract_dist_params(dist: &Distortion) -> (f64, f64, f64, u32) {
     match dist.model.as_str() {
         "poly3" | "poly5" => (
-            dist.k1.unwrap_or(0.0) as f64,
-            dist.k2.unwrap_or(0.0) as f64,
-            dist.k3.unwrap_or(0.0) as f64,
+            f64::from(dist.k1.unwrap_or(0.0)),
+            f64::from(dist.k2.unwrap_or(0.0)),
+            f64::from(dist.k3.unwrap_or(0.0)),
             0,
         ),
         "ptlens" => {
-            let a = dist.a.unwrap_or(0.0) as f64;
-            let b = dist.b.unwrap_or(0.0) as f64;
-            let c = dist.c.unwrap_or(0.0) as f64;
+            let a = f64::from(dist.a.unwrap_or(0.0));
+            let b = f64::from(dist.b.unwrap_or(0.0));
+            let c = f64::from(dist.c.unwrap_or(0.0));
             (a, b, c, 1)
         }
         _ => (0.0, 0.0, 0.0, 0),
@@ -533,14 +533,14 @@ fn extract_dist_params(dist: &Distortion) -> (f64, f64, f64, u32) {
 }
 
 fn extract_tca_params(tca: &Tca) -> (f64, f64) {
-    (tca.vr.unwrap_or(1.0) as f64, tca.vb.unwrap_or(1.0) as f64)
+    (f64::from(tca.vr.unwrap_or(1.0)), f64::from(tca.vb.unwrap_or(1.0)))
 }
 
 fn extract_vig_params(vig: &Vignetting) -> (f64, f64, f64) {
     (
-        vig.k1.unwrap_or(0.0) as f64,
-        vig.k2.unwrap_or(0.0) as f64,
-        vig.k3.unwrap_or(0.0) as f64,
+        f64::from(vig.k1.unwrap_or(0.0)),
+        f64::from(vig.k2.unwrap_or(0.0)),
+        f64::from(vig.k3.unwrap_or(0.0)),
     )
 }
 
@@ -589,7 +589,7 @@ pub fn load_lensfun_db(resource_dir: &Path) -> LensDatabase {
         let resource_path = resource_dir.join("lensfun_db");
 
         if !resource_path.exists() {
-            log::error!("Lensfun DB directory not found at: {:?}", resource_path);
+            log::error!("Lensfun DB directory not found at: {resource_path:?}");
             return combined_db;
         }
 
@@ -599,7 +599,7 @@ pub fn load_lensfun_db(resource_dir: &Path) -> LensDatabase {
             .filter(|e| e.path().extension().is_some_and(|ext| ext == "xml"))
         {
             let path = entry.path();
-            log::info!("Processing file: {:?}", path);
+            log::info!("Processing file: {path:?}");
             match fs::read_to_string(path) {
                 Ok(xml_content) => match quick_xml::de::from_str::<LensDatabase>(&xml_content) {
                     Ok(mut db) => {
@@ -607,10 +607,10 @@ pub fn load_lensfun_db(resource_dir: &Path) -> LensDatabase {
                         combined_db.lenses.append(&mut db.lenses);
                     }
                     Err(e) => {
-                        log::error!("Failed to parse Lensfun XML file {:?}: {}", path, e);
+                        log::error!("Failed to parse Lensfun XML file {path:?}: {e}");
                     }
                 },
-                Err(e) => log::error!("Failed to read Lensfun XML file {:?}: {}", path, e),
+                Err(e) => log::error!("Failed to read Lensfun XML file {path:?}: {e}"),
             }
         }
     }
@@ -627,9 +627,9 @@ pub fn get_lensfun_makers_impl(state: &AppState) -> Result<Vec<String>, String> 
     let db_guard = state
         .lens_db
         .lock()
-        .map_err(|e| format!("Lock poisoned: {}", e))?;
+        .map_err(|e| format!("Lock poisoned: {e}"))?;
     if let Some(db) = &*db_guard {
-        let mut makers: Vec<String> = db.lenses.iter().map(|lens| lens.get_maker()).collect();
+        let mut makers: Vec<String> = db.lenses.iter().map(Lens::get_maker).collect();
         makers.sort_unstable();
         makers.dedup();
         Ok(makers)
@@ -645,7 +645,7 @@ pub fn get_lensfun_lenses_for_maker_impl(
     let db_guard = state
         .lens_db
         .lock()
-        .map_err(|e| format!("Lock poisoned: {}", e))?;
+        .map_err(|e| format!("Lock poisoned: {e}"))?;
     if let Some(db) = &*db_guard {
         let maker_lenses = lenses_for_maker(db, &maker);
 
@@ -661,6 +661,7 @@ pub fn get_lensfun_lenses_for_maker_impl(
     }
 }
 
+#[must_use]
 pub fn find_lens_by_camera_mount<'a>(
     db: &'a LensDatabase,
     camera_maker: &str,
@@ -697,9 +698,7 @@ pub fn find_lens_by_camera_mount<'a>(
             hits.push(lens);
             if hits.len() > 1 {
                 log::info!(
-                    "Mount fallback for {} {}: more than one lens on mount, giving up.",
-                    clean_maker,
-                    clean_model
+                    "Mount fallback for {clean_maker} {clean_model}: more than one lens on mount, giving up."
                 );
                 return None;
             }
@@ -723,6 +722,7 @@ fn lens_result(db: &LensDatabase, lens: &Lens) -> (String, String) {
     (lens_maker, lens.get_display_name(&maker_lenses))
 }
 
+#[must_use]
 pub fn find_best_lens_match(
     db: &LensDatabase,
     maker: &str,
@@ -831,7 +831,7 @@ pub fn autodetect_lens_impl(
     let db_guard = state
         .lens_db
         .lock()
-        .map_err(|e| format!("Lock poisoned: {}", e))?;
+        .map_err(|e| format!("Lock poisoned: {e}"))?;
     if let Some(db) = &*db_guard {
         Ok(find_best_lens_match(
             db,
@@ -855,7 +855,7 @@ pub fn get_lens_distortion_params_impl(
     let db_guard = state
         .lens_db
         .lock()
-        .map_err(|e| format!("Lock poisoned: {}", e))?;
+        .map_err(|e| format!("Lock poisoned: {e}"))?;
     if let Some(db) = &*db_guard {
         let maker_lenses = lenses_for_maker(db, &maker);
 
@@ -869,6 +869,7 @@ pub fn get_lens_distortion_params_impl(
     Ok(None)
 }
 
+#[must_use]
 pub fn resolve_lens_params(
     db: &LensDatabase,
     maker: &str,

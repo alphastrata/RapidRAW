@@ -22,6 +22,7 @@ use rayon::prelude::*;
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use crate::host::Host;
+use futures::StreamExt;
 use tokenizers::Tokenizer;
 use tokio::sync::Mutex as TokioMutex;
 
@@ -406,7 +407,7 @@ impl AiModels {
             .collect();
         let feature_len = ESAM3_PROMPT_TOKENS * ESAM3_EMBED_DIM;
         if values.len() != feature_len + ESAM3_PROMPT_TOKENS {
-            return Err(anyhow::anyhow!("Invalid prompt embedding {}", filename));
+            return Err(anyhow::anyhow!("Invalid prompt embedding {filename}"));
         }
         let prompt = Arc::new(Esam3Prompt {
             features: Array::from_shape_vec(
@@ -425,16 +426,13 @@ impl AiModels {
     pub fn esam3_text_prompt(&self, text: &str) -> Result<Esam3Prompt> {
         let tokenizer = {
             let mut slot = self.clip_tokenizer.lock().unwrap();
-            match slot.as_ref() {
-                Some(tokenizer) => Arc::clone(tokenizer),
-                None => {
-                    let tokenizer = Arc::new(
-                        Tokenizer::from_file(self.models_dir.join(CLIP_TOKENIZER_FILENAME))
-                            .map_err(|e| anyhow::anyhow!(e.to_string()))?,
-                    );
-                    *slot = Some(Arc::clone(&tokenizer));
-                    tokenizer
-                }
+            if let Some(tokenizer) = slot.as_ref() { Arc::clone(tokenizer) } else {
+                let tokenizer = Arc::new(
+                    Tokenizer::from_file(self.models_dir.join(CLIP_TOKENIZER_FILENAME))
+                        .map_err(|e| anyhow::anyhow!(e.to_string()))?,
+                );
+                *slot = Some(Arc::clone(&tokenizer));
+                tokenizer
             }
         };
         let encoding = tokenizer
@@ -444,12 +442,12 @@ impl AiModels {
         let mut tokens = Array::<i64, _>::zeros((1, ESAM3_PROMPT_TOKENS));
         let kept = ids.len().min(ESAM3_PROMPT_TOKENS);
         for (i, &id) in ids[..kept].iter().enumerate() {
-            tokens[[0, i]] = id as i64;
+            tokens[[0, i]] = i64::from(id);
         }
         if let Some(&end) = ids.last()
             && ids.len() > ESAM3_PROMPT_TOKENS
         {
-            tokens[[0, ESAM3_PROMPT_TOKENS - 1]] = end as i64;
+            tokens[[0, ESAM3_PROMPT_TOKENS - 1]] = i64::from(end);
         }
 
         let session = self.session(&self.esam3_text_encoder, ESAM3_TEXT_ENCODER_FILENAME, false)?;
@@ -642,8 +640,7 @@ pub fn gpu_inference<T>(result: ort::Result<T>) -> Result<T> {
             .is_ok()
         {
             log::warn!(
-                "GPU inference failed, using the CPU for AI models from now on: {}",
-                e
+                "GPU inference failed, using the CPU for AI models from now on: {e}"
             );
         }
         e.into()
@@ -784,7 +781,7 @@ fn edt_2d(grid: &[bool], width: usize, height: usize) -> Vec<f32> {
         }
     }
 
-    f.into_iter().map(|v| v.sqrt()).collect()
+    f.into_iter().map(f32::sqrt).collect()
 }
 
 fn box_filter_horiz(src: &[f32], dest: &mut [f32], w: usize, r: usize) {
@@ -829,6 +826,7 @@ fn box_filter_opt(
     transpose(temp1, dest, h, w);
 }
 
+#[must_use]
 pub fn fast_guided_filter(
     guide_hr: &GrayImage,
     mask_lr: &GrayImage,
@@ -863,8 +861,8 @@ pub fn fast_guided_filter(
         .zip(guide_lr_raw.par_iter())
         .zip(mask_lr_raw.par_iter())
         .for_each(|(((((i_out, p_out), ip_out), ii_out), &g_val), &m_val)| {
-            let i_val = g_val as f32 / 255.0;
-            let p_val = m_val as f32 / 255.0;
+            let i_val = f32::from(g_val) / 255.0;
+            let p_val = f32::from(m_val) / 255.0;
             *i_out = i_val;
             *p_out = p_val;
             *ip_out = i_val * p_val;
@@ -926,7 +924,7 @@ pub fn fast_guided_filter(
         .zip(mean_b_hr_raw.par_iter())
         .zip(guide_hr_raw.par_iter())
         .for_each(|(((out, &a_val), &b_val), &i_val)| {
-            let i_v = i_val as f32 / 255.0;
+            let i_v = f32::from(i_val) / 255.0;
             let q = a_val * i_v + b_val;
             *out = (q.clamp(0.0, 1.0) * 255.0).round() as u8;
         });
@@ -941,6 +939,7 @@ fn bilinear_sample(i: usize, scale: f32, n: usize) -> (usize, usize, f32) {
     (i0, i1, (f - i0 as f32).clamp(0.0, 1.0))
 }
 
+#[must_use]
 pub fn fast_color_guided_filter(
     guide_hr: &RgbImage,
     mask_lr: &GrayImage,
@@ -954,9 +953,9 @@ pub fn fast_color_guided_filter(
 
     let guide_lr = imageops::resize(guide_hr, lr_w, lr_h, FilterType::Triangle);
     let guide: [Vec<f32>; 3] =
-        std::array::from_fn(|c| guide_lr.pixels().map(|p| p[c] as f32 / 255.0).collect());
+        std::array::from_fn(|c| guide_lr.pixels().map(|p| f32::from(p[c]) / 255.0).collect());
     drop(guide_lr);
-    let p: Vec<f32> = mask_lr.as_raw().iter().map(|&v| v as f32 / 255.0).collect();
+    let p: Vec<f32> = mask_lr.as_raw().iter().map(|&v| f32::from(v) / 255.0).collect();
 
     let mut temp1 = vec![0.0; area];
     let mut temp2 = vec![0.0; area];
@@ -1031,7 +1030,7 @@ pub fn fast_color_guided_filter(
                     top * (1.0 - ty) + bottom * ty
                 };
                 let q = (0..3)
-                    .map(|c| sample(&mean_coefficients[c]) * pixel[c] as f32 / 255.0)
+                    .map(|c| sample(&mean_coefficients[c]) * f32::from(pixel[c]) / 255.0)
                     .sum::<f32>()
                     + sample(&mean_coefficients[3]);
                 *out = (q.clamp(0.0, 1.0) * 255.0).round() as u8;
@@ -1069,7 +1068,7 @@ fn persist_downloaded_asset(dest: &Path, bytes: &[u8]) -> Result<()> {
         .file_name()
         .and_then(|name| name.to_str())
         .ok_or_else(|| anyhow::anyhow!("Invalid downloaded asset path {}", dest.display()))?;
-    let tmp_path = dest.with_file_name(format!(".{}.download", file_name));
+    let tmp_path = dest.with_file_name(format!(".{file_name}.download"));
 
     {
         let mut file = fs::File::create(&tmp_path)?;
@@ -1162,7 +1161,7 @@ async fn download_and_verify_model(
         .await;
         host.emit_json("ai-model-download-finish", serde_json::json!({
                 "name": asset.name,
-                "error": download_result.as_ref().err().map(|e| e.to_string()),
+                "error": download_result.as_ref().err().map(std::string::ToString::to_string),
             }),
         );
         download_result?;
@@ -1186,42 +1185,40 @@ pub async fn get_or_init_ai_models(
 
     let _guard = ai_init_lock.lock().await;
 
-    let models = match cached_ai_state(ai_state_mutex, |state| state.models.clone()) {
-        Some(models) => models,
-        None => {
-            let _ = ort::init().with_name("AI").commit();
-            crate::host::register_exit_once(host);
+    let models = if let Some(models) = cached_ai_state(ai_state_mutex, |state| state.models.clone()) { models } else {
+        drop(ort::init().with_name("AI").commit());
+        crate::host::register_exit_once(host);
 
-            let models = Arc::new(AiModels {
-                models_dir: get_models_dir(host)?,
-                use_gpu: gpu_acceleration_enabled(&host.load_settings()),
-                downloaded: Mutex::new(HashSet::new()),
-                sam_encoder: Mutex::new(None),
-                sam_decoder: Mutex::new(None),
-                birefnet: Mutex::new(None),
-                esam3_image_encoder: Mutex::new(None),
-                esam3_decoder: Mutex::new(None),
-                esam3_text_encoder: Mutex::new(None),
-                esam3_sky_prompt: Mutex::new(None),
-                esam3_face_prompt: Mutex::new(None),
-                clip_tokenizer: Mutex::new(None),
-                face_landmarks: Mutex::new(None),
-                face_segmenter: Mutex::new(None),
-                depth_anything: Mutex::new(None),
-            });
-            ai_state_mutex
-                .lock()
-                .unwrap()
-                .get_or_insert_with(AiState::default)
-                .models = Some(models.clone());
-            models
-        }
+        let models = Arc::new(AiModels {
+            models_dir: get_models_dir(host)?,
+            use_gpu: gpu_acceleration_enabled(&host.load_settings()),
+            downloaded: Mutex::new(HashSet::new()),
+            sam_encoder: Mutex::new(None),
+            sam_decoder: Mutex::new(None),
+            birefnet: Mutex::new(None),
+            esam3_image_encoder: Mutex::new(None),
+            esam3_decoder: Mutex::new(None),
+            esam3_text_encoder: Mutex::new(None),
+            esam3_sky_prompt: Mutex::new(None),
+            esam3_face_prompt: Mutex::new(None),
+            clip_tokenizer: Mutex::new(None),
+            face_landmarks: Mutex::new(None),
+            face_segmenter: Mutex::new(None),
+            depth_anything: Mutex::new(None),
+        });
+        ai_state_mutex
+            .lock()
+            .unwrap()
+            .get_or_insert_with(AiState::default)
+            .models = Some(models.clone());
+        models
     };
 
     if !is_downloaded(&models) {
-        for asset in model.assets(models.gpu_inference()) {
-            download_and_verify_model(host, &models.models_dir, asset).await?;
-        }
+        futures::stream::iter(model.assets(models.gpu_inference()))
+            .then(|asset| download_and_verify_model(host, &models.models_dir, asset))
+            .for_each(|_: Result<()>| async {})
+            .await;
         models.downloaded.lock().unwrap().insert(model);
     }
 
@@ -1250,7 +1247,7 @@ pub async fn get_or_init_denoise_model(
     let models_dir = get_models_dir(host)?;
     download_and_verify_model(host, &models_dir, &DENOISE_ASSET).await?;
 
-    let _ = ort::init().with_name("AI-Denoise").commit();
+    drop(ort::init().with_name("AI-Denoise").commit());
     let model_path = models_dir.join(DENOISE_FILENAME);
     let session = build_session(
         &model_path,
@@ -1292,7 +1289,7 @@ pub async fn get_or_init_clip_models(
     download_and_verify_model(host, &models_dir, &CLIP_TOKENIZER_ASSET).await?;
     let clip_tokenizer_path = models_dir.join(CLIP_TOKENIZER_FILENAME);
 
-    let _ = ort::init().with_name("AI-Tagging").commit();
+    drop(ort::init().with_name("AI-Tagging").commit());
     let clip_model_path = models_dir.join(CLIP_MODEL_FILENAME);
     let model = Mutex::new(build_session(
         &clip_model_path,
@@ -1334,7 +1331,7 @@ pub async fn get_or_init_lama_model(
     let models_dir = get_models_dir(host)?;
     download_and_verify_model(host, &models_dir, &LAMA_ASSET).await?;
 
-    let _ = ort::init().with_name("AI-Inpainting").commit();
+    drop(ort::init().with_name("AI-Inpainting").commit());
     let model_path = models_dir.join(LAMA_FILENAME);
     let session = build_session(&model_path, SessionKind::OneShot, false, None)?;
     let lama_model = Arc::new(Mutex::new(session));
@@ -1370,7 +1367,7 @@ pub async fn get_or_init_normal_model(
     let models_dir = get_models_dir(host)?;
     download_and_verify_model(host, &models_dir, &NORMAL_ASSET).await?;
 
-    let _ = ort::init().with_name("AI-Normal").commit();
+    drop(ort::init().with_name("AI-Normal").commit());
     let model_path = models_dir.join(NORMAL_FILENAME);
     let session = build_session(
         &model_path,
@@ -1490,7 +1487,7 @@ fn run_native_denoise(
                 .try_extract_array::<f32>()?
                 .to_owned()
                 .into_dimensionality::<ndarray::Ix4>()
-                .map_err(|e| anyhow::anyhow!("Unexpected output shape: {}", e))?
+                .map_err(|e| anyhow::anyhow!("Unexpected output shape: {e}"))?
         };
 
         for ty in 0..valid {
@@ -1546,7 +1543,7 @@ fn dilate_mask(mask: &[bool], w: usize, h: usize, r: usize) -> Vec<bool> {
         let src = &mask[y * w..(y + 1) * w];
         let mut prefix = vec![0u32; w + 1];
         for x in 0..w {
-            prefix[x + 1] = prefix[x] + src[x] as u32;
+            prefix[x + 1] = prefix[x] + u32::from(src[x]);
         }
         for (x, out) in row.iter_mut().enumerate() {
             *out = prefix[(x + r + 1).min(w)] > prefix[x.saturating_sub(r)];
@@ -1695,7 +1692,7 @@ fn lama_patch_match(
                     }
                 }
 
-                let mut seed = splitmix64(i as u64 ^ ((iter as u64 + 1) << 40));
+                let mut seed = splitmix64(i as u64 ^ ((u64::from(iter) + 1) << 40));
                 let mut radius = w.max(h) as i32;
                 while radius >= 1 {
                     seed = splitmix64(seed);
@@ -1792,9 +1789,9 @@ pub fn run_lama_inpainting(
             let m = inf_mask.get_pixel(x.min(fw - 1), y.min(fh - 1))[0];
             let (y, x) = (y as usize, x as usize);
 
-            img_tensor[[0, 0, y, x]] = p[0] as f32 / 255.0;
-            img_tensor[[0, 1, y, x]] = p[1] as f32 / 255.0;
-            img_tensor[[0, 2, y, x]] = p[2] as f32 / 255.0;
+            img_tensor[[0, 0, y, x]] = f32::from(p[0]) / 255.0;
+            img_tensor[[0, 1, y, x]] = f32::from(p[1]) / 255.0;
+            img_tensor[[0, 2, y, x]] = f32::from(p[2]) / 255.0;
             msk_tensor[[0, 0, y, x]] = if m > 0 { 1.0 } else { 0.0 };
         }
     }
@@ -1819,9 +1816,9 @@ pub fn run_lama_inpainting(
         .pixels()
         .map(|p| {
             [
-                p[0] as f32 / 255.0,
-                p[1] as f32 / 255.0,
-                p[2] as f32 / 255.0,
+                f32::from(p[0]) / 255.0,
+                f32::from(p[1]) / 255.0,
+                f32::from(p[2]) / 255.0,
             ]
         })
         .collect();
@@ -1891,14 +1888,11 @@ pub fn run_lama_inpainting(
                             (qx as f32 + 0.5) * sx - 0.5,
                             (qy as f32 + 0.5) * sy - 0.5,
                         );
-                        let detail = [0, 1, 2].map(|c| o[c] as f32 / 255.0 - low[c]);
+                        let detail = [0, 1, 2].map(|c| f32::from(o[c]) / 255.0 - low[c]);
                         let shift = (qx - x as i32, qy - y as i32);
-                        match groups[..group_count].iter_mut().find(|g| g.0 == shift) {
-                            Some(g) => g.1 += wgt,
-                            None => {
-                                groups[group_count] = (shift, wgt, detail);
-                                group_count += 1;
-                            }
+                        if let Some(g) = groups[..group_count].iter_mut().find(|g| g.0 == shift) { g.1 += wgt } else {
+                            groups[group_count] = (shift, wgt, detail);
+                            group_count += 1;
                         }
                     }
                     let norm = groups[..group_count]
@@ -1915,11 +1909,11 @@ pub fn run_lama_inpainting(
                     }
                 }
 
-                let alpha = m as f32 / 255.0;
+                let alpha = f32::from(m) / 255.0;
                 let px = &mut row[x * 4..x * 4 + 3];
                 for c in 0..3 {
                     px[c] = (value[c].clamp(0.0, 1.0) * 255.0 * alpha
-                        + px[c] as f32 * (1.0 - alpha))
+                        + f32::from(px[c]) * (1.0 - alpha))
                         .round() as u8;
                 }
             }
@@ -1966,7 +1960,7 @@ pub fn generate_image_embeddings(
     let embeddings = outputs[0].try_extract_array::<f32>()?.to_owned();
 
     Ok(ImageEmbeddings {
-        path_hash: "".to_string(),
+        path_hash: String::new(),
         embeddings: embeddings.into_dyn(),
         original_size: (orig_width, orig_height),
     })
@@ -1980,8 +1974,8 @@ pub fn run_sam_decoder(
     original_image: Option<&DynamicImage>,
 ) -> Result<GrayImage> {
     let (orig_width, orig_height) = embeddings.original_size;
-    let long_side = orig_width.max(orig_height) as f64;
-    let scale = SAM_INPUT_SIZE as f64 / long_side;
+    let long_side = f64::from(orig_width.max(orig_height));
+    let scale = f64::from(SAM_INPUT_SIZE) / long_side;
 
     let iters = 2;
 
@@ -2215,7 +2209,7 @@ pub fn run_sam_decoder(
             fast_guided_filter(&guide_hr, &feathered_coarse_mask, radius as usize, 0.01);
 
         for p in refined_mask.pixels_mut() {
-            let v = p[0] as f32 / 255.0;
+            let v = f32::from(p[0]) / 255.0;
             p[0] = (((v - 0.03) / 0.94).clamp(0.0, 1.0) * 255.0).round() as u8;
         }
 
@@ -2243,14 +2237,14 @@ pub fn run_esam3_image_encoder(
     encoder_session: &Mutex<Session>,
 ) -> Result<Esam3Features> {
     let size = ESAM3_INPUT_SIZE as usize;
-    let padding = ESAM3_INPUT_PADDING as i64;
+    let padding = i64::from(ESAM3_INPUT_PADDING);
     let inner = ESAM3_INPUT_SIZE - 2 * ESAM3_INPUT_PADDING;
     let resized_rgb = image
         .resize_exact(inner, inner, FilterType::Triangle)
         .into_rgb8();
 
     let reflect = |i: usize| -> u32 {
-        let (i, n) = (i as i64 - padding, inner as i64);
+        let (i, n) = (i as i64 - padding, i64::from(inner));
         let i = if i < 0 { -i } else { i };
         (if i >= n { 2 * n - 2 - i } else { i }) as u32
     };
@@ -2260,7 +2254,7 @@ pub fn run_esam3_image_encoder(
         for x in 0..size {
             let pixel = resized_rgb.get_pixel(reflect(x), src_y);
             for c in 0..3 {
-                input_tensor[[0, c, y, x]] = pixel[c] as f32 / 127.5 - 1.0;
+                input_tensor[[0, c, y, x]] = f32::from(pixel[c]) / 127.5 - 1.0;
             }
         }
     }
@@ -2495,8 +2489,8 @@ fn mask_iou(mask: &GrayImage, detail: &GrayImage, x0: u32, y0: u32) -> f32 {
     for (u, v, refined) in detail.enumerate_pixels() {
         let base = mask.get_pixel(x0 + u, y0 + v)[0] >= 128;
         let refined = refined[0] >= 128;
-        intersection += (base && refined) as u64;
-        union += (base || refined) as u64;
+        intersection += u64::from(base && refined);
+        union += u64::from(base || refined);
     }
     if union == 0 {
         0.0
@@ -2528,8 +2522,8 @@ fn blend_feathered(mask: &mut GrayImage, detail: &GrayImage, x0: u32, y0: u32) {
     for (v, weight_y) in weights_y.iter().enumerate() {
         for (u, weight_x) in weights_x.iter().enumerate() {
             let weight = weight_x.min(*weight_y);
-            let base = mask.get_pixel(x0 + u as u32, y0 + v as u32)[0] as f32;
-            let refined = detail.get_pixel(u as u32, v as u32)[0] as f32;
+            let base = f32::from(mask.get_pixel(x0 + u as u32, y0 + v as u32)[0]);
+            let refined = f32::from(detail.get_pixel(u as u32, v as u32)[0]);
             mask.put_pixel(
                 x0 + u as u32,
                 y0 + v as u32,
@@ -2592,7 +2586,7 @@ fn run_birefnet_pass(image: &DynamicImage, session: &mut Session) -> Result<Gray
     for (x, y, pixel) in resized_rgb.enumerate_pixels() {
         for c in 0..3 {
             input_tensor[[0, c, y as usize, x as usize]] =
-                (pixel[c] as f32 / 255.0 - mean[c]) / std[c];
+                (f32::from(pixel[c]) / 255.0 - mean[c]) / std[c];
         }
     }
 
@@ -2635,11 +2629,11 @@ pub fn run_depth_anything_model(
             let dest_x = x + paste_x;
 
             input_tensor[[0, 0, dest_y, dest_x]] =
-                (raw_pixels[idx] as f32 / 255.0 - mean[0]) / std[0];
+                (f32::from(raw_pixels[idx]) / 255.0 - mean[0]) / std[0];
             input_tensor[[0, 1, dest_y, dest_x]] =
-                (raw_pixels[idx + 1] as f32 / 255.0 - mean[1]) / std[1];
+                (f32::from(raw_pixels[idx + 1]) / 255.0 - mean[1]) / std[1];
             input_tensor[[0, 2, dest_y, dest_x]] =
-                (raw_pixels[idx + 2] as f32 / 255.0 - mean[2]) / std[2];
+                (f32::from(raw_pixels[idx + 2]) / 255.0 - mean[2]) / std[2];
         }
     }
 
@@ -2708,7 +2702,7 @@ fn build_normal_depth(points: &[f32], mask: &[f32]) -> Vec<u8> {
         return vec![255; mask.len()];
     }
 
-    depths.sort_unstable_by(|a, b| a.total_cmp(b));
+    depths.sort_unstable_by(f32::total_cmp);
     let percentile = |p: f32| depths[((depths.len() - 1) as f32 * p) as usize];
     let near = percentile(0.005);
     let range = (percentile(0.995) - near).max(1e-6);
@@ -2748,9 +2742,9 @@ pub fn run_normal_model(
     for y in 0..rh {
         for x in 0..rw {
             let idx = (y * rw + x) * 3;
-            input_tensor[[0, 0, y, x]] = raw_pixels[idx] as f32 / 255.0;
-            input_tensor[[0, 1, y, x]] = raw_pixels[idx + 1] as f32 / 255.0;
-            input_tensor[[0, 2, y, x]] = raw_pixels[idx + 2] as f32 / 255.0;
+            input_tensor[[0, 0, y, x]] = f32::from(raw_pixels[idx]) / 255.0;
+            input_tensor[[0, 1, y, x]] = f32::from(raw_pixels[idx + 1]) / 255.0;
+            input_tensor[[0, 2, y, x]] = f32::from(raw_pixels[idx + 2]) / 255.0;
         }
     }
 

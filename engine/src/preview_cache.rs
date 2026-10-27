@@ -29,7 +29,7 @@ pub fn generate_transformed_preview(
     let mut cache_lock = state
         .full_transformed_cache
         .lock()
-        .unwrap_or_else(|e| e.into_inner());
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
 
     if let Some((hash, img, scale, offset)) = cache_lock.as_ref()
         && *hash == cache_key
@@ -55,7 +55,7 @@ fn get_or_compute_stage(
     key: u64,
     compute: impl FnOnce() -> Result<Arc<DynamicImage>, String>,
 ) -> Result<Arc<DynamicImage>, String> {
-    let mut cache_lock = cache.lock().unwrap_or_else(|e| e.into_inner());
+    let mut cache_lock = cache.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
 
     if let Some((hash, img)) = cache_lock.as_ref()
         && *hash == key
@@ -84,9 +84,9 @@ fn compute_transformed_preview(
     let (full_w_px, full_h_px) = patched.dimensions();
     let orientation_steps = adjustments["orientationSteps"].as_u64().unwrap_or(0);
     let (oriented_w, oriented_h) = if orientation_steps % 2 == 1 {
-        (full_h_px as f64, full_w_px as f64)
+        (f64::from(full_h_px), f64::from(full_w_px))
     } else {
-        (full_w_px as f64, full_h_px as f64)
+        (f64::from(full_w_px), f64::from(full_h_px))
     };
 
     let crop: Option<Crop> = serde_json::from_value(adjustments["crop"].clone()).ok();
@@ -100,9 +100,9 @@ fn compute_transformed_preview(
         })
         .unwrap_or((oriented_w, oriented_h));
 
-    let target_scale = (preview_dim as f64 / full_w.max(full_h)).min(1.0);
-    let target_w = ((full_w_px as f64 * target_scale).round() as u32).max(1);
-    let target_h = ((full_h_px as f64 * target_scale).round() as u32).max(1);
+    let target_scale = (f64::from(preview_dim) / full_w.max(full_h)).min(1.0);
+    let target_w = ((f64::from(full_w_px) * target_scale).round() as u32).max(1);
+    let target_h = ((f64::from(full_h_px) * target_scale).round() as u32).max(1);
 
     let has_geometry = !is_geometry_identity(&get_geometry_params_from_json(adjustments));
     let working_target_scale = if has_geometry {
@@ -112,8 +112,8 @@ fn compute_transformed_preview(
     };
 
     let working = if working_target_scale < 1.0 {
-        let working_w = ((full_w_px as f64 * working_target_scale).round() as u32).max(1);
-        let working_h = ((full_h_px as f64 * working_target_scale).round() as u32).max(1);
+        let working_w = ((f64::from(full_w_px) * working_target_scale).round() as u32).max(1);
+        let working_h = ((f64::from(full_h_px) * working_target_scale).round() as u32).max(1);
 
         let mut hasher = DefaultHasher::new();
         patched_key.hash(&mut hasher);
@@ -128,7 +128,7 @@ fn compute_transformed_preview(
         *state
             .working_cache
             .lock()
-            .unwrap_or_else(|e| e.into_inner()) = None;
+            .unwrap_or_else(std::sync::PoisonError::into_inner) = None;
         Arc::clone(&patched)
     };
     drop(patched);
@@ -153,7 +153,7 @@ fn compute_transformed_preview(
     })?;
     drop(working);
 
-    let working_scale = warped.width() as f64 / full_w_px.max(1) as f64;
+    let working_scale = f64::from(warped.width()) / f64::from(full_w_px.max(1));
 
     let mut hasher = DefaultHasher::new();
     warped_key.hash(&mut hasher);
@@ -170,7 +170,7 @@ fn compute_transformed_preview(
     })?;
     drop(warped);
 
-    let max_dim = preview_dim as f64;
+    let max_dim = f64::from(preview_dim);
     let spatial_adjustments = serde_json::json!({
         "orientationSteps": adjustments["orientationSteps"],
         "rotation": adjustments["rotation"],
@@ -195,7 +195,7 @@ fn compute_transformed_preview(
     };
 
     let scale_for_gpu = if full_w > 0.0 {
-        (preview.width() as f64 / full_w) as f32
+        (f64::from(preview.width()) / full_w) as f32
     } else {
         1.0
     };
@@ -219,9 +219,9 @@ pub fn cached_patched_image(
     let loaded_image = state
         .original_image
         .lock()
-        .unwrap_or_else(|e| e.into_inner())
+        .unwrap_or_else(std::sync::PoisonError::into_inner)
         .clone()?;
-    if !std::ptr::eq(&*loaded_image.image, base_image) {
+    if !std::ptr::eq(&raw const *loaded_image.image, base_image) {
         return None;
     }
 
@@ -229,7 +229,7 @@ pub fn cached_patched_image(
     let cache = state
         .patched_cache
         .lock()
-        .unwrap_or_else(|e| e.into_inner());
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
     match cache.as_ref() {
         Some((hash, image)) if *hash == key => Some(Arc::clone(image)),
         _ => None,
@@ -241,13 +241,14 @@ fn compute_patched(
     adjustments: &serde_json::Value,
 ) -> Result<Arc<DynamicImage>, String> {
     match prepare_base_image_cow(&loaded_image.image, &loaded_image.path, adjustments)
-        .map_err(|e| format!("Failed to composite AI patches: {}", e))?
+        .map_err(|e| format!("Failed to composite AI patches: {e}"))?
     {
         Cow::Owned(img) => Ok(Arc::new(img)),
         Cow::Borrowed(_) => Ok(Arc::clone(&loaded_image.image)),
     }
 }
 
+#[must_use]
 pub fn build_ai_source_image(
     image: &DynamicImage,
     is_raw: bool,
@@ -277,14 +278,14 @@ pub fn get_cached_full_warped_image_for_path(
     let loaded_image = state
         .original_image
         .lock()
-        .unwrap_or_else(|e| e.into_inner())
+        .unwrap_or_else(std::sync::PoisonError::into_inner)
         .clone()
         .ok_or("No original image loaded")?;
 
     if let Some(path) = path
         && parse_virtual_path(path).0 != parse_virtual_path(&loaded_image.path).0
     {
-        return Err(format!("'{}' is not the loaded image", path));
+        return Err(format!("'{path}' is not the loaded image"));
     }
 
     let mut hasher = DefaultHasher::new();
@@ -296,7 +297,7 @@ pub fn get_cached_full_warped_image_for_path(
         let mut cache_lock = state
             .full_warped_cache
             .lock()
-            .unwrap_or_else(|e| e.into_inner());
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
         match cache_lock.as_ref() {
             Some((hash, img)) if *hash == cache_key => Some(Arc::clone(img)),
             _ => {
@@ -310,13 +311,15 @@ pub fn get_cached_full_warped_image_for_path(
         return Ok(img);
     }
 
-    let _build_guard = rayon::current_thread_index().is_none().then(|| {
+    let build_guard = rayon::current_thread_index().is_none().then(|| {
         state
             .full_warped_build_lock
             .lock()
-            .unwrap_or_else(|e| e.into_inner())
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
     });
+
     if let Some(img) = cached() {
+        drop(build_guard);
         return Ok(img);
     }
 
@@ -328,8 +331,9 @@ pub fn get_cached_full_warped_image_for_path(
     *state
         .full_warped_cache
         .lock()
-        .unwrap_or_else(|e| e.into_inner()) = Some((cache_key, Arc::clone(&warped_arc)));
+        .unwrap_or_else(std::sync::PoisonError::into_inner) = Some((cache_key, Arc::clone(&warped_arc)));
 
+    drop(build_guard);
     Ok(warped_arc)
 }
 

@@ -17,6 +17,7 @@ pub struct MemoryReservation {
 }
 
 impl MemoryBudget {
+    #[must_use]
     pub fn new(total: u64) -> Arc<Self> {
         Arc::new(Self {
             total,
@@ -25,6 +26,7 @@ impl MemoryBudget {
         })
     }
 
+    #[must_use]
     pub fn from_total_ram(fraction: f64) -> Arc<Self> {
         let mut sys = sysinfo::System::new();
         sys.refresh_memory();
@@ -37,7 +39,7 @@ impl MemoryBudget {
         cancellation_token: Option<&AtomicBool>,
     ) -> Option<MemoryReservation> {
         let bytes = bytes.min(self.total);
-        let mut available = self.available.lock().unwrap_or_else(|e| e.into_inner());
+        let mut available = self.available.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
         while *available < bytes {
             if cancellation_token.is_some_and(|token| token.load(Ordering::SeqCst)) {
                 return None;
@@ -45,7 +47,7 @@ impl MemoryBudget {
             available = self
                 .released
                 .wait_timeout(available, Duration::from_millis(200))
-                .unwrap_or_else(|e| e.into_inner())
+                .unwrap_or_else(std::sync::PoisonError::into_inner)
                 .0;
         }
         *available -= bytes;
@@ -62,11 +64,12 @@ impl Drop for MemoryReservation {
             .budget
             .available
             .lock()
-            .unwrap_or_else(|e| e.into_inner()) += self.bytes;
+            .unwrap_or_else(std::sync::PoisonError::into_inner) += self.bytes;
         self.budget.released.notify_all();
     }
 }
 
+#[must_use]
 pub fn image_pixel_count(path: &Path, is_raw: bool) -> Option<u64> {
     let (width, height) = if is_raw {
         let mmap = read_file_mapped(path).ok()?;
@@ -74,7 +77,7 @@ pub fn image_pixel_count(path: &Path, is_raw: bool) -> Option<u64> {
     } else {
         image::image_dimensions(path)
             .ok()
-            .map(|(w, h)| (w as u64, h as u64))?
+            .map(|(w, h)| (u64::from(w), u64::from(h)))?
     };
     Some(width * height)
 }

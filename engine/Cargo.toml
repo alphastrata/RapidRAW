@@ -4,8 +4,16 @@ edition = "2024"
 rust-version = "1.98"
 
 [features]
-default = []
+default = ["json"]
+json = ["dep:serde_json"]
 tethering = []
+
+[dev-dependencies]
+divan = "0.1"
+
+[lints.clippy]
+pedantic = "warn"
+perf = "deny"
 
 [dependencies]
 anyhow = "1.0.104"
@@ -15,6 +23,7 @@ bytemuck = { version = "1.25.2", features = ["derive"] }
 chrono = "0.4.45"
 crc32fast = "1.5.3"
 filetime = "0.2.29"
+futures = "0.3.34"
 fuzzy-matcher = "0.3.7"
 glam = "0.34.1"
 half = { version = "2.7.1", features = ["bytemuck"] }
@@ -39,7 +48,7 @@ rayon = "1.12.0"
 reqwest = { version = "0.13", default-features = false, features = ["json", "multipart", "rustls"] }
 rgb = "0.8.53"
 serde = { version = "1.0", features = ["derive"] }
-serde_json = "1.0"
+serde_json = { version = "1.0", optional = true }
 sha2 = "0.11.1"
 simd_kernels = { version = "0.0.0", path = "../simd_optimised/kernels" }
 sysinfo = "0.39.6"

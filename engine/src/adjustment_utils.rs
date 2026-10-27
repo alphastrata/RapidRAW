@@ -34,12 +34,12 @@ pub fn hydrate_sub_masks(
             for key in keys_to_check {
                 if params.contains_key(key) {
                     let val = params.get(key).unwrap();
-                    if !val.is_null() {
-                        cache.insert(id.clone(), val.clone());
-                    } else {
+                    if val.is_null() {
                         if let Some(cached_data) = cache.get(&id) {
                             params.insert(key.to_string(), cached_data.clone());
                         }
+                    } else {
+                        cache.insert(id.clone(), val.clone());
                     }
                 }
             }
@@ -68,10 +68,8 @@ pub fn hydrate_adjustments(state: &AppState, adjustments: &mut serde_json::Value
                     if let Some(data) = patch.get("patchData") {
                         cache.insert(id.clone(), data.clone());
                     }
-                } else {
-                    if let Some(cached_data) = cache.get(&id) {
-                        patch["patchData"] = cached_data.clone();
-                    }
+                } else if let Some(cached_data) = cache.get(&id) {
+                    patch["patchData"] = cached_data.clone();
                 }
             }
 
@@ -105,16 +103,16 @@ pub fn hydrate_adjustments(state: &AppState, adjustments: &mut serde_json::Value
 
         if let Some(id) = cached_id {
             adjustments[key] = cache
-                .get(&format!("effectMap:{}", id))
+                .get(&format!("effectMap:{id}"))
                 .cloned()
                 .unwrap_or(serde_json::Value::Null);
         } else if let Some(id) = effect_map_ids
             .as_ref()
             .and_then(|ids| ids.get(key))
-            .and_then(|v| v.as_u64())
+            .and_then(serde_json::Value::as_u64)
             && let Some(value) = adjustments.get(key).filter(|v| v.is_string())
         {
-            cache.insert(format!("effectMap:{}", id), value.clone());
+            cache.insert(format!("effectMap:{id}"), value.clone());
         }
     }
 }
@@ -149,6 +147,7 @@ pub fn apply_spatial_transformations<'a, I: IntoCowImage<'a>>(
     (cropped_image, unscaled_crop_offset)
 }
 
+#[must_use]
 pub fn transformed_dimensions(
     width: u32,
     height: u32,
@@ -187,7 +186,7 @@ pub fn apply_all_transformations<'a, I: IntoCowImage<'a>>(
         apply_spatial_transformations(blurred_image, adjustments);
 
     let total_duration = start_time.elapsed();
-    log::info!("apply_all_transformations took {:.2?}", total_duration);
+    log::info!("apply_all_transformations took {total_duration:.2?}");
 
     (cropped_image, unscaled_crop_offset)
 }

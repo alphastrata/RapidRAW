@@ -63,6 +63,7 @@ pub struct MaskDefinition {
 }
 
 impl MaskDefinition {
+    #[must_use]
     pub fn requires_warped_image(&self) -> bool {
         self.sub_masks
             .iter()
@@ -239,7 +240,7 @@ fn grayscale_dilate(image: &GrayImage, k: u8) -> GrayImage {
     }
     let w = width as usize;
     let h = height as usize;
-    let r = k as i32;
+    let r = i32::from(k);
     let src = image.as_raw();
 
     let mut temp = vec![0u8; w * h];
@@ -281,7 +282,7 @@ fn grayscale_erode(image: &GrayImage, k: u8) -> GrayImage {
     }
     let w = width as usize;
     let h = height as usize;
-    let r = k as i32;
+    let r = i32::from(k);
     let src = image.as_raw();
 
     let mut temp = vec![0u8; w * h];
@@ -682,7 +683,7 @@ fn generate_brush_bitmap(
 
         for y in 0..bb_h {
             for x in 0..bb_w {
-                let src_val = line_mask.get_pixel(x, y)[0] as f32 / 255.0;
+                let src_val = f32::from(line_mask.get_pixel(x, y)[0]) / 255.0;
                 if src_val <= 0.0 {
                     continue;
                 }
@@ -690,7 +691,7 @@ fn generate_brush_bitmap(
                 let abs_x = min_x + x;
                 let abs_y = min_y + y;
                 let dst_pixel = final_mask.get_pixel_mut(abs_x, abs_y);
-                let dst_val = dst_pixel[0] as f32 / 255.0;
+                let dst_val = f32::from(dst_pixel[0]) / 255.0;
 
                 let blended = if is_eraser {
                     dst_val * (1.0 - src_val)
@@ -750,7 +751,7 @@ fn generate_flow_bitmap(
 
         for y in 0..bb_h {
             for x in 0..bb_w {
-                let stroke_pixel = line_mask.get_pixel(x, y)[0] as f32;
+                let stroke_pixel = f32::from(line_mask.get_pixel(x, y)[0]);
                 if stroke_pixel <= 0.0 {
                     continue;
                 }
@@ -759,7 +760,7 @@ fn generate_flow_bitmap(
                 let abs_y = min_y + y;
                 let pixel = final_mask.get_pixel_mut(abs_x, abs_y);
 
-                let c_norm = pixel[0] as f32 / 255.0;
+                let c_norm = f32::from(pixel[0]) / 255.0;
                 let delta = ((stroke_pixel / 255.0) * flow_per_stroke).round();
                 let d_norm = (delta / 255.0).clamp(0.0, 1.0);
 
@@ -859,6 +860,7 @@ fn generate_ai_bitmap_from_full_mask(
     final_mask
 }
 
+#[must_use]
 pub fn generate_ai_bitmap_from_base64(data_url: &str, tf: &TransformParams) -> Option<GrayImage> {
     let b64_data = if let Some(idx) = data_url.find(',') {
         &data_url[idx + 1..]
@@ -946,7 +948,7 @@ fn generate_ai_depth_bitmap(
         .as_raw()
         .par_iter()
         .map(|&p| {
-            let val_pct = (p as f32 / 255.0) * 100.0;
+            let val_pct = (f32::from(p) / 255.0) * 100.0;
 
             let lower_bound = smoothstep(params.min_depth - min_fade, params.min_depth, val_pct);
             let upper_bound =
@@ -1065,9 +1067,9 @@ fn generate_color_bitmap(
     }
 
     let ref_pixel = warped.get_pixel(target_x as u32, target_y as u32);
-    let ref_r = ref_pixel[0] as f32;
-    let ref_g = ref_pixel[1] as f32;
-    let ref_b = ref_pixel[2] as f32;
+    let ref_r = f32::from(ref_pixel[0]);
+    let ref_g = f32::from(ref_pixel[1]);
+    let ref_b = f32::from(ref_pixel[2]);
 
     let mut mask = GrayImage::new(width, height);
 
@@ -1130,9 +1132,9 @@ fn generate_color_bitmap(
 
                 if x_src < full_w && y_src < full_h {
                     let pixel = warped.get_pixel(x_src, y_src);
-                    let dist_sq = (pixel[0] as f32 - ref_r).powi(2)
-                        + (pixel[1] as f32 - ref_g).powi(2)
-                        + (pixel[2] as f32 - ref_b).powi(2);
+                    let dist_sq = (f32::from(pixel[0]) - ref_r).powi(2)
+                        + (f32::from(pixel[1]) - ref_g).powi(2)
+                        + (f32::from(pixel[2]) - ref_b).powi(2);
 
                     if dist_sq <= tolerance_sq {
                         let intensity = 1.0 - (dist_sq.sqrt() / tolerance_sq.sqrt());
@@ -1167,7 +1169,7 @@ fn generate_luminance_bitmap(
 
     let ref_pixel = warped.get_pixel(target_x as u32, target_y as u32);
     let ref_luma =
-        0.299 * ref_pixel[0] as f32 + 0.587 * ref_pixel[1] as f32 + 0.114 * ref_pixel[2] as f32;
+        0.299 * f32::from(ref_pixel[0]) + 0.587 * f32::from(ref_pixel[1]) + 0.114 * f32::from(ref_pixel[2]);
 
     let mut mask = GrayImage::new(width, height);
 
@@ -1231,7 +1233,7 @@ fn generate_luminance_bitmap(
                 if x_src < full_w && y_src < full_h {
                     let pixel = warped.get_pixel(x_src, y_src);
                     let luma =
-                        0.299 * pixel[0] as f32 + 0.587 * pixel[1] as f32 + 0.114 * pixel[2] as f32;
+                        0.299 * f32::from(pixel[0]) + 0.587 * f32::from(pixel[1]) + 0.114 * f32::from(pixel[2]);
                     let dist = (luma - ref_luma).abs();
 
                     if dist <= tolerance_val {
@@ -1338,6 +1340,7 @@ fn generate_sub_mask_bitmap(
     }
 }
 
+#[must_use]
 pub fn generate_mask_bitmap(
     mask_def: &MaskDefinition,
     width: u32,
@@ -1368,7 +1371,7 @@ pub fn generate_mask_bitmap(
                         *sub_pixel = 255 - *sub_pixel;
                     }
                     if opacity_multiplier < 1.0 {
-                        *sub_pixel = (*sub_pixel as f32 * opacity_multiplier) as u8;
+                        *sub_pixel = (f32::from(*sub_pixel) * opacity_multiplier) as u8;
                     }
                     *pixel = match mode {
                         SubMaskMode::Additive => (*pixel).max(*sub_pixel),
@@ -1387,7 +1390,7 @@ pub fn generate_mask_bitmap(
                 *pixel = 255 - *pixel;
             }
             if opacity_multiplier < 1.0 {
-                *pixel = (*pixel as f32 * opacity_multiplier) as u8;
+                *pixel = (f32::from(*pixel) * opacity_multiplier) as u8;
             }
         });
     }
@@ -1409,12 +1412,12 @@ pub fn generate_mask_overlay(
     }
 
     if let Some(sub_masks) = mask_def.get_mut("subMasks").and_then(|v| v.as_array_mut()) {
-        let mut cache = state.patch_cache.lock().unwrap_or_else(|e| e.into_inner());
+        let mut cache = state.patch_cache.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
         crate::adjustment_utils::hydrate_sub_masks(sub_masks, &mut cache);
     }
 
     let parsed_mask_def: MaskDefinition = serde_json::from_value(mask_def)
-        .map_err(|e| format!("Failed to parse hydrated mask_def: {}", e))?;
+        .map_err(|e| format!("Failed to parse hydrated mask_def: {e}"))?;
 
     let scaled_crop_offset = (crop_offset.0 * scale, crop_offset.1 * scale);
 
@@ -1433,7 +1436,7 @@ pub fn generate_mask_overlay(
         let rgba_mask: Vec<u8> = gray_mask
             .as_raw()
             .par_iter()
-            .flat_map_iter(|&intensity| [255, 0, 0, (intensity as f32 * 0.5) as u8])
+            .flat_map_iter(|&intensity| [255, 0, 0, (f32::from(intensity) * 0.5) as u8])
             .collect();
 
         let mut buf = Vec::new();
@@ -1452,7 +1455,7 @@ pub fn resolve_warped_image_for_masks(
     adjustments: &serde_json::Value,
     masks: &[MaskDefinition],
 ) -> Option<Arc<DynamicImage>> {
-    if masks.iter().any(|m| m.requires_warped_image()) {
+    if masks.iter().any(MaskDefinition::requires_warped_image) {
         get_cached_full_warped_image(state, adjustments).ok()
     } else {
         None
@@ -1467,6 +1470,7 @@ fn build_full_source_image(base_image: &DynamicImage, is_raw: bool) -> Cow<'_, D
     image
 }
 
+#[must_use]
 pub fn build_converted_source_image<'a>(
     base_image: &'a DynamicImage,
     is_raw: bool,
@@ -1482,6 +1486,7 @@ pub fn build_converted_source_image<'a>(
     image
 }
 
+#[must_use]
 pub fn build_full_warped_image<'a>(
     base_image: &'a DynamicImage,
     is_raw: bool,
@@ -1490,6 +1495,7 @@ pub fn build_full_warped_image<'a>(
     apply_geometry_warp(build_full_source_image(base_image, is_raw), adjustments)
 }
 
+#[must_use]
 pub fn build_full_warped_image_rgb8(
     base_image: &DynamicImage,
     is_raw: bool,
@@ -1511,13 +1517,14 @@ pub fn build_full_warped_image_rgb8(
     DynamicImage::ImageRgb8(rgb8)
 }
 
+#[must_use]
 pub fn build_warped_image_for_masks<'a>(
     base_image: &'a DynamicImage,
     is_raw: bool,
     adjustments: &serde_json::Value,
     masks: &[MaskDefinition],
 ) -> Option<Cow<'a, DynamicImage>> {
-    if masks.iter().any(|m| m.requires_warped_image()) {
+    if masks.iter().any(MaskDefinition::requires_warped_image) {
         Some(Cow::Owned(build_full_warped_image_rgb8(
             base_image,
             crate::negative_conversion::effective_is_raw(is_raw, adjustments),
@@ -1573,7 +1580,7 @@ pub fn get_cached_or_generate_masks(
         let cached = state
             .mask_cache
             .lock()
-            .unwrap_or_else(|e| e.into_inner())
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
             .get(&key)
             .cloned();
 
@@ -1591,7 +1598,7 @@ pub fn get_cached_or_generate_masks(
                 warped_image.as_deref(),
             )?;
 
-            let mut cache = state.mask_cache.lock().unwrap_or_else(|e| e.into_inner());
+            let mut cache = state.mask_cache.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
             let cached_bytes: usize = cache.values().map(|m| m.as_raw().len()).sum();
             if cache.len() > 50 || cached_bytes > MASK_CACHE_LIMIT_BYTES {
                 cache.clear();

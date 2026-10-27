@@ -28,11 +28,12 @@ pub fn sub_into(dst: &mut [f32], a: &[f32], b: &[f32]) {
     }
 }
 
+#[must_use]
 pub fn sum(buf: &[f32]) -> f64 {
     let (chunks, tail) = buf.as_chunks::<LANES>();
     let mut acc = splat(0.0);
-    for c in chunks.iter() {
+    for c in chunks {
         acc += Simd::from_array(*c);
     }
-    acc.reduce_sum() as f64 + tail.iter().map(|&v| v as f64).sum::<f64>()
+    f64::from(acc.reduce_sum()) + tail.iter().map(|&v| f64::from(v)).sum::<f64>()
 }

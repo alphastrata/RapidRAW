@@ -138,9 +138,7 @@ pub fn load_base_image_from_bytes(
         match crate::apple_raw::develop_raw9(bytes, path_for_ext_check) {
             Ok(image) => return Ok(image),
             Err(e) => log::warn!(
-                "Apple RAW 9 unavailable for '{}', falling back to rawler: {}",
-                path_for_ext_check,
-                e
+                "Apple RAW 9 unavailable for '{path_for_ext_check}', falling back to rawler: {e}"
             ),
         }
     }
@@ -165,9 +163,7 @@ pub fn load_base_image_from_bytes(
                     );
                     let duration = start.elapsed();
                     log::info!(
-                        "Raw enhancing for '{}' took {:?}",
-                        path_for_ext_check,
-                        duration
+                        "Raw enhancing for '{path_for_ext_check}' took {duration:?}"
                     );
                 }
                 Ok(image)
@@ -180,9 +176,7 @@ pub fn load_base_image_from_bytes(
                 }
 
                 log::warn!(
-                    "Error developing RAW file '{}': {}",
-                    path_for_ext_check,
-                    classified
+                    "Error developing RAW file '{path_for_ext_check}': {classified}"
                 );
                 if let Some(preview) = safe_embedded_preview_fallback(bytes, path_for_ext_check) {
                     log::warn!(
@@ -197,7 +191,7 @@ pub fn load_base_image_from_bytes(
                 Err(classified)
             }
             Err(_) => {
-                log::error!("Panic while processing RAW file: {}", path_for_ext_check);
+                log::error!("Panic while processing RAW file: {path_for_ext_check}");
                 if let Some(preview) = safe_embedded_preview_fallback(bytes, path_for_ext_check) {
                     log::warn!(
                         "Using embedded preview fallback for '{}' after RAW decoder panic ({}x{})",
@@ -209,8 +203,7 @@ pub fn load_base_image_from_bytes(
                     return Ok(linearize_embedded_preview(preview));
                 }
                 Err(anyhow!(
-                    "Failed to process RAW file: {}",
-                    path_for_ext_check
+                    "Failed to process RAW file: {path_for_ext_check}"
                 ))
             }
         }
@@ -225,9 +218,7 @@ pub fn load_base_image_from_bytes(
             remove_raw_artifacts_and_enhance(&mut image, color_nr_amount, sharpening_amount);
             let duration = start.elapsed();
             log::info!(
-                "Enhancing non-RAW '{}' took {:?}",
-                path_for_ext_check,
-                duration
+                "Enhancing non-RAW '{path_for_ext_check}' took {duration:?}"
             );
         }
 
@@ -243,9 +234,7 @@ fn classify_raw_develop_error(path: &str, err: anyhow::Error) -> anyhow::Error {
 
     if unsupported_compression {
         return anyhow!(
-            "Unsupported RAW compression format for '{}'. Original error: {}",
-            path,
-            error_text
+            "Unsupported RAW compression format for '{path}'. Original error: {error_text}"
         );
     }
 
@@ -260,19 +249,19 @@ fn largest_tiff_jpeg_preview(buf: &[u8]) -> Option<DynamicImage> {
     };
     let rd16 = |o: usize| -> Option<u64> {
         let b: [u8; 2] = buf.get(o..o + 2)?.try_into().ok()?;
-        Some(if le {
+        Some(u64::from(if le {
             u16::from_le_bytes(b)
         } else {
             u16::from_be_bytes(b)
-        } as u64)
+        }))
     };
     let rd32 = |o: usize| -> Option<u64> {
         let b: [u8; 4] = buf.get(o..o + 4)?.try_into().ok()?;
-        Some(if le {
+        Some(u64::from(if le {
             u32::from_le_bytes(b)
         } else {
             u32::from_be_bytes(b)
-        } as u64)
+        }))
     };
 
     let mut candidates: Vec<(u64, u64)> = Vec::new();
@@ -345,6 +334,7 @@ fn largest_tiff_jpeg_preview(buf: &[u8]) -> Option<DynamicImage> {
     None
 }
 
+#[must_use]
 pub fn tiff_embedded_preview(bytes: &[u8]) -> Option<DynamicImage> {
     let img = largest_tiff_jpeg_preview(bytes)?;
 
@@ -367,13 +357,11 @@ fn embedded_preview_fallback(bytes: &[u8]) -> Option<DynamicImage> {
     tiff_embedded_preview(bytes).or_else(|| crate::raw_processing::extract_embedded_preview(bytes))
 }
 
+#[must_use]
 pub fn safe_embedded_preview_fallback(bytes: &[u8], path: &str) -> Option<DynamicImage> {
-    match panic::catch_unwind(panic::AssertUnwindSafe(|| embedded_preview_fallback(bytes))) {
-        Ok(preview) => preview,
-        Err(_) => {
-            log::warn!("Embedded RAW preview extraction panicked for '{}'", path);
-            None
-        }
+    if let Ok(preview) = panic::catch_unwind(panic::AssertUnwindSafe(|| embedded_preview_fallback(bytes))) { preview } else {
+        log::warn!("Embedded RAW preview extraction panicked for '{path}'");
+        None
     }
 }
 
@@ -452,7 +440,7 @@ fn composite_patches_cow<'a>(
         .filter(|patch_obj| {
             let is_visible = patch_obj
                 .get("visible")
-                .and_then(|v| v.as_bool())
+                .and_then(serde_json::Value::as_bool)
                 .unwrap_or(true);
             if !is_visible {
                 return false;
@@ -485,17 +473,17 @@ fn composite_patches_cow<'a>(
             let patch_data = patch_obj.get("patchData").context("Missing patchData")?;
             let offset_x = patch_data
                 .get("offsetX")
-                .and_then(|v| v.as_u64())
+                .and_then(serde_json::Value::as_u64)
                 .map(|v| v as u32);
             let offset_y = patch_data
                 .get("offsetY")
-                .and_then(|v| v.as_u64())
+                .and_then(serde_json::Value::as_u64)
                 .map(|v| v as u32);
             let is_cropped = offset_x.is_some() && offset_y.is_some();
 
             let is_srgb_encoded = patch_data
                 .get("isSrgbEncoded")
-                .and_then(|v| v.as_bool())
+                .and_then(serde_json::Value::as_bool)
                 .unwrap_or(false);
 
             let mask_bitmap = if let Some(mask_b64) = patch_data
@@ -526,7 +514,7 @@ fn composite_patches_cow<'a>(
 
                 let orientation_steps = current_adjustments
                     .get("orientationSteps")
-                    .and_then(|v| v.as_u64())
+                    .and_then(serde_json::Value::as_u64)
                     .unwrap_or(0) as u8;
                 let (trans_w, trans_h) = if orientation_steps % 2 == 1 {
                     (base_h, base_w)
@@ -544,14 +532,12 @@ fn composite_patches_cow<'a>(
                 if let (Some(ox), Some(oy)) = (offset_x, offset_y) {
                     let w = patch_data
                         .get("width")
-                        .and_then(|v| v.as_u64())
-                        .map(|v| v as u32)
-                        .unwrap_or(base_w);
+                        .and_then(serde_json::Value::as_u64)
+                        .map_or(base_w, |v| v as u32);
                     let h = patch_data
                         .get("height")
-                        .and_then(|v| v.as_u64())
-                        .map(|v| v as u32)
-                        .unwrap_or(base_h);
+                        .and_then(serde_json::Value::as_u64)
+                        .map_or(base_h, |v| v as u32);
                     let crop_w = w.min(base_w.saturating_sub(ox));
                     let crop_h = h.min(base_h.saturating_sub(oy));
                     gen_mask = imageops::crop_imm(&gen_mask, ox, oy, crop_w, crop_h).to_image();
@@ -597,7 +583,7 @@ fn composite_patches_cow<'a>(
         if patch.is_srgb_encoded {
             (lut[r as usize], lut[g as usize], lut[b as usize])
         } else {
-            (r as f32 / 255.0, g as f32 / 255.0, b as f32 / 255.0)
+            (f32::from(r) / 255.0, f32::from(g) / 255.0, f32::from(b) / 255.0)
         }
     };
 
@@ -645,7 +631,7 @@ fn composite_patches_cow<'a>(
 
                                     let (pr, pg, pb) = get_color(&patch, pr_u8, pg_u8, pb_u8);
 
-                                    let alpha = mask_value as f32 / 255.0;
+                                    let alpha = f32::from(mask_value) / 255.0;
                                     let one_minus_alpha = 1.0 - alpha;
 
                                     let base_idx = x * 3;
@@ -674,7 +660,7 @@ fn composite_patches_cow<'a>(
 
                                     let (pr, pg, pb) = get_color(&patch, pr_u8, pg_u8, pb_u8);
 
-                                    let alpha = mask_value as f32 / 255.0;
+                                    let alpha = f32::from(mask_value) / 255.0;
                                     let one_minus_alpha = 1.0 - alpha;
 
                                     row[x * 3] = pr * alpha + row[x * 3] * one_minus_alpha;
@@ -728,7 +714,7 @@ fn composite_patches_cow<'a>(
                                     let pb_u8 = color_raw[color_idx + 2];
 
                                     let (pr, pg, pb) = get_color(&patch, pr_u8, pg_u8, pb_u8);
-                                    let alpha = mask_value as f32 / 255.0;
+                                    let alpha = f32::from(mask_value) / 255.0;
                                     let one_minus_alpha = 1.0 - alpha;
 
                                     let base_idx = x * 4;
@@ -757,7 +743,7 @@ fn composite_patches_cow<'a>(
 
                                     let (pr, pg, pb) = get_color(&patch, pr_u8, pg_u8, pb_u8);
 
-                                    let alpha = mask_value as f32 / 255.0;
+                                    let alpha = f32::from(mask_value) / 255.0;
                                     let one_minus_alpha = 1.0 - alpha;
 
                                     row[x * 4] = pr * alpha + row[x * 4] * one_minus_alpha;
@@ -812,7 +798,7 @@ fn composite_patches_cow<'a>(
                                     let pb_u8 = color_raw[color_idx + 2];
 
                                     let (pr, pg, pb) = get_color(&patch, pr_u8, pg_u8, pb_u8);
-                                    let alpha = mask_value as f32 / 255.0;
+                                    let alpha = f32::from(mask_value) / 255.0;
                                     let one_minus_alpha = 1.0 - alpha;
 
                                     let base_idx = x * 4;
@@ -840,7 +826,7 @@ fn composite_patches_cow<'a>(
                                     let pb_u8 = color_raw[color_idx + 2];
 
                                     let (pr, pg, pb) = get_color(&patch, pr_u8, pg_u8, pb_u8);
-                                    let alpha = mask_value as f32 / 255.0;
+                                    let alpha = f32::from(mask_value) / 255.0;
                                     let one_minus_alpha = 1.0 - alpha;
 
                                     row[x * 4] = pr * alpha + row[x * 4] * one_minus_alpha;
@@ -881,53 +867,54 @@ pub fn get_or_decode_pristine(
         if is_cancelled(&cancel_token) {
             return Err("Load cancelled".to_string());
         }
-        let _flight = match state.decode_flights.begin(&path_str) {
-            FlightRole::Follower(flight) => {
-                flight.wait();
-                continue;
-            }
-            FlightRole::Leader(guard) => guard,
-        };
+        match state.decode_flights.begin(&path_str) {
+            FlightRole::Follower(flight) => flight.wait(),
+            FlightRole::Leader(guard) => {
+                if crate::paths::is_cloud_placeholder(source_path) {
+                    return Err(format!(
+                        "'{path_str}' is stored in iCloud and hasn't been downloaded yet. Download it in Finder, then try again."
+                    ));
+                }
+                let decode =
+                    |bytes: &[u8]| -> Result<(DynamicImage, HashMap<String, String>), String> {
+                        if is_cancelled(&cancel_token) {
+                            return Err("Load cancelled".to_string());
+                        }
+                        let image = load_base_image_from_bytes(
+                            bytes,
+                            &path_str,
+                            false,
+                            settings,
+                            cancel_token.clone(),
+                        )
+                        .map_err(|e| e.to_string())?;
+                        Ok((image, exif_processing::read_exif_data(&path_str, bytes)))
+                    };
+                let (image, exif) = match read_file_mapped(source_path) {
+                    Ok(mmap) => decode(&mmap)?,
+                    Err(e) => {
+                        log::warn!(
+                            "Failed to memory-map file '{path_str}': {e}. Falling back to standard read."
+                        );
+                        let bytes = fs::read(source_path).map_err(|io_err| {
+                            format!("Fallback read failed for {path_str}: {io_err}")
+                        })?;
+                        decode(&bytes)?
+                    }
+                };
 
-        if crate::paths::is_cloud_placeholder(source_path) {
-            return Err(format!(
-                "'{}' is stored in iCloud and hasn't been downloaded yet. Download it in Finder, then try again.",
-                path_str
-            ));
-        }
-        let decode = |bytes: &[u8]| -> Result<(DynamicImage, HashMap<String, String>), String> {
-            if is_cancelled(&cancel_token) {
-                return Err("Load cancelled".to_string());
+                let image = Arc::new(image);
+                if let Some(fp) = fingerprint {
+                    state.decoded_image_cache.lock().unwrap().insert(
+                        path_str,
+                        fp,
+                        Arc::clone(&image),
+                        exif.clone(),
+                    );
+                }
+                drop(guard);
+                return Ok((image, exif));
             }
-            let image =
-                load_base_image_from_bytes(bytes, &path_str, false, settings, cancel_token.clone())
-                    .map_err(|e| e.to_string())?;
-            Ok((image, exif_processing::read_exif_data(&path_str, bytes)))
-        };
-        let (image, exif) = match read_file_mapped(source_path) {
-            Ok(mmap) => decode(&mmap)?,
-            Err(e) => {
-                log::warn!(
-                    "Failed to memory-map file '{}': {}. Falling back to standard read.",
-                    path_str,
-                    e
-                );
-                let bytes = fs::read(source_path).map_err(|io_err| {
-                    format!("Fallback read failed for {}: {}", path_str, io_err)
-                })?;
-                decode(&bytes)?
-            }
-        };
-
-        let image = Arc::new(image);
-        if let Some(fp) = fingerprint {
-            state.decoded_image_cache.lock().unwrap().insert(
-                path_str,
-                fp,
-                Arc::clone(&image),
-                exif.clone(),
-            );
         }
-        return Ok((image, exif));
     }
 }

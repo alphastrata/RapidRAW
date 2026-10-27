@@ -144,6 +144,7 @@ fn filter_valid_lines(
     (verts, hors)
 }
 
+#[must_use]
 pub fn count_valid_lines(lines: &[GuideLine], width: f64, height: f64) -> usize {
     let (verts, hors) = filter_valid_lines(lines, width, height);
     verts.len() + hors.len()
@@ -370,6 +371,7 @@ fn finalize_h(mut h: [[f64; 3]; 3], width: f64, height: f64) -> Option<[[f64; 3]
     Some(h)
 }
 
+#[must_use]
 pub fn compute_guided_homography(
     lines: &[GuideLine],
     width: f64,
@@ -512,8 +514,8 @@ fn x_bounds_at(poly: &[(f64, f64)], y: f64) -> Option<(f64, f64)> {
     if xs.is_empty() {
         return None;
     }
-    let x_l = xs.iter().cloned().fold(f64::INFINITY, f64::min);
-    let x_r = xs.iter().cloned().fold(f64::NEG_INFINITY, f64::max);
+    let x_l = xs.iter().copied().fold(f64::INFINITY, f64::min);
+    let x_r = xs.iter().copied().fold(f64::NEG_INFINITY, f64::max);
     if x_r <= x_l { None } else { Some((x_l, x_r)) }
 }
 
@@ -616,6 +618,7 @@ fn flatten_row_major(h: &[[f64; 3]; 3]) -> [f64; 9] {
     ]
 }
 
+#[must_use]
 pub fn calculate_guided_perspective(
     lines: Vec<GuideLine>,
     width: f64,

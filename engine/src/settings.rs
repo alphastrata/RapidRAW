@@ -88,6 +88,7 @@ pub enum PasteMode {
     Replace,
 }
 
+#[must_use]
 pub fn all_available_adjustments() -> HashSet<String> {
     [
         "exposure",
@@ -202,10 +203,11 @@ pub fn all_available_adjustments() -> HashSet<String> {
         "guidedPerspective",
     ]
     .iter()
-    .map(|s| s.to_string())
+    .map(std::string::ToString::to_string)
     .collect()
 }
 
+#[must_use]
 pub fn default_included_adjustments() -> HashSet<String> {
     let mut defaults = all_available_adjustments();
 
@@ -237,7 +239,7 @@ pub fn default_included_adjustments() -> HashSet<String> {
         "guidedPerspective",
     ];
 
-    for item in off_by_default.iter() {
+    for item in &off_by_default {
         defaults.remove(*item);
     }
 
@@ -321,6 +323,7 @@ pub struct ExportPreset {
     pub preserve_timestamps: Option<bool>,
 }
 
+#[must_use]
 pub fn default_export_presets() -> Vec<ExportPreset> {
     vec![
         ExportPreset {
@@ -354,7 +357,7 @@ pub fn default_export_presets() -> Vec<ExportPreset> {
             border_color: Some("#ffffff".to_string()),
             last_export_path: None,
             destination_type: Some("customFolder".to_string()),
-            subfolder: Some("".to_string()),
+            subfolder: Some(String::new()),
             tiff_bit_depth: Some(16),
             preserve_timestamps: Some(false),
         },
@@ -389,7 +392,7 @@ pub fn default_export_presets() -> Vec<ExportPreset> {
             border_color: Some("#ffffff".to_string()),
             last_export_path: None,
             destination_type: Some("customFolder".to_string()),
-            subfolder: Some("".to_string()),
+            subfolder: Some(String::new()),
             tiff_bit_depth: Some(16),
             preserve_timestamps: Some(false),
         },
@@ -472,34 +475,42 @@ impl Default for WorkspaceState {
     }
 }
 
+#[must_use]
 pub fn default_linear_raw_mode() -> String {
     "auto".to_string()
 }
 
+#[must_use]
 pub fn default_baseline_exposure() -> f32 {
     0.7
 }
 
+#[must_use]
 pub fn default_compensate_highlight_preservation() -> bool {
     true
 }
 
+#[must_use]
 pub fn default_ai_gpu_acceleration() -> bool {
     true
 }
 
+#[must_use]
 pub fn default_ai_cache_limit_gb() -> u32 {
     10
 }
 
+#[must_use]
 pub fn default_ai_maps_cache_limit_gb() -> u32 {
     4
 }
 
+#[must_use]
 pub fn default_thumbnail_cache_limit_gb() -> u32 {
     10
 }
 
+#[must_use]
 pub fn default_tagging_shortcuts_option() -> Option<Vec<String>> {
     Some(vec![
         "portrait".to_string(),
@@ -514,6 +525,7 @@ pub fn default_tagging_shortcuts_option() -> Option<Vec<String>> {
     ])
 }
 
+#[must_use]
 pub fn default_open_tree_sections() -> Vec<String> {
     vec!["current".to_string()]
 }
@@ -669,10 +681,8 @@ pub struct AppSettings {
     #[serde(default)]
     pub group_edited_files: Option<bool>,
     #[serde(default, skip_serializing)] // legacy
-    #[allow(dead_code)]
     pub group_associated_files: Option<bool>,
     #[serde(default, skip_serializing)] // legacy
-    #[allow(dead_code)]
     pub group_preferred_type: Option<String>,
     #[serde(default)]
     pub always_decode_raw_thumbnails: Option<bool>,

@@ -22,20 +22,16 @@ fn horner10(r: F32x8) -> F32x8 {
         core::f32::consts::LN_2,
         1.0,
     ];
-    let mut p = splat(C[0]);
-    for &c in C[1..].iter() {
-        p = p * r + splat(c);
-    }
-    p
+    C[1..]
+        .iter()
+        .fold(splat(C[0]), |p, &c| p * r + splat(c))
 }
 
 fn series(t2: F32x8) -> F32x8 {
     const K: [f32; 6] = [1.0 / 11.0, 1.0 / 9.0, 1.0 / 7.0, 1.0 / 5.0, 1.0 / 3.0, 1.0];
-    let mut a = splat(K[0]);
-    for &c in K[1..].iter() {
-        a = a * t2 + splat(c);
-    }
-    a
+    K[1..]
+        .iter()
+        .fold(splat(K[0]), |a, &c| a * t2 + splat(c))
 }
 
 #[inline]
@@ -69,7 +65,7 @@ pub fn srgb_to_linear(buf: &mut [f32]) {
         let above = pow2((c + splat(0.055)) * splat(1.0 / 1.055), splat(2.4));
         c.simd_le(splat(0.04045))
             .select(c * splat(1.0 / 12.92), above)
-    })
+    });
 }
 
 pub fn linear_to_srgb(buf: &mut [f32]) {
@@ -77,23 +73,23 @@ pub fn linear_to_srgb(buf: &mut [f32]) {
         let c = l.simd_max(splat(0.0));
         let above = splat(1.055) * pow2(c, splat(1.0 / 2.4)) - splat(0.055);
         c.simd_le(splat(0.0031308)).select(c * splat(12.92), above)
-    })
+    });
 }
 
 fn chunks_mut(buf: &mut [f32], f: impl Fn(F32x8) -> F32x8) {
     let (chunks, tail) = buf.as_chunks_mut::<LANES>();
-    for chunk in chunks {
-        *chunk = f(Simd::from_array(*chunk)).to_array();
-    }
+    chunks
+        .iter_mut()
+        .for_each(|chunk| *chunk = f(Simd::from_array(*chunk)).to_array());
     if tail.is_empty() {
         return;
     }
+
     let mut lanes = splat(0.0);
-    for (i, v) in tail.iter().enumerate() {
-        lanes[i] = *v;
-    }
-    let out = f(lanes);
-    for (i, v) in tail.iter_mut().enumerate() {
-        *v = out[i];
-    }
+    lanes.as_mut_array()[..tail.len()].copy_from_slice(tail);
+    f(lanes)
+        .to_array()
+        .iter()
+        .zip(tail)
+        .for_each(|(o, v)| *v = *o);
 }

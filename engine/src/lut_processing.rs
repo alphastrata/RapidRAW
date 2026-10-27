@@ -108,10 +108,10 @@ pub fn list_luts_in_dir(dir: &Path, is_built_in: bool) -> anyhow::Result<Vec<Lut
 }
 
 fn unique_lut_destination(dir: &Path, stem: &str, extension: &str) -> PathBuf {
-    let mut candidate = dir.join(format!("{}.{}", stem, extension));
+    let mut candidate = dir.join(format!("{stem}.{extension}"));
     let mut suffix = 1;
     while candidate.exists() && suffix < 1000 {
-        candidate = dir.join(format!("{} ({}).{}", stem, suffix, extension));
+        candidate = dir.join(format!("{stem} ({suffix}).{extension}"));
         suffix += 1;
     }
     candidate
@@ -120,7 +120,7 @@ fn unique_lut_destination(dir: &Path, stem: &str, extension: &str) -> PathBuf {
 pub fn import_luts_to_dir(dir: &Path, source_paths: &[String]) -> anyhow::Result<Vec<LutEntry>> {
     for source in source_paths {
         if let Err(error) = parse_lut_file(source) {
-            log::warn!("Skipping invalid LUT '{}': {}", source, error);
+            log::warn!("Skipping invalid LUT '{source}': {error}");
             continue;
         }
 
@@ -144,7 +144,7 @@ pub fn import_luts_to_dir(dir: &Path, source_paths: &[String]) -> anyhow::Result
             .to_lowercase();
         let destination = unique_lut_destination(dir, stem, &extension);
         if let Err(error) = copy(source_path, &destination) {
-            log::error!("Failed to copy LUT '{}': {}", source, error);
+            log::error!("Failed to copy LUT '{source}': {error}");
         }
     }
     list_luts_in_dir(dir, false)
@@ -202,17 +202,12 @@ fn parse_cube(reader: impl BufRead) -> anyhow::Result<Lut> {
             "LUT_3D_SIZE" => {
                 if parts.len() < 2 {
                     return Err(anyhow!(
-                        "Malformed LUT_3D_SIZE on line {}: '{}'",
-                        line_num,
-                        line
+                        "Malformed LUT_3D_SIZE on line {line_num}: '{line}'"
                     ));
                 }
                 size = Some(parts[1].parse().map_err(|e| {
                     anyhow!(
-                        "Failed to parse LUT_3D_SIZE on line {}: '{}'. Error: {}",
-                        line_num,
-                        line,
-                        e
+                        "Failed to parse LUT_3D_SIZE on line {line_num}: '{line}'. Error: {e}"
                     )
                 })?);
             }
@@ -228,26 +223,17 @@ fn parse_cube(reader: impl BufRead) -> anyhow::Result<Lut> {
                     }
                     let r: f32 = parts[0].parse().map_err(|e| {
                         anyhow!(
-                            "Failed to parse R value on line {}: '{}'. Error: {}",
-                            line_num,
-                            line,
-                            e
+                            "Failed to parse R value on line {line_num}: '{line}'. Error: {e}"
                         )
                     })?;
                     let g: f32 = parts[1].parse().map_err(|e| {
                         anyhow!(
-                            "Failed to parse G value on line {}: '{}'. Error: {}",
-                            line_num,
-                            line,
-                            e
+                            "Failed to parse G value on line {line_num}: '{line}'. Error: {e}"
                         )
                     })?;
                     let b: f32 = parts[2].parse().map_err(|e| {
                         anyhow!(
-                            "Failed to parse B value on line {}: '{}'. Error: {}",
-                            line_num,
-                            line,
-                            e
+                            "Failed to parse B value on line {line_num}: '{line}'. Error: {e}"
                         )
                     })?;
                     data.push(r);
@@ -304,8 +290,7 @@ fn parse_3dl(reader: impl BufRead) -> anyhow::Result<Lut> {
 
     if size * size * size != num_entries as u32 {
         return Err(anyhow!(
-            "Invalid 3DL LUT data size: the number of entries ({}) is not a perfect cube.",
-            num_entries
+            "Invalid 3DL LUT data size: the number of entries ({num_entries}) is not a perfect cube."
         ));
     }
 
@@ -316,19 +301,16 @@ fn parse_hald(image: DynamicImage) -> anyhow::Result<Lut> {
     let (width, height) = image.dimensions();
     if width != height {
         return Err(anyhow!(
-            "HALD image must be square, but dimensions are {}x{}",
-            width,
-            height
+            "HALD image must be square, but dimensions are {width}x{height}"
         ));
     }
 
     let total_pixels = width * height;
-    let size = (total_pixels as f64).cbrt().round() as u32;
+    let size = f64::from(total_pixels).cbrt().round() as u32;
 
     if size * size * size != total_pixels {
         return Err(anyhow!(
-            "Invalid HALD image dimensions: total pixels ({}) is not a perfect cube.",
-            total_pixels
+            "Invalid HALD image dimensions: total pixels ({total_pixels}) is not a perfect cube."
         ));
     }
 
@@ -336,9 +318,9 @@ fn parse_hald(image: DynamicImage) -> anyhow::Result<Lut> {
     let rgb_image = image.to_rgb8();
 
     for pixel in rgb_image.pixels() {
-        data.push(pixel[0] as f32 / 255.0);
-        data.push(pixel[1] as f32 / 255.0);
-        data.push(pixel[2] as f32 / 255.0);
+        data.push(f32::from(pixel[0]) / 255.0);
+        data.push(f32::from(pixel[1]) / 255.0);
+        data.push(f32::from(pixel[2]) / 255.0);
     }
 
     Ok(Lut { size, data })
@@ -419,10 +401,11 @@ pub fn parse_lut_file(path_str: &str) -> anyhow::Result<Lut> {
             };
             parse_hald(img)
         }
-        _ => Err(anyhow!("Unsupported LUT file format: {}", extension)),
+        _ => Err(anyhow!("Unsupported LUT file format: {extension}")),
     }
 }
 
+#[must_use]
 pub fn generate_identity_lut_image(size: u32) -> DynamicImage {
     let width = size;
     let height = size * size;
@@ -447,7 +430,7 @@ pub fn convert_image_to_cube_lut(image: &DynamicImage, size: u32) -> Result<Vec<
     let f32_image = image.to_rgb32f();
     let mut out = String::new();
 
-    out.push_str(&format!("LUT_3D_SIZE {}\n", size));
+    out.push_str(&format!("LUT_3D_SIZE {size}\n"));
     out.push_str("DOMAIN_MIN 0.0 0.0 0.0\n");
     out.push_str("DOMAIN_MAX 1.0 1.0 1.0\n");
 

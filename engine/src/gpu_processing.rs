@@ -167,10 +167,10 @@ impl WgpuDisplay {
                         resolve_target: None,
                         ops: wgpu::Operations {
                             load: wgpu::LoadOp::Clear(wgpu::Color {
-                                r: self.latest_transform.bg_primary[0] as f64,
-                                g: self.latest_transform.bg_primary[1] as f64,
-                                b: self.latest_transform.bg_primary[2] as f64,
-                                a: self.latest_transform.bg_primary[3] as f64,
+                                r: f64::from(self.latest_transform.bg_primary[0]),
+                                g: f64::from(self.latest_transform.bg_primary[1]),
+                                b: f64::from(self.latest_transform.bg_primary[2]),
+                                a: f64::from(self.latest_transform.bg_primary[3]),
                             }),
                             store: wgpu::StoreOp::Store,
                         },
@@ -243,7 +243,7 @@ pub fn get_or_init_gpu_context(
     if GPU_DEVICE_LOST.load(Ordering::Acquire) {
         log::warn!("Recreating GPU context after the device was lost.");
         if let Some(context) = context_lock.take() {
-            *context.display.lock().unwrap_or_else(|e| e.into_inner()) = None;
+            *context.display.lock().unwrap_or_else(std::sync::PoisonError::into_inner) = None;
         }
         *lock_or_reset(&state.gpu_processor, "GPU processor") = None;
         *lock_or_reset(&state.gpu_image_cache, "GPU image cache") = None;
@@ -253,7 +253,7 @@ pub fn get_or_init_gpu_context(
         return Ok(context.clone());
     }
 
-    #[allow(unused_mut)]
+    #[cfg_attr(any(target_os = "android", target_os = "linux"), allow(unused_mut))]
     let mut instance_desc = wgpu::InstanceDescriptor::new_without_display_handle_from_env();
 
     #[cfg(target_os = "windows")]
@@ -286,7 +286,7 @@ pub fn get_or_init_gpu_context(
         if let Some(p) = &flag_path {
             let _ = std::fs::remove_file(p);
         }
-        format!("Failed to find a wgpu adapter: {}", e)
+        format!("Failed to find a wgpu adapter: {e}")
     })?;
 
     let adapter_info = adapter.get_info();
@@ -325,11 +325,11 @@ pub fn get_or_init_gpu_context(
     })?;
 
     device.on_uncaptured_error(Arc::new(|err: wgpu::Error| {
-        log::error!("[wgpu-error] {}", err);
+        log::error!("[wgpu-error] {err}");
     }));
     device.set_device_lost_callback(|reason, message| {
         if reason == wgpu::DeviceLostReason::Unknown {
-            log::error!("GPU device lost: {}", message);
+            log::error!("GPU device lost: {message}");
             GPU_DEVICE_LOST.store(true, Ordering::Release);
         }
     });
@@ -534,7 +534,7 @@ fn read_texture_data_roi(
     let unpadded_bytes_per_row = bytes_per_pixel * size.width;
     let align = wgpu::COPY_BYTES_PER_ROW_ALIGNMENT;
     let padded_bytes_per_row = (unpadded_bytes_per_row + align - 1) & !(align - 1);
-    let output_buffer_size = (padded_bytes_per_row * size.height) as u64;
+    let output_buffer_size = u64::from(padded_bytes_per_row * size.height);
 
     let output_buffer = device.create_buffer(&wgpu::BufferDescriptor {
         label: Some("Readback Buffer"),
@@ -574,10 +574,10 @@ fn read_texture_data_roi(
             submission_index: None,
             timeout: Some(std::time::Duration::from_secs(60)),
         })
-        .map_err(|e| format!("Failed while polling mapped GPU buffer: {}", e))?;
+        .map_err(|e| format!("Failed while polling mapped GPU buffer: {e}"))?;
     let map_result = rx
         .recv()
-        .map_err(|e| format!("Failed receiving GPU map result: {}", e))?;
+        .map_err(|e| format!("Failed receiving GPU map result: {e}"))?;
     map_result.map_err(|e| e.to_string())?;
 
     std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
@@ -754,7 +754,7 @@ type ReadbackPool = Arc<std::sync::Mutex<Vec<wgpu::Buffer>>>;
 const READBACK_POOL_SIZE: usize = 3;
 
 fn recycle_readback_buffer(pool: &ReadbackPool, buffer: wgpu::Buffer) {
-    let mut pool = pool.lock().unwrap_or_else(|e| e.into_inner());
+    let mut pool = pool.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
     if pool.len() >= READBACK_POOL_SIZE {
         pool.remove(0);
     }
@@ -806,7 +806,7 @@ fn analytics_readback_sender() -> &'static std::sync::mpsc::Sender<AnalyticsRead
                     readback = newer;
                 }
                 let _ = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-                    complete_analytics_readback(readback)
+                    complete_analytics_readback(readback);
                 }));
             }
         });
@@ -827,7 +827,7 @@ fn complete_analytics_readback(readback: AnalyticsReadback) {
         submission_index: Some(readback.submission),
         timeout: Some(std::time::Duration::from_secs(60)),
     }) {
-        log::error!("Async analytics readback poll failed: {}", e);
+        log::error!("Async analytics readback poll failed: {e}");
         return;
     }
 
@@ -966,7 +966,7 @@ fn lock_or_reset<'a, T>(
     name: &str,
 ) -> std::sync::MutexGuard<'a, Option<T>> {
     mutex.lock().unwrap_or_else(|poisoned| {
-        log::warn!("{} lock was poisoned. Resetting to self-heal.", name);
+        log::warn!("{name} lock was poisoned. Resetting to self-heal.");
         let mut guard = poisoned.into_inner();
         *guard = None;
         guard
@@ -1972,7 +1972,7 @@ impl GpuProcessor {
         let layers = mask_bitmaps.len().clamp(2, MAX_MASKS) as u32;
         let buffer_size = (width as usize) * (height as usize) * (layers as usize);
 
-        let mut cache = self.mask_cache.lock().unwrap_or_else(|e| e.into_inner());
+        let mut cache = self.mask_cache.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
         if let (Some(c), Some(key)) = (cache.as_ref(), cache_key)
             && c.width == width
             && c.height == height
@@ -2046,7 +2046,7 @@ impl GpuProcessor {
     }
 
     fn lut_view(&self, lut: &Arc<Lut>) -> (wgpu::TextureView, wgpu::Sampler) {
-        let mut cache = self.lut_cache.lock().unwrap_or_else(|e| e.into_inner());
+        let mut cache = self.lut_cache.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
         if let Some(c) = cache.as_ref()
             && Arc::ptr_eq(&c.lut, lut)
         {
@@ -2118,7 +2118,7 @@ impl GpuProcessor {
         let mut pipelines = self
             .specialized_pipelines
             .lock()
-            .unwrap_or_else(|e| e.into_inner());
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
         match pipelines.get(&key) {
             Some(Some(pipeline)) => return pipeline.clone(),
             Some(None) => return generic.clone(),
@@ -2132,7 +2132,7 @@ impl GpuProcessor {
         let layout = layout.clone();
         let specialized_pipelines = Arc::clone(&self.specialized_pipelines);
         std::thread::spawn(move || {
-            let mut constants = vec![("FEATURES", features as f64)];
+            let mut constants = vec![("FEATURES", f64::from(features))];
             if high_precision {
                 constants.push(("HIGH_PRECISION_OUTPUT", 1.0));
             }
@@ -2149,7 +2149,7 @@ impl GpuProcessor {
             });
             specialized_pipelines
                 .lock()
-                .unwrap_or_else(|e| e.into_inner())
+                .unwrap_or_else(std::sync::PoisonError::into_inner)
                 .insert(key, Some(pipeline));
         });
         generic.clone()
@@ -2157,7 +2157,7 @@ impl GpuProcessor {
 
     fn readback_buffer(&self, size: u64) -> wgpu::Buffer {
         let pooled = {
-            let mut pool = self.readback_pool.lock().unwrap_or_else(|e| e.into_inner());
+            let mut pool = self.readback_pool.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
             pool.iter()
                 .position(|buffer| buffer.size() == size)
                 .map(|index| pool.swap_remove(index))
@@ -2485,7 +2485,7 @@ impl GpuProcessor {
                     };
 
                     let source = Some((input.id, params));
-                    if self.blur_sources.lock().unwrap_or_else(|e| e.into_inner())[slot] == source {
+                    if self.blur_sources.lock().unwrap_or_else(std::sync::PoisonError::into_inner)[slot] == source {
                         return true;
                     }
 
@@ -2565,7 +2565,7 @@ impl GpuProcessor {
                     }
 
                     queue.submit(Some(blur_encoder.finish()));
-                    self.blur_sources.lock().unwrap_or_else(|e| e.into_inner())[slot] = source;
+                    self.blur_sources.lock().unwrap_or_else(std::sync::PoisonError::into_inner)[slot] = source;
                     true
                 };
 
@@ -2893,10 +2893,7 @@ fn process_and_get_dynamic_image_inner(
     let max_dim = context.limits.max_texture_dimension_2d;
     if width > max_dim || height > max_dim {
         log::warn!(
-            "Image dimensions ({}x{}) exceed GPU limits ({}). Bypassing GPU processing and returning unprocessed image to prevent a crash. Try upgrading your GPU :)",
-            width,
-            height,
-            max_dim
+            "Image dimensions ({width}x{height}) exceed GPU limits ({max_dim}). Bypassing GPU processing and returning unprocessed image to prevent a crash. Try upgrading your GPU :)"
         );
         return Ok(base_image.clone());
     }
@@ -2944,9 +2941,7 @@ fn process_and_get_dynamic_image_inner(
         let new_width = ((width + 255) & !255).max(old_width);
         let new_height = ((height + 255) & !255).max(old_height);
         log::info!(
-            "Creating new GPU Processor for dimensions up to {}x{}",
-            new_width,
-            new_height
+            "Creating new GPU Processor for dimensions up to {new_width}x{new_height}"
         );
 
         let old_processor = processor_lock.take();
@@ -3003,7 +2998,7 @@ fn process_and_get_dynamic_image_inner(
         let guided = processor.build_guided_coeffs(&texture_view, width, height, is_raw);
 
         cache.entries.push(GpuImageEntry {
-            id: NEXT_GPU_IMAGE_ID.fetch_add(1, Ordering::Relaxed),
+            id: NEXT_GPU_IMAGE_ID.fetch_add(1, Ordering::SeqCst),
             texture,
             texture_view,
             gf_coeffs_view: guided.coeffs,
@@ -3017,7 +3012,7 @@ fn process_and_get_dynamic_image_inner(
             source,
         });
 
-        let pixels = |e: &GpuImageEntry| e.width as u64 * e.height as u64;
+        let pixels = |e: &GpuImageEntry| u64::from(e.width) * u64::from(e.height);
         while cache.entries.len() > GPU_IMAGE_CACHE_ENTRIES
             || (cache.entries.len() > 1
                 && cache.entries.iter().map(pixels).sum::<u64>() > GPU_IMAGE_CACHE_PIXELS)
@@ -3045,7 +3040,7 @@ fn process_and_get_dynamic_image_inner(
         let unpadded_bytes_per_row = 4 * out_w;
         let align = wgpu::COPY_BYTES_PER_ROW_ALIGNMENT;
         let padded_bytes_per_row = (unpadded_bytes_per_row + align - 1) & !(align - 1);
-        let output_buffer_size = (padded_bytes_per_row * out_h) as u64;
+        let output_buffer_size = u64::from(padded_bytes_per_row * out_h);
 
         let output_buffer = processor.readback_buffer(output_buffer_size);
 
@@ -3081,7 +3076,7 @@ fn process_and_get_dynamic_image_inner(
     }
 
     let mut display_lock =
-        output_to_display.then(|| context.display.lock().unwrap_or_else(|e| e.into_inner()));
+        output_to_display.then(|| context.display.lock().unwrap_or_else(std::sync::PoisonError::into_inner));
     let mut display = display_lock.as_mut().and_then(|d| d.as_mut());
 
     let display_target = match display_layer {
@@ -3137,22 +3132,20 @@ fn process_and_get_dynamic_image_inner(
                 height: out_h,
                 row_stride: async_padded_bpr as usize,
             });
+        } else if let RenderedPixels::U8(pixels) = &processed_pixels {
+            let _ = analytics.sender.send(crate::app_state::AnalyticsJob {
+                path: analytics.path,
+                frame: AnalyticsFrame {
+                    data: AnalyticsPixels::Owned(pixels.clone()),
+                    width: out_w,
+                    height: out_h,
+                    row_stride: out_w as usize * 4,
+                },
+                compute_waveform: analytics.compute_waveform,
+                active_waveform_channel: analytics.active_waveform_channel,
+            });
         } else {
-            if let RenderedPixels::U8(pixels) = &processed_pixels {
-                let _ = analytics.sender.send(crate::app_state::AnalyticsJob {
-                    path: analytics.path,
-                    frame: AnalyticsFrame {
-                        data: AnalyticsPixels::Owned(pixels.clone()),
-                        width: out_w,
-                        height: out_h,
-                        row_stride: out_w as usize * 4,
-                    },
-                    compute_waveform: analytics.compute_waveform,
-                    active_waveform_channel: analytics.active_waveform_channel,
-                });
-            } else {
-                log::warn!("Skipping analytics for a high-precision CPU readback");
-            }
+            log::warn!("Skipping analytics for a high-precision CPU readback");
         }
     }
 
@@ -3183,12 +3176,7 @@ fn process_and_get_dynamic_image_inner(
         let duration = start_time.elapsed();
         let fps = 1.0 / duration.as_secs_f64();
         log::info!(
-            "[{}] {}x{} native WGPU display updated in {:?} ({:.2} FPS)",
-            caller_id,
-            width,
-            height,
-            duration,
-            fps
+            "[{caller_id}] {width}x{height} native WGPU display updated in {duration:?} ({fps:.2} FPS)"
         );
         return Ok(DynamicImage::new_rgba8(0, 0));
     }
@@ -3196,14 +3184,7 @@ fn process_and_get_dynamic_image_inner(
     let duration = start_time.elapsed();
     let fps = 1.0 / duration.as_secs_f64();
     log::info!(
-        "[{}] {}x{} processed (ROI: {}x{}) on GPU in {:?} ({:.2} FPS)",
-        caller_id,
-        width,
-        height,
-        out_w,
-        out_h,
-        duration,
-        fps
+        "[{caller_id}] {width}x{height} processed (ROI: {out_w}x{out_h}) on GPU in {duration:?} ({fps:.2} FPS)"
     );
 
     drop(cache_lock);
@@ -3220,7 +3201,7 @@ fn process_and_get_dynamic_image_inner(
             pixels.par_iter_mut().for_each(|sample| {
                 let value = f16::from_bits(*sample).to_f32();
                 *sample = if value.is_finite() {
-                    (value.clamp(0.0, 1.0) * u16::MAX as f32).round() as u16
+                    (value.clamp(0.0, 1.0) * f32::from(u16::MAX)).round() as u16
                 } else {
                     0
                 };

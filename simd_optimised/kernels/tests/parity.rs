@@ -123,7 +123,7 @@ fn ops_parity() {
         assert_eq!(*d, x - y);
     }
 
-    let expected: f64 = a.iter().map(|&v| v as f64).sum();
+    let expected: f64 = a.iter().map(|&v| f64::from(v)).sum();
     assert!((ops::sum(&a) - expected).abs() / expected < 1e-5);
 }
 

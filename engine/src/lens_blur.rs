@@ -11,6 +11,7 @@ struct BokehTap {
     weight: f32,
 }
 
+#[must_use]
 pub fn apply_lens_blur<'a>(
     image: Cow<'a, DynamicImage>,
     adjustments: &serde_json::Value,
@@ -366,7 +367,7 @@ fn render_depth_of_field(
     let mut ds = (max_radius / 18.0).ceil().max(1.0) as usize;
     while ds < 6 {
         let rw = max_radius / ds as f32;
-        let taps = (std::f32::consts::PI * rw * rw).min(128.0) as f64;
+        let taps = f64::from((std::f32::consts::PI * rw * rw).min(128.0));
         if (n as f64 / (ds * ds) as f64) * taps <= 7.0e8 {
             break;
         }
@@ -746,7 +747,7 @@ fn build_bokeh_kernel(radius: f32, shape: &str, diffusion: f32) -> (Vec<BokehTap
 
     if sum > 0.0 {
         let inv = 1.0 / sum;
-        for t in taps.iter_mut() {
+        for t in &mut taps {
             t.weight *= inv;
         }
     }
@@ -1007,10 +1008,10 @@ fn dof_depth_to_f32(depth: &image::GrayImage, dw: usize, dh: usize) -> Vec<f32> 
                 let x1 = (x0 + 1).min(sw - 1);
                 let wx = fx - x0 as f32;
 
-                let p00 = raw[y0 * sw + x0] as f32;
-                let p10 = raw[y0 * sw + x1] as f32;
-                let p01 = raw[y1 * sw + x0] as f32;
-                let p11 = raw[y1 * sw + x1] as f32;
+                let p00 = f32::from(raw[y0 * sw + x0]);
+                let p10 = f32::from(raw[y0 * sw + x1]);
+                let p01 = f32::from(raw[y1 * sw + x0]);
+                let p11 = f32::from(raw[y1 * sw + x1]);
                 let top = p00 + (p10 - p00) * wx;
                 let bot = p01 + (p11 - p01) * wx;
                 *out_px = (top + (bot - top) * wy) / 255.0;

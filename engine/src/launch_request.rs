@@ -35,8 +35,7 @@ impl TryFrom<u8> for TiffBitDepth {
             8 => Ok(Self::Eight),
             16 => Ok(Self::Sixteen),
             _ => Err(format!(
-                "Invalid TIFF bit depth '{}'; expected 8 or 16.",
-                value
+                "Invalid TIFF bit depth '{value}'; expected 8 or 16."
             )),
         }
     }

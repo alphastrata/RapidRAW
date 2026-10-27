@@ -71,7 +71,7 @@ async fn upload_source_image(
         .part("file", part);
 
     let res = client
-        .post(format!("{}/upload_source", base_url))
+        .post(format!("{base_url}/upload_source"))
         .multipart(form)
         .send()
         .await?;
@@ -104,7 +104,7 @@ fn composite_full_res(
 pub async fn check_status(address: &str) -> Result<bool> {
     let client = Client::new();
     let res = client
-        .get(format!("http://{}/health", address))
+        .get(format!("http://{address}/health"))
         .send()
         .await;
     Ok(res.is_ok())
@@ -130,7 +130,7 @@ pub async fn process_inpainting(
         seed: 0,
     };
 
-    let url = format!("{}/inpaint", base_url);
+    let url = format!("{base_url}/inpaint");
 
     let response = client.post(&url).json(&payload).send().await?;
 

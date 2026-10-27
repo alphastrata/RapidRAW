@@ -33,7 +33,7 @@ static THUMBNAIL_CACHE: LazyLock<ThumbnailCache> = LazyLock::new(|| ThumbnailCac
 });
 
 fn mark_used_interval() -> Duration {
-    Duration::from_secs(10 * 60)
+    Duration::from_mins(10)
 }
 
 pub fn apply_cache_limits(settings: &AppSettings) {
@@ -71,7 +71,7 @@ pub fn initialize_thumbnail_cache(cache_dir: PathBuf) {
     *THUMBNAIL_CACHE
         .dir
         .lock()
-        .unwrap_or_else(|e| e.into_inner()) = Some(cache_dir.join("thumbnails"));
+        .unwrap_or_else(std::sync::PoisonError::into_inner) = Some(cache_dir.join("thumbnails"));
     std::thread::spawn(|| {
         std::thread::sleep(Duration::from_secs(60));
         prune_thumbnails_in_background();
@@ -79,17 +79,17 @@ pub fn initialize_thumbnail_cache(cache_dir: PathBuf) {
 }
 
 pub fn reset_thumbnail_estimate() {
-    THUMBNAIL_CACHE.estimated.store(0, Ordering::Relaxed);
+    THUMBNAIL_CACHE.estimated.store(0, Ordering::SeqCst);
     THUMBNAIL_CACHE
         .written_since_prune
-        .store(0, Ordering::Relaxed);
+        .store(0, Ordering::SeqCst);
 }
 
 fn set_thumbnail_limit_gb(limit_gb: u32) {
     let cache = &*THUMBNAIL_CACHE;
     let limit = u64::from(limit_gb.max(1)) * 1024 * 1024 * 1024;
-    if cache.limit.swap(limit, Ordering::Relaxed) > limit
-        && cache.estimated.load(Ordering::Relaxed) > limit
+    if cache.limit.swap(limit, Ordering::SeqCst) > limit
+        && cache.estimated.load(Ordering::SeqCst) > limit
     {
         prune_thumbnails_in_background();
     }
@@ -97,12 +97,12 @@ fn set_thumbnail_limit_gb(limit_gb: u32) {
 
 pub fn record_thumbnail_write(bytes: u64) {
     let cache = &*THUMBNAIL_CACHE;
-    let estimated = cache.estimated.fetch_add(bytes, Ordering::Relaxed) + bytes;
+    let estimated = cache.estimated.fetch_add(bytes, Ordering::SeqCst) + bytes;
     let written = cache
         .written_since_prune
-        .fetch_add(bytes, Ordering::Relaxed)
+        .fetch_add(bytes, Ordering::SeqCst)
         + bytes;
-    if estimated > cache.limit.load(Ordering::Relaxed) && written >= 64 * 1024 * 1024 {
+    if estimated > cache.limit.load(Ordering::SeqCst) && written >= 64 * 1024 * 1024 {
         prune_thumbnails_in_background();
     }
 }
@@ -116,18 +116,18 @@ fn prune_thumbnails_in_background() {
     std::thread::spawn(move || {
         loop {
             while cache.prune_requested.swap(false, Ordering::AcqRel) {
-                cache.written_since_prune.store(0, Ordering::Relaxed);
-                let dir = cache.dir.lock().unwrap_or_else(|e| e.into_inner()).clone();
+                cache.written_since_prune.store(0, Ordering::SeqCst);
+                let dir = cache.dir.lock().unwrap_or_else(std::sync::PoisonError::into_inner).clone();
                 if let Some(dir) = dir {
-                    let before = cache.estimated.load(Ordering::Relaxed);
-                    let remaining = prune_thumbnails(&dir, cache.limit.load(Ordering::Relaxed));
+                    let before = cache.estimated.load(Ordering::SeqCst);
+                    let remaining = prune_thumbnails(&dir, cache.limit.load(Ordering::SeqCst));
                     let written_during = cache
                         .estimated
-                        .load(Ordering::Relaxed)
+                        .load(Ordering::SeqCst)
                         .saturating_sub(before);
                     cache
                         .estimated
-                        .store(remaining + written_during, Ordering::Relaxed);
+                        .store(remaining + written_during, Ordering::SeqCst);
                 }
             }
             cache.pruning.store(false, Ordering::Release);
@@ -153,7 +153,7 @@ fn prune_thumbnails(dir: &Path, limit_bytes: u64) -> u64 {
 
     let mut entries: HashMap<String, ThumbnailEntry> = HashMap::new();
     let mut total = 0u64;
-    for file in read_dir.filter_map(|e| e.ok()) {
+    for file in read_dir.filter_map(std::result::Result::ok) {
         let path = file.path();
         let Some(stem) = path.file_stem().and_then(|s| s.to_str()) else {
             continue;

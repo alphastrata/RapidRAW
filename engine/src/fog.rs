@@ -72,6 +72,7 @@ fn fog_blur(planes: &mut [Vec<f32>; 3], w: usize, h: usize, radius: usize) {
     }
 }
 
+#[must_use]
 pub fn apply_fog<'a>(
     image: Cow<'a, DynamicImage>,
     adjustments: &serde_json::Value,
@@ -144,7 +145,7 @@ pub fn apply_fog<'a>(
         w as f32 / h as f32
     };
 
-    let disparity: Vec<f32> = depth_map.pixels().map(|p| p[0] as f32 / 255.0).collect();
+    let disparity: Vec<f32> = depth_map.pixels().map(|p| f32::from(p[0]) / 255.0).collect();
     let guide = build_relight_guide(out.as_raw(), wu, hu, dw, dh);
     let radius = ((dw.max(dh) as f32 * 0.01).round() as usize).max(2);
     let model = build_guided_model(&guide, &disparity, dw, dh, radius, 2.0e-3);

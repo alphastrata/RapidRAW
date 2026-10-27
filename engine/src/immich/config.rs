@@ -21,6 +21,7 @@ impl Default for ImmichSettings {
 }
 
 impl ImmichSettings {
+    #[must_use]
     pub fn same_library(&self, other: &ImmichSettings) -> bool {
         self.server_url.trim() == other.server_url.trim()
     }

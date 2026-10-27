@@ -1,6 +1,10 @@
 [workspace]
-members = ["src-tauri", "simd_optimised/kernels"]
+members = ["engine", "src-tauri", "simd_optimised/kernels"]
 resolver = "3"
+[workspace.lints.clippy]
+pedantic = "warn"
+perf = "deny"
+
 [profile.dev]
 opt-level = 2
 debug = 1

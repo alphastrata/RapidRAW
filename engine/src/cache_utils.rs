@@ -45,7 +45,7 @@ fn hash_ai_patches(adjustments: &serde_json::Value, hasher: &mut DefaultHasher) 
 
             let is_visible = patch
                 .get("visible")
-                .and_then(|v| v.as_bool())
+                .and_then(serde_json::Value::as_bool)
                 .unwrap_or(true);
             is_visible.hash(hasher);
 
@@ -81,7 +81,7 @@ fn hash_ai_patches(adjustments: &serde_json::Value, hasher: &mut DefaultHasher) 
 
             let invert = patch
                 .get("invert")
-                .and_then(|v| v.as_bool())
+                .and_then(serde_json::Value::as_bool)
                 .unwrap_or(false);
             invert.hash(hasher);
         }
@@ -141,6 +141,7 @@ fn hash_effect_keys(adjustments: &serde_json::Value, keys: &[&str], hasher: &mut
     }
 }
 
+#[must_use]
 pub fn calculate_patch_hash(adjustments: &serde_json::Value) -> u64 {
     let mut hasher = DefaultHasher::new();
 
@@ -157,7 +158,7 @@ pub fn calculate_patch_hash(adjustments: &serde_json::Value) -> u64 {
                     .get("patchData")
                     .and_then(|data| data.get("mask"))
                     .and_then(|mask| mask.as_str())
-                    .is_none_or(|mask| mask.is_empty())
+                    .is_none_or(str::is_empty)
             })
         });
     uses_generated_masks.hash(&mut hasher);
@@ -176,6 +177,7 @@ pub fn calculate_patch_hash(adjustments: &serde_json::Value) -> u64 {
     hasher.finish()
 }
 
+#[must_use]
 pub fn calculate_geometry_hash(adjustments: &serde_json::Value) -> u64 {
     let mut hasher = DefaultHasher::new();
 
@@ -191,6 +193,7 @@ pub fn calculate_geometry_hash(adjustments: &serde_json::Value) -> u64 {
     hasher.finish()
 }
 
+#[must_use]
 pub fn calculate_patched_warped_hash(adjustments: &serde_json::Value) -> u64 {
     let mut hasher = DefaultHasher::new();
 
@@ -200,6 +203,7 @@ pub fn calculate_patched_warped_hash(adjustments: &serde_json::Value) -> u64 {
     hasher.finish()
 }
 
+#[must_use]
 pub fn calculate_effects_hash(adjustments: &serde_json::Value) -> u64 {
     let mut hasher = DefaultHasher::new();
 
@@ -269,6 +273,7 @@ pub fn calculate_effects_hash(adjustments: &serde_json::Value) -> u64 {
     hasher.finish()
 }
 
+#[must_use]
 pub fn calculate_thumbnail_base_hash(adjustments: &serde_json::Value) -> u64 {
     let mut hasher = DefaultHasher::new();
 
@@ -282,6 +287,7 @@ pub fn calculate_thumbnail_base_hash(adjustments: &serde_json::Value) -> u64 {
     hasher.finish()
 }
 
+#[must_use]
 pub fn calculate_transform_hash(adjustments: &serde_json::Value) -> u64 {
     let mut hasher = DefaultHasher::new();
 
@@ -390,6 +396,7 @@ pub fn calculate_transform_hash(adjustments: &serde_json::Value) -> u64 {
     hasher.finish()
 }
 
+#[must_use]
 pub fn calculate_full_job_hash(path: &str, adjustments: &serde_json::Value) -> u64 {
     let mut hasher = DefaultHasher::new();
     path.hash(&mut hasher);
@@ -535,6 +542,7 @@ pub struct DecodedImageCache {
 }
 
 impl DecodedImageCache {
+    #[must_use]
     pub fn new(capacity: usize) -> Self {
         Self {
             capacity,
@@ -547,6 +555,7 @@ impl DecodedImageCache {
         self.evict();
     }
 
+    #[must_use]
     pub fn contains(&self, path: &str, fingerprint: &DecodeFingerprint) -> bool {
         self.items
             .iter()
@@ -577,7 +586,7 @@ impl DecodedImageCache {
             let item = self.items.remove(pos);
             self.items.push(item);
         }
-        for item in self.items.iter_mut() {
+        for item in &mut self.items {
             if item.path != keep_path {
                 let cached = std::mem::replace(&mut item.image, CachedImage::Full(Arc::default()));
                 item.image = cached.compact();
@@ -640,9 +649,9 @@ pub struct Flight {
 
 impl Flight {
     pub fn wait(&self) {
-        let mut done = self.done.lock().unwrap_or_else(|e| e.into_inner());
+        let mut done = self.done.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
         while !*done {
-            done = self.finished.wait(done).unwrap_or_else(|e| e.into_inner());
+            done = self.finished.wait(done).unwrap_or_else(std::sync::PoisonError::into_inner);
         }
     }
 }
@@ -664,16 +673,16 @@ impl Drop for FlightGuard<'_> {
         self.flights
             .inflight
             .lock()
-            .unwrap_or_else(|e| e.into_inner())
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
             .remove(&self.path);
-        *self.flight.done.lock().unwrap_or_else(|e| e.into_inner()) = true;
+        *self.flight.done.lock().unwrap_or_else(std::sync::PoisonError::into_inner) = true;
         self.flight.finished.notify_all();
     }
 }
 
 impl DecodeFlights {
     pub fn begin(&self, path: &str) -> FlightRole<'_> {
-        let mut inflight = self.inflight.lock().unwrap_or_else(|e| e.into_inner());
+        let mut inflight = self.inflight.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
         if let Some(flight) = inflight.get(path) {
             return FlightRole::Follower(Arc::clone(flight));
         }
@@ -691,20 +700,20 @@ pub fn clear_preview_stage_caches(state: &AppState) {
     *state
         .patched_cache
         .lock()
-        .unwrap_or_else(|e| e.into_inner()) = None;
-    *state.warped_cache.lock().unwrap_or_else(|e| e.into_inner()) = None;
+        .unwrap_or_else(std::sync::PoisonError::into_inner) = None;
+    *state.warped_cache.lock().unwrap_or_else(std::sync::PoisonError::into_inner) = None;
     *state
         .working_cache
         .lock()
-        .unwrap_or_else(|e| e.into_inner()) = None;
+        .unwrap_or_else(std::sync::PoisonError::into_inner) = None;
     *state
         .effects_cache
         .lock()
-        .unwrap_or_else(|e| e.into_inner()) = None;
+        .unwrap_or_else(std::sync::PoisonError::into_inner) = None;
     *state
         .full_transformed_cache
         .lock()
-        .unwrap_or_else(|e| e.into_inner()) = None;
+        .unwrap_or_else(std::sync::PoisonError::into_inner) = None;
 }
 
 pub fn clear_image_caches(state: &AppState) {

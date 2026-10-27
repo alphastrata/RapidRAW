@@ -39,6 +39,7 @@ impl EffectMapKind {
         }
     }
 
+    #[must_use]
     pub fn adjustment_keys(self) -> &'static [(&'static str, &'static str, &'static str)] {
         match self {
             EffectMapKind::Depth => &[
@@ -53,16 +54,16 @@ impl EffectMapKind {
 pub fn initialize_cache_dir(cache_dir: PathBuf) {
     let dir = cache_dir.join("ai_maps");
     let _ = fs::create_dir_all(&dir);
-    *MAP_CACHE_DIR.lock().unwrap_or_else(|e| e.into_inner()) = Some(dir);
+    *MAP_CACHE_DIR.lock().unwrap_or_else(std::sync::PoisonError::into_inner) = Some(dir);
 }
 
 pub fn set_disk_cache_limit_gb(limit_gb: u32) {
     let limit = u64::from(limit_gb.max(1)) * 1024 * 1024 * 1024;
     let dir = MAP_CACHE_DIR
         .lock()
-        .unwrap_or_else(|e| e.into_inner())
+        .unwrap_or_else(std::sync::PoisonError::into_inner)
         .clone();
-    if MAP_DISK_CACHE_LIMIT_BYTES.swap(limit, Ordering::Relaxed) > limit
+    if MAP_DISK_CACHE_LIMIT_BYTES.swap(limit, Ordering::SeqCst) > limit
         && let Some(dir) = dir
     {
         std::thread::spawn(move || evict_map_disk_cache(&dir, None));
@@ -76,7 +77,7 @@ fn map_file_name(kind: EffectMapKind, source_id: &str) -> String {
 fn map_file_path(file_name: &str) -> Option<PathBuf> {
     MAP_CACHE_DIR
         .lock()
-        .unwrap_or_else(|e| e.into_inner())
+        .unwrap_or_else(std::sync::PoisonError::into_inner)
         .as_ref()
         .map(|dir| dir.join(file_name))
 }
@@ -97,15 +98,17 @@ pub fn store_source_map(
         evict_map_disk_cache(dir, Some(&path));
     }
 
-    Ok(format!("{}{}", MAP_REFERENCE_PREFIX, file_name))
+    Ok(format!("{MAP_REFERENCE_PREFIX}{file_name}"))
 }
 
+#[must_use]
 pub fn is_map_reference(value: &serde_json::Value) -> bool {
     value
         .as_str()
         .is_some_and(|map| map.starts_with(MAP_REFERENCE_PREFIX))
 }
 
+#[must_use]
 pub fn is_map_valid_for(value: &serde_json::Value, kind: EffectMapKind, source_id: &str) -> bool {
     match value.as_str() {
         Some(map) if map.starts_with(MAP_REFERENCE_PREFIX) => {
@@ -122,10 +125,10 @@ fn evict_map_disk_cache(dir: &Path, keep: Option<&Path>) {
     let Ok(read_dir) = fs::read_dir(dir) else {
         return;
     };
-    let limit = MAP_DISK_CACHE_LIMIT_BYTES.load(Ordering::Relaxed);
+    let limit = MAP_DISK_CACHE_LIMIT_BYTES.load(Ordering::SeqCst);
 
     let mut entries: Vec<(PathBuf, u64, SystemTime)> = read_dir
-        .filter_map(|e| e.ok())
+        .filter_map(std::result::Result::ok)
         .filter(|e| e.path().extension().is_some_and(|ext| ext == "png"))
         .filter_map(|e| {
             let meta = e.metadata().ok()?;
@@ -149,12 +152,12 @@ fn evict_map_disk_cache(dir: &Path, keep: Option<&Path>) {
 pub fn clear_disk_cache() -> Result<(), String> {
     let dir = MAP_CACHE_DIR
         .lock()
-        .unwrap_or_else(|e| e.into_inner())
+        .unwrap_or_else(std::sync::PoisonError::into_inner)
         .clone();
     let Some(read_dir) = dir.and_then(|dir| fs::read_dir(dir).ok()) else {
         return Ok(());
     };
-    for path in read_dir.filter_map(|e| e.ok()).map(|e| e.path()) {
+    for path in read_dir.filter_map(std::result::Result::ok).map(|e| e.path()) {
         if path.is_file() {
             fs::remove_file(&path)
                 .map_err(|e| format!("Failed to remove {}: {}", path.display(), e))?;
@@ -163,10 +166,12 @@ pub fn clear_disk_cache() -> Result<(), String> {
     Ok(())
 }
 
+#[must_use]
 pub fn is_source_space_map(data_url: &str) -> bool {
     data_url.starts_with(SOURCE_SPACE_MAP_PREFIX) || data_url.starts_with(MAP_REFERENCE_PREFIX)
 }
 
+#[must_use]
 pub fn effect_map_key(data_url: &str, adjustments: &serde_json::Value) -> u64 {
     let mut hasher = DefaultHasher::new();
     data_url.hash(&mut hasher);
@@ -183,6 +188,7 @@ pub fn effect_map_key(data_url: &str, adjustments: &serde_json::Value) -> u64 {
     hasher.finish()
 }
 
+#[must_use]
 pub fn resolve_luma_map(data_url: &str, adjustments: &serde_json::Value) -> Option<Arc<GrayImage>> {
     cached_map(
         &LUMA_MAP_CACHE,
@@ -198,6 +204,7 @@ pub fn resolve_luma_map(data_url: &str, adjustments: &serde_json::Value) -> Opti
     )
 }
 
+#[must_use]
 pub fn resolve_rgba_map(data_url: &str, adjustments: &serde_json::Value) -> Option<Arc<RgbaImage>> {
     cached_map(
         &RGBA_MAP_CACHE,
@@ -298,8 +305,8 @@ fn local_warp_rotations(
 }
 
 fn rotate_normal(r: u8, g: u8, (cos, sin): (f32, f32)) -> (u8, u8) {
-    let nx = r as f32 / 127.5 - 1.0;
-    let ny = 1.0 - g as f32 / 127.5;
+    let nx = f32::from(r) / 127.5 - 1.0;
+    let ny = 1.0 - f32::from(g) / 127.5;
     let rotated_x = cos * nx - sin * ny;
     let rotated_y = sin * nx + cos * ny;
     let pack = |v: f32| ((v + 1.0) * 127.5).round().clamp(0.0, 255.0) as u8;
@@ -329,7 +336,7 @@ fn cached_map<T>(
 ) -> Option<Arc<T>> {
     if let Some((_, map)) = cache
         .lock()
-        .unwrap_or_else(|e| e.into_inner())
+        .unwrap_or_else(std::sync::PoisonError::into_inner)
         .iter()
         .find(|(k, _)| *k == key)
     {
@@ -338,7 +345,7 @@ fn cached_map<T>(
 
     let map = Arc::new(build()?);
 
-    let mut cache_lock = cache.lock().unwrap_or_else(|e| e.into_inner());
+    let mut cache_lock = cache.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
     if cache_lock.len() >= MAP_CACHE_CAPACITY {
         cache_lock.remove(0);
     }

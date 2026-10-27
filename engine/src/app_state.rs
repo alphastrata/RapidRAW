@@ -28,6 +28,7 @@ pub struct AiTaskToken {
 }
 
 impl AiTaskToken {
+    #[must_use]
     pub fn new() -> Self {
         Self {
             cancelled: AtomicBool::new(false),
@@ -83,7 +84,7 @@ impl<'a> AiTaskGuard<'a> {
     }
 }
 
-impl<'a> Drop for AiTaskGuard<'a> {
+impl Drop for AiTaskGuard<'_> {
     fn drop(&mut self) {
         let mut tasks = self.active_ai_tasks.lock().unwrap();
         if let Some(existing) = tasks.get(&self.task_id)
@@ -247,6 +248,7 @@ impl Default for AppState {
 }
 
 impl ThumbnailManager {
+    #[must_use]
     pub fn new() -> Arc<Self> {
         Arc::new(Self {
             queue: Mutex::new(VecDeque::new()),
@@ -271,6 +273,7 @@ pub struct MetadataManager {
 }
 
 impl MetadataManager {
+    #[must_use]
     pub fn new() -> Arc<Self> {
         Arc::new(Self {
             queue: Mutex::new(VecDeque::new()),

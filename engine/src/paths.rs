@@ -1,3 +1,4 @@
+use std::io::Write;
 use std::fmt;
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -25,6 +26,7 @@ impl fmt::Display for ReadFileError {
     }
 }
 
+#[must_use]
 pub fn parse_virtual_path(virtual_path: &str) -> (PathBuf, PathBuf) {
     let (source_path_str, copy_id) = if let Some((base, id)) = virtual_path.rsplit_once("?vc=") {
         (base.to_string(), Some(id.to_string()))
@@ -68,7 +70,6 @@ pub fn read_file_mapped(path: &Path) -> Result<Mmap, ReadFileError> {
         return Err(ReadFileError::Empty);
     }
     let file = fs::File::open(path).map_err(ReadFileError::Io)?;
-    // Filesystems that cannot lock, such as the Flatpak document portal, are mapped unlocked.
     if let Err(fs::TryLockError::WouldBlock) = file.try_lock_shared() {
         return Err(ReadFileError::Locked);
     }
@@ -82,8 +83,6 @@ pub fn read_file_mapped(path: &Path) -> Result<Mmap, ReadFileError> {
 }
 
 pub fn write_file_atomic(path: &Path, contents: &[u8]) -> std::io::Result<()> {
-    use std::io::Write;
-
     let dir = path
         .parent()
         .filter(|dir| !dir.as_os_str().is_empty())
@@ -110,6 +109,7 @@ pub fn write_file_atomic(path: &Path, contents: &[u8]) -> std::io::Result<()> {
     }
 }
 
+#[must_use]
 pub fn parse_sidecar_name(file_name: &str) -> Option<(&str, Option<&str>)> {
     let base = file_name.strip_suffix(".rrdata")?;
     if base.len() >= 7 && base.as_bytes()[base.len() - 7] == b'.' {
@@ -123,7 +123,6 @@ pub fn parse_sidecar_name(file_name: &str) -> Option<(&str, Option<&str>)> {
 
 #[cfg(target_os = "macos")]
 pub fn is_cloud_placeholder(path: &Path) -> bool {
-    use std::os::unix::ffi::OsStrExt;
     const SF_DATALESS: u32 = 0x4000_0000;
 
     if crate::immich::registry::is_placeholder(path) {
@@ -140,6 +139,7 @@ pub fn is_cloud_placeholder(path: &Path) -> bool {
 }
 
 #[cfg(not(target_os = "macos"))]
+#[must_use]
 pub fn is_cloud_placeholder(path: &Path) -> bool {
     crate::immich::registry::is_placeholder(path)
 }

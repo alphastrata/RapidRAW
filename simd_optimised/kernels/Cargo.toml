@@ -2,4 +2,8 @@
 name = "simd_kernels"
 edition = "2024"
 
+[lints.clippy]
+pedantic = "warn"
+perf = "deny"
+
 [dependencies]

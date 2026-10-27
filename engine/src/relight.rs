@@ -192,15 +192,12 @@ type GuidedModel = (Vec<f32>, Vec<f32>);
 fn shadow_key(light: &RelightLight, shadow_softness: f32) -> u64 {
     let mut hasher = DefaultHasher::new();
     shadow_softness.to_bits().hash(&mut hasher);
-    match light.kind {
-        RelightKind::Directional { dir } => {
-            0u8.hash(&mut hasher);
-            dir.map(f32::to_bits).hash(&mut hasher);
-        }
-        _ => {
-            1u8.hash(&mut hasher);
-            light.pos.map(f32::to_bits).hash(&mut hasher);
-        }
+    if let RelightKind::Directional { dir } = light.kind {
+        0u8.hash(&mut hasher);
+        dir.map(f32::to_bits).hash(&mut hasher);
+    } else {
+        1u8.hash(&mut hasher);
+        light.pos.map(f32::to_bits).hash(&mut hasher);
     }
     hasher.finish()
 }
@@ -317,7 +314,7 @@ pub fn apply_relight<'a>(
 
     let lights: Vec<RelightLight> = adjustments["relightLights"]
         .as_array()
-        .map(|arr| {
+        .map_or_default(|arr| {
             arr.iter()
                 .filter(|l| l["visible"].as_bool().unwrap_or(true))
                 .map(|l| {
@@ -327,10 +324,9 @@ pub fn apply_relight<'a>(
                     let base = l["color"]
                         .as_str()
                         .and_then(|c| u32::from_str_radix(c.trim_start_matches('#'), 16).ok())
-                        .map(|hex| {
+                        .map_or([1.0; 3], |hex| {
                             [hex >> 16, hex >> 8, hex].map(|c| ((c & 255) as f32 / 255.0).powf(2.2))
-                        })
-                        .unwrap_or([1.0; 3]);
+                        });
                     let rgb = [
                         base[0] * (1.0 + 0.45 * temperature + 0.15 * tint),
                         base[1] * (1.0 - 0.35 * tint),
@@ -373,8 +369,7 @@ pub fn apply_relight<'a>(
                     }
                 })
                 .collect()
-        })
-        .unwrap_or_default();
+        });
 
     if lights.is_empty() && ambient == 0.0 {
         return image;
@@ -400,48 +395,45 @@ pub fn apply_relight<'a>(
 
     let cached = RELIGHT_CACHE
         .lock()
-        .unwrap_or_else(|e| e.into_inner())
+        .unwrap_or_else(std::sync::PoisonError::into_inner)
         .as_ref()
         .filter(|c| c.key == cache_key)
         .cloned();
 
-    let mut cache = match cached {
-        Some(cache) => cache,
-        None => {
-            let normal_map = match crate::effect_maps::resolve_rgba_map(normal_b64, adjustments) {
-                Some(map) => map,
-                None => return Cow::Owned(DynamicImage::ImageRgb32F(out)),
-            };
-            let (nw, nh) = (normal_map.width() as usize, normal_map.height() as usize);
-            if nw < 2 || nh < 2 {
-                return Cow::Owned(DynamicImage::ImageRgb32F(out));
-            }
+    let mut cache = if let Some(cache) = cached { cache } else {
+        let normal_map = match crate::effect_maps::resolve_rgba_map(normal_b64, adjustments) {
+            Some(map) => map,
+            None => return Cow::Owned(DynamicImage::ImageRgb32F(out)),
+        };
+        let (nw, nh) = (normal_map.width() as usize, normal_map.height() as usize);
+        if nw < 2 || nh < 2 {
+            return Cow::Owned(DynamicImage::ImageRgb32F(out));
+        }
 
-            let map_guide = build_relight_guide(out.as_raw(), wu, hu, nw, nh);
-            let map_radius = ((nw.max(nh) as f32 * 0.006).round() as usize).max(2);
-            let surface_models = (0..4)
-                .map(|c| {
-                    let plane: Vec<f32> = normal_map
-                        .pixels()
-                        .map(|p| match c {
-                            0 => p[0] as f32 / 127.5 - 1.0,
-                            1 => 1.0 - p[1] as f32 / 127.5,
-                            2 => 1.0 - p[2] as f32 / 127.5,
-                            _ => p[3] as f32 / 255.0,
-                        })
-                        .collect();
-                    build_guided_model(&map_guide, &plane, nw, nh, map_radius, eps)
-                })
-                .collect();
+        let map_guide = build_relight_guide(out.as_raw(), wu, hu, nw, nh);
+        let map_radius = ((nw.max(nh) as f32 * 0.006).round() as usize).max(2);
+        let surface_models = (0..4)
+            .map(|c| {
+                let plane: Vec<f32> = normal_map
+                    .pixels()
+                    .map(|p| match c {
+                        0 => f32::from(p[0]) / 127.5 - 1.0,
+                        1 => 1.0 - f32::from(p[1]) / 127.5,
+                        2 => 1.0 - f32::from(p[2]) / 127.5,
+                        _ => f32::from(p[3]) / 255.0,
+                    })
+                    .collect();
+                build_guided_model(&map_guide, &plane, nw, nh, map_radius, eps)
+            })
+            .collect();
 
-            RelightCache {
-                key: cache_key,
-                nw,
-                nh,
-                surface_models: Arc::new(surface_models),
-                shadow_inputs: None,
-                shadow_models: Vec::new(),
-            }
+        RelightCache {
+            key: cache_key,
+            nw,
+            nh,
+            surface_models: Arc::new(surface_models),
+            shadow_inputs: None,
+            shadow_models: Vec::new(),
         }
     };
 
@@ -515,7 +507,7 @@ pub fn apply_relight<'a>(
         _ => Vec::new(),
     };
 
-    *RELIGHT_CACHE.lock().unwrap_or_else(|e| e.into_inner()) = Some(cache.clone());
+    *RELIGHT_CACHE.lock().unwrap_or_else(std::sync::PoisonError::into_inner) = Some(cache.clone());
 
     let surface_models = &cache.surface_models;
 

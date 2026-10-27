@@ -81,6 +81,7 @@ pub enum FacePart {
 }
 
 impl FacePart {
+    #[must_use]
     pub fn from_id(id: &str) -> Option<Self> {
         match id {
             "faceSkin" => Some(FacePart::FaceSkin),
@@ -166,7 +167,7 @@ fn sample_rgb(image: &RgbImage, x: f32, y: f32, replicate: bool) -> [f32; 3] {
     }
     let taps = bilinear(x, y, w, h);
     let raw = image.as_raw();
-    std::array::from_fn(|c| taps.iter().map(|&(i, k)| raw[i * 3 + c] as f32 * k).sum())
+    std::array::from_fn(|c| taps.iter().map(|&(i, k)| f32::from(raw[i * 3 + c]) * k).sum())
 }
 
 fn frame_tensor(
@@ -218,7 +219,7 @@ fn run_landmarks(
 
 fn upright_extent(landmarks: &[[f32; 2]], angle: f32) -> ([f32; 2], f32) {
     let (min, max) = bounds(landmarks);
-    let center = [(min[0] + max[0]) / 2.0, (min[1] + max[1]) / 2.0];
+    let center = [f32::midpoint(min[0], max[0]), f32::midpoint(min[1], max[1])];
     let upright: Vec<[f32; 2]> = landmarks
         .iter()
         .map(|p| rotate([p[0] - center[0], p[1] - center[1]], -angle))
@@ -246,8 +247,8 @@ fn fit_landmarks(
 ) -> Result<(Vec<[f32; 2]>, f32, f32)> {
     let mut frame = FaceFrame {
         center: [
-            (face_box[0] + face_box[2]) / 2.0,
-            (face_box[1] + face_box[3]) / 2.0,
+            f32::midpoint(face_box[0], face_box[2]),
+            f32::midpoint(face_box[1], face_box[3]),
         ],
         side: (face_box[2] - face_box[0]).max(face_box[3] - face_box[1]) * LANDMARK_MARGIN,
         angle,
@@ -508,7 +509,7 @@ fn to_gray(values: &[f32], width: usize, height: usize) -> GrayImage {
 }
 
 fn from_gray(image: &GrayImage) -> Vec<f32> {
-    image.as_raw().iter().map(|&v| v as f32 / 255.0).collect()
+    image.as_raw().iter().map(|&v| f32::from(v) / 255.0).collect()
 }
 
 fn refine(guide: &RgbImage, mask: &[f32], radius: usize) -> Vec<f32> {
@@ -545,8 +546,8 @@ fn teeth_mask(rgb: &RgbImage, luma: &[f32], lips: &[f32], mouth: &[f32]) -> Vec<
     let saturation: Vec<f32> = rgb
         .pixels()
         .map(|p| {
-            let max = p.0.iter().copied().max().unwrap_or(0) as f32;
-            let min = p.0.iter().copied().min().unwrap_or(0) as f32;
+            let max = f32::from(p.0.iter().copied().max().unwrap_or(0));
+            let min = f32::from(p.0.iter().copied().min().unwrap_or(0));
             if max > 0.0 { (max - min) / max } else { 0.0 }
         })
         .collect();

@@ -16,8 +16,6 @@ pub const RAW_EXTENSIONS: &[(&str, &str)] = &[
     ("bay", "Casio"),
     // Contax
     ("raw", "Contax"),
-    // DJI
-    // ("dng", "DJI (uses DNG)"), // Covered by Adobe
 
     // Epson
     ("erf", "Epson Raw"),
@@ -37,7 +35,6 @@ pub const RAW_EXTENSIONS: &[(&str, &str)] = &[
     ("mos", "Leaf"),
     // Leica
     ("rwl", "Leica Raw"),
-    // ("dng", "Leica (uses DNG)"), // Covered by Adobe
 
     // Mamiya
     ("mef", "Mamiya"),
@@ -54,12 +51,6 @@ pub const RAW_EXTENSIONS: &[(&str, &str)] = &[
     // Pentax
     ("pef", "Pentax Electronic File"),
     ("ptx", "Pentax"),
-    // Phase One
-    // ("iiq", "Phase One (same as Imacon)"), // Covered by Imacon
-
-    // Ricoh
-    // ("dng", "Ricoh (uses DNG)"), // Covered by Adobe
-
     // Samsung
     ("srw", "Samsung Raw"),
     // Sigma
@@ -68,7 +59,7 @@ pub const RAW_EXTENSIONS: &[(&str, &str)] = &[
     ("arw", "Sony Alpha Raw"),
     ("srf", "Sony Raw"),
     ("sr2", "Sony Raw 2"),
-]; // Tell me if your's is missing.
+];
 
 pub const NON_RAW_EXTENSIONS: &[&str] = &[
     "jpg", "jpeg", "png", "gif", "bmp", "tiff", "tif", "webp", "jxl", // Standard formats

@@ -64,8 +64,9 @@ fn isotherm_direction(slope: f64) -> (f64, f64) {
 }
 
 impl WhiteBalance {
+    #[must_use]
     pub fn reference() -> Self {
-        Self::from_xy(WP_D65.x as f64, WP_D65.y as f64)
+        Self::from_xy(f64::from(WP_D65.x), f64::from(WP_D65.y))
     }
 
     fn from_xyz(xyz: DVec3) -> Option<Self> {
@@ -76,6 +77,7 @@ impl WhiteBalance {
         Some(Self::from_xy(xyz.x / sum, xyz.y / sum))
     }
 
+    #[must_use]
     pub fn from_xy(x: f64, y: f64) -> Self {
         let denom = 1.5 - x + 6.0 * y;
         let u = 2.0 * x / denom;
@@ -116,6 +118,7 @@ impl WhiteBalance {
         unreachable!()
     }
 
+    #[must_use]
     pub fn to_xy(self) -> (f64, f64) {
         let mired = 1.0e6 / self.temperature;
         let i = ROBERTSON_ISOTHERMS
@@ -140,6 +143,7 @@ impl WhiteBalance {
         (1.5 * u / denom, v / denom)
     }
 
+    #[must_use]
     pub fn clamped(self) -> Self {
         Self {
             temperature: self.temperature.clamp(MIN_TEMPERATURE, MAX_TEMPERATURE),
@@ -147,6 +151,7 @@ impl WhiteBalance {
         }
     }
 
+    #[must_use]
     pub fn shifted(self, relative_temperature: f64, relative_tint: f64) -> Self {
         if relative_temperature == 0.0 && relative_tint == 0.0 {
             return self;
@@ -170,10 +175,12 @@ impl WhiteBalance {
             .max(locus * MIN_LMS_FRACTION_OF_LOCUS)
     }
 
+    #[must_use]
     pub fn from_camera_neutral(xyz_to_camera: &[f32], neutral: &[f32]) -> Option<Self> {
         Self::from_xyz(neutral_xyz(&camera_to_xyz(xyz_to_camera)?, neutral)?)
     }
 
+    #[must_use]
     pub fn from_dual_illuminant_camera_neutral(
         xyz_to_camera_a: &[f32],
         xyz_to_camera_d65: &[f32],
@@ -230,18 +237,19 @@ fn neutral_xyz(camera_to_xyz: &[DVec3], neutral: &[f32]) -> Option<DVec3> {
         camera_to_xyz
             .iter()
             .zip(neutral)
-            .map(|(column, &n)| *column * n as f64)
+            .map(|(column, &n)| *column * f64::from(n))
             .sum()
     })
 }
 
+#[must_use]
 pub fn camera_to_srgb(xyz_to_camera: &[f32], neutral: &[f32]) -> Option<Vec<[f32; 3]>> {
     let columns = camera_to_xyz(xyz_to_camera)?;
     let white_lms = BRADFORD * neutral_xyz(&columns, neutral)?;
     if !white_lms.is_finite() || white_lms.min_element() <= 0.0 {
         return None;
     }
-    let (x, y) = (WP_D65.x as f64, WP_D65.y as f64);
+    let (x, y) = (f64::from(WP_D65.x), f64::from(WP_D65.y));
     let d65_lms = BRADFORD * DVec3::new(x / y, 1.0, (1.0 - x - y) / y);
     let xyz_to_srgb = primaries_to_xyz_matrix(&PRIMARIES_SRGB, WP_D65)
         .as_dmat3()
@@ -256,16 +264,19 @@ pub fn camera_to_srgb(xyz_to_camera: &[f32], neutral: &[f32]) -> Option<Vec<[f32
     )
 }
 
+#[must_use]
 pub fn adaptation_log_gains(current: WhiteBalance, target: WhiteBalance) -> [f32; 3] {
     (current.lms() / target.lms())
         .to_array()
         .map(|gain| gain.ln() as f32)
 }
 
+#[must_use]
 pub fn rgb_to_lms() -> Mat3 {
     (BRADFORD * primaries_to_xyz_matrix(&PRIMARIES_SRGB, WP_D65).as_dmat3()).as_mat3()
 }
 
+#[must_use]
 pub fn from_adjustments(adjustments: &Value, as_shot: WhiteBalance) -> WhiteBalance {
     adjustments
         .get("whiteBalance")

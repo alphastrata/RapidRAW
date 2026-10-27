@@ -23,6 +23,7 @@ pub struct Plane {
 }
 
 impl Plane {
+    #[must_use]
     pub fn new(w: usize, h: usize) -> Self {
         Plane {
             w,
@@ -31,6 +32,7 @@ impl Plane {
         }
     }
 
+    #[must_use]
     pub fn filled(w: usize, h: usize, v: f32) -> Self {
         Plane {
             w,
@@ -40,11 +42,13 @@ impl Plane {
     }
 
     #[inline(always)]
+    #[must_use]
     pub fn at(&self, x: usize, y: usize) -> f32 {
         self.data[y * self.w + x]
     }
 
     #[inline(always)]
+    #[must_use]
     pub fn clamped(&self, x: i64, y: i64) -> f32 {
         let xc = x.clamp(0, self.w as i64 - 1) as usize;
         let yc = y.clamp(0, self.h as i64 - 1) as usize;
@@ -52,6 +56,7 @@ impl Plane {
     }
 
     #[inline]
+    #[must_use]
     pub fn sample_bilinear(&self, x: f32, y: f32) -> f32 {
         let x0 = x.floor();
         let y0 = y.floor();
@@ -69,6 +74,7 @@ impl Plane {
     }
 
     #[inline]
+    #[must_use]
     pub fn sample_catmull_rom(&self, x: f32, y: f32) -> f32 {
         let xf = x.floor();
         let yf = y.floor();
@@ -100,11 +106,13 @@ impl Plane {
         out
     }
 
+    #[must_use]
     pub fn mean(&self) -> f64 {
-        let s: f64 = self.data.par_iter().map(|&v| v as f64).sum();
+        let s: f64 = self.data.par_iter().map(|&v| f64::from(v)).sum();
         s / self.data.len().max(1) as f64
     }
 
+    #[must_use]
     pub fn gradients(&self) -> (Plane, Plane) {
         let mut gx = Plane::new(self.w, self.h);
         let mut gy = Plane::new(self.w, self.h);
@@ -140,22 +148,24 @@ fn catmull_weights(t: f32) -> [f32; 4] {
     ]
 }
 
+#[must_use]
 pub fn gaussian_kernel(sigma: f32) -> Vec<f32> {
     let sigma = sigma.max(1e-3);
     let radius = (sigma * 3.0).ceil().max(1.0) as usize;
     let mut k = Vec::with_capacity(2 * radius + 1);
     let denom = 2.0 * sigma * sigma;
-    for i in 0..(2 * radius + 1) {
+    for i in 0..=(2 * radius) {
         let d = i as f32 - radius as f32;
         k.push((-d * d / denom).exp());
     }
     let sum: f32 = k.iter().sum();
-    for v in k.iter_mut() {
+    for v in &mut k {
         *v /= sum;
     }
     k
 }
 
+#[must_use]
 pub fn convolve_separable(src: &Plane, kernel: &[f32]) -> Plane {
     let (w, h) = (src.w, src.h);
     if w == 0 || h == 0 {
@@ -174,10 +184,12 @@ pub fn convolve_separable(src: &Plane, kernel: &[f32]) -> Plane {
     out
 }
 
+#[must_use]
 pub fn gaussian_blur(src: &Plane, sigma: f32) -> Plane {
     convolve_separable(src, &gaussian_kernel(sigma))
 }
 
+#[must_use]
 pub fn box_filter(src: &Plane, radius: usize) -> Plane {
     let (w, h) = (src.w, src.h);
     if w == 0 || h == 0 {
@@ -188,7 +200,7 @@ pub fn box_filter(src: &Plane, radius: usize) -> Plane {
     for y in 0..h {
         let mut row_sum = 0f64;
         for x in 0..w {
-            row_sum += src.data[y * w + x] as f64;
+            row_sum += f64::from(src.data[y * w + x]);
             sat[(y + 1) * stride + (x + 1)] = sat[y * stride + (x + 1)] + row_sum;
         }
     }
@@ -209,6 +221,7 @@ pub fn box_filter(src: &Plane, radius: usize) -> Plane {
     out
 }
 
+#[must_use]
 pub fn downsample(src: &Plane) -> Plane {
     const K: [f32; 5] = [1.0 / 16.0, 4.0 / 16.0, 6.0 / 16.0, 4.0 / 16.0, 1.0 / 16.0];
     let blurred = convolve_separable(src, &K);
@@ -228,6 +241,7 @@ pub fn downsample(src: &Plane) -> Plane {
     out
 }
 
+#[must_use]
 pub fn upsample_to(src: &Plane, w: usize, h: usize) -> Plane {
     let mut out = Plane::new(w, h);
     if src.w == 0 || src.h == 0 || w == 0 || h == 0 {
@@ -245,6 +259,7 @@ pub fn upsample_to(src: &Plane, w: usize, h: usize) -> Plane {
     out
 }
 
+#[must_use]
 pub fn resize_to(src: &Plane, w: usize, h: usize) -> Plane {
     if src.w == w && src.h == h {
         return src.clone();
@@ -260,6 +275,7 @@ pub fn resize_to(src: &Plane, w: usize, h: usize) -> Plane {
     }
 }
 
+#[must_use]
 pub fn plane_sub(a: &Plane, b: &Plane) -> Plane {
     let mut out = Plane::new(a.w, a.h);
     out.data
@@ -277,6 +293,7 @@ pub struct PlanarRgb {
 }
 
 impl PlanarRgb {
+    #[must_use]
     pub fn new(w: usize, h: usize) -> Self {
         PlanarRgb {
             w,
@@ -285,6 +302,7 @@ impl PlanarRgb {
         }
     }
 
+    #[must_use]
     pub fn from_rgb32f(img: &Rgb32FImage) -> Self {
         let w = img.width() as usize;
         let h = img.height() as usize;
@@ -300,6 +318,7 @@ impl PlanarRgb {
         out
     }
 
+    #[must_use]
     pub fn to_rgb32f(&self) -> Rgb32FImage {
         let mut img = Rgb32FImage::new(self.w as u32, self.h as u32);
         {
@@ -313,6 +332,7 @@ impl PlanarRgb {
         img
     }
 
+    #[must_use]
     pub fn luma(&self) -> Plane {
         let mut out = Plane::new(self.w, self.h);
         out.data.par_iter_mut().enumerate().for_each(|(i, v)| {
@@ -323,6 +343,7 @@ impl PlanarRgb {
         out
     }
 
+    #[must_use]
     pub fn crop(&self, x0: usize, y0: usize, w: usize, h: usize) -> PlanarRgb {
         let mut out = PlanarRgb::new(w, h);
         for (ch, out_plane) in out.c.iter_mut().enumerate() {
@@ -340,6 +361,7 @@ impl PlanarRgb {
     }
 }
 
+#[must_use]
 pub fn level_count(w: usize, h: usize, max_levels: usize) -> usize {
     let mut n = 1usize;
     let (mut cw, mut ch) = (w, h);
@@ -351,6 +373,7 @@ pub fn level_count(w: usize, h: usize, max_levels: usize) -> usize {
     n
 }
 
+#[must_use]
 pub fn gaussian_pyramid(base: &Plane, levels: usize) -> Vec<Plane> {
     let mut v = Vec::with_capacity(levels);
     v.push(base.clone());
@@ -367,6 +390,7 @@ pub struct LaplacianPyramid {
     pub residual: Plane,
 }
 
+#[must_use]
 pub fn laplacian_pyramid(base: &Plane, levels: usize) -> LaplacianPyramid {
     let g = gaussian_pyramid(base, levels);
     let mut details = Vec::with_capacity(g.len().saturating_sub(1));
@@ -380,6 +404,7 @@ pub fn laplacian_pyramid(base: &Plane, levels: usize) -> LaplacianPyramid {
     }
 }
 
+#[must_use]
 pub fn collapse_pyramid(lp: &LaplacianPyramid) -> Plane {
     let mut cur = lp.residual.clone();
     for d in lp.details.iter().rev() {
@@ -409,6 +434,7 @@ fn poly_basis(qx: f64, qy: f64) -> [f64; 7] {
 }
 
 impl WarpModel {
+    #[must_use]
     pub fn n_params(&self) -> usize {
         match self {
             WarpModel::Translation => 2,
@@ -449,6 +475,7 @@ pub struct LensWarp {
 }
 
 impl LensWarp {
+    #[must_use]
     pub fn identity(w: usize, h: usize) -> Self {
         LensWarp {
             a: [1.0, 0.0, 0.0, 1.0],
@@ -463,6 +490,7 @@ impl LensWarp {
         }
     }
 
+    #[must_use]
     pub fn rescaled(&self, factor: f64) -> Self {
         LensWarp {
             a: self.a,
@@ -511,6 +539,7 @@ impl LensWarp {
     }
 
     #[inline(always)]
+    #[must_use]
     pub fn apply(&self, x: f64, y: f64) -> (f64, f64) {
         let (px, py, _, _, _) = self.predistort(x, y);
         (
@@ -519,12 +548,13 @@ impl LensWarp {
         )
     }
 
+    #[must_use]
     pub fn max_displacement(&self, w: usize, h: usize) -> f64 {
         let mut m: f64 = 0.0;
         for gy in 0..5 {
             for gx in 0..5 {
-                let x = gx as f64 * (w.max(2) - 1) as f64 / 4.0;
-                let y = gy as f64 * (h.max(2) - 1) as f64 / 4.0;
+                let x = f64::from(gx) * (w.max(2) - 1) as f64 / 4.0;
+                let y = f64::from(gy) * (h.max(2) - 1) as f64 / 4.0;
                 let (u, v) = self.apply(x, y);
                 m = m.max(((u - x).powi(2) + (v - y).powi(2)).sqrt());
             }
@@ -630,6 +660,7 @@ impl LensWarp {
         }
     }
 
+    #[must_use]
     pub fn is_plausible(&self) -> bool {
         let det = self.a[0] * self.a[3] - self.a[1] * self.a[2];
         if !det.is_finite() || det <= 0.5 || det >= 2.0 {
@@ -645,6 +676,7 @@ impl LensWarp {
         self.pu.iter().chain(self.pv.iter()).all(|c| c.abs() < 0.2)
     }
 
+    #[must_use]
     pub fn to_vector(self) -> [f64; 22] {
         let mut v = [0f64; 22];
         v[0..4].copy_from_slice(&self.a);
@@ -657,6 +689,7 @@ impl LensWarp {
         v
     }
 
+    #[must_use]
     pub fn with_vector(mut self, v: &[f64; 22]) -> LensWarp {
         self.a.copy_from_slice(&v[0..4]);
         self.t = [v[4], v[5]];
@@ -711,6 +744,7 @@ pub struct AlignPyramids {
     levels: Vec<LevelData>,
 }
 
+#[must_use]
 pub fn build_align_pyramids(
     tmpl_full: &Plane,
     src_full: &Plane,
@@ -774,6 +808,7 @@ fn model_for_level(short_side: usize, cfg: &AlignConfig) -> WarpModel {
     }
 }
 
+#[must_use]
 pub fn solve_alignment(pyr: &AlignPyramids, init: LensWarp, cfg: &AlignConfig) -> FramePose {
     let mut warp_full = init;
     let mut gain = 1.0f64;
@@ -827,7 +862,7 @@ fn solve_level(
         .data
         .par_iter()
         .map(|&v| {
-            let d = v as f64 - tmpl_mean;
+            let d = f64::from(v) - tmpl_mean;
             d * d
         })
         .sum::<f64>()
@@ -969,12 +1004,12 @@ fn collect_samples(
                 let (u, v) = warp.apply(x as f64, y as f64);
                 if u >= 1.0 && v >= 1.0 && u < (lvl.src.w - 2) as f64 && v < (lvl.src.h - 2) as f64
                 {
-                    let val = lvl.src.sample_bilinear(u as f32, v as f32) as f64;
-                    let gx = lvl.gx.sample_bilinear(u as f32, v as f32) as f64;
-                    let gy = lvl.gy.sample_bilinear(u as f32, v as f32) as f64;
+                    let val = f64::from(lvl.src.sample_bilinear(u as f32, v as f32));
+                    let gx = f64::from(lvl.gx.sample_bilinear(u as f32, v as f32));
+                    let gy = f64::from(lvl.gy.sample_bilinear(u as f32, v as f32));
                     if gx * gx + gy * gy > 1e-10 {
                         warp.jacobian(x as f64, y as f64, model, &mut ju, &mut jv);
-                        let t = lvl.tmpl.at(x, y) as f64;
+                        let t = f64::from(lvl.tmpl.at(x, y));
                         local.push(Sample {
                             ju,
                             jv,
@@ -1021,6 +1056,7 @@ fn erode_mask(mask: &Plane, radius: usize) -> Plane {
     out
 }
 
+#[must_use]
 pub fn warp_frame(
     src: &PlanarRgb,
     warp: &LensWarp,
@@ -1094,6 +1130,7 @@ impl Default for FusionConfig {
     }
 }
 
+#[must_use]
 pub fn guided_filter(guide: &Plane, input: &Plane, radius: usize, eps: f32) -> Plane {
     let mean_i = box_filter(guide, radius);
     let mean_p = box_filter(input, radius);
@@ -1136,11 +1173,12 @@ fn focus_domain(luma: &Plane) -> Plane {
     luma.map(|v| (v.max(0.0) * 8.0).ln_1p())
 }
 
+#[must_use]
 pub fn focus_scores(luma: &Plane, levels: usize, cfg: &FusionConfig) -> Vec<Plane> {
     let fd = focus_domain(luma);
     let lp = laplacian_pyramid(&fd, levels);
     let mut out = Vec::with_capacity(lp.details.len());
-    for d in lp.details.iter() {
+    for d in &lp.details {
         let sq = d.map(|v| v * v);
         let pooled = gaussian_blur(&sq, cfg.pool_sigma);
         out.push(pooled.map(|v| v.max(0.0).sqrt()));
@@ -1155,6 +1193,7 @@ pub struct DecisionMaps {
     pub h: usize,
 }
 
+#[must_use]
 pub fn decide_labels(
     scores: &[Vec<Plane>],
     base: &[Plane],
@@ -1299,13 +1338,13 @@ pub fn decide_labels(
     }
 
     let mut totals = vec![0f32; npx];
-    for wi in weights.iter() {
+    for wi in &weights {
         totals
             .par_iter_mut()
             .zip(wi.data.par_iter())
             .for_each(|(t, &v)| *t += v);
     }
-    for wi in weights.iter_mut() {
+    for wi in &mut weights {
         wi.data.par_iter_mut().enumerate().for_each(|(p, v)| {
             *v = if totals[p] > 1e-6 {
                 *v / totals[p]
@@ -1342,9 +1381,7 @@ fn weighted_median_labels(
         let y0 = y.saturating_sub(radius);
         let y1 = (y + radius + 1).min(h);
         for x in 0..w {
-            for v in hist.iter_mut() {
-                *v = 0.0;
-            }
+            hist.fill(0.0);
             let gp = guide.data[y * w + x];
             let x0 = x.saturating_sub(radius);
             let x1 = (x + radius + 1).min(w);
@@ -1384,6 +1421,7 @@ pub struct MergeAccumulator {
 }
 
 impl MergeAccumulator {
+    #[must_use]
     pub fn new(w: usize, h: usize, cfg: &FusionConfig) -> Self {
         let levels = level_count(w, h, cfg.max_levels);
         let mut dims = Vec::with_capacity(levels);
@@ -1462,6 +1500,7 @@ impl MergeAccumulator {
         }
     }
 
+    #[must_use]
     pub fn finish(self) -> PlanarRgb {
         let (w, h) = self.dims[0];
         let mut out = PlanarRgb::new(w, h);
@@ -1500,6 +1539,7 @@ impl MergeAccumulator {
     }
 }
 
+#[must_use]
 pub fn weight_to_full(weight: &Plane, w: usize, h: usize) -> Plane {
     if weight.w == w && weight.h == h {
         weight.clone()
@@ -1508,6 +1548,7 @@ pub fn weight_to_full(weight: &Plane, w: usize, h: usize) -> Plane {
     }
 }
 
+#[must_use]
 pub fn valid_bounds(masks: &[Plane], min_coverage: f32) -> (usize, usize, usize, usize) {
     let (w, h) = (masks[0].w, masks[0].h);
     let n = masks.len() as f32;
@@ -1729,7 +1770,7 @@ pub fn run_focus_stack<S: FrameSource + ?Sized>(
                 ((reference + 1)..n).collect()
             };
             let mut prev = LensWarp::identity(aw, ah);
-            for &i in order.iter() {
+            for &i in &order {
                 completed += 1;
                 progress(&format!("Aligning frame {} of {}...", completed, n - 1));
                 let pyr = build_align_pyramids(&align_luma[reference], &align_luma[i], &acfg);
@@ -1848,13 +1889,14 @@ fn warp_or_copy(
     warp_frame(frame, &pose.warp, pose.gain as f32, pose.bias as f32, w, h)
 }
 
+#[must_use]
 pub fn depth_preview_plane(result: &StackResult, n_frames: usize) -> Plane {
     let mut p = Plane::new(result.depth_w, result.depth_h);
     let denom = (n_frames.saturating_sub(1)).max(1) as f32;
     p.data
         .par_iter_mut()
         .zip(result.depth.par_iter())
-        .for_each(|(o, &l)| *o = l as f32 / denom);
+        .for_each(|(o, &l)| *o = f32::from(l) / denom);
     p
 }
 
@@ -1888,23 +1930,22 @@ impl DiskSource {
             std::process::id(),
             std::time::SystemTime::now()
                 .duration_since(std::time::UNIX_EPOCH)
-                .map(|d| d.as_millis())
-                .unwrap_or(0)
+                .map_or(0, |d| d.as_millis())
         ));
-        fs::create_dir_all(&dir).map_err(|e| format!("Failed to create scratch dir: {}", e))?;
+        fs::create_dir_all(&dir).map_err(|e| format!("Failed to create scratch dir: {e}"))?;
         Ok(DiskSource { dir, n, w, h })
     }
 
     fn path(&self, i: usize) -> PathBuf {
-        self.dir.join(format!("frame_{:05}.f32", i))
+        self.dir.join(format!("frame_{i:05}.f32"))
     }
 
     fn write(&self, i: usize, img: &PlanarRgb) -> Result<(), String> {
         let mut f =
-            fs::File::create(self.path(i)).map_err(|e| format!("Scratch write failed: {}", e))?;
-        for plane in img.c.iter() {
+            fs::File::create(self.path(i)).map_err(|e| format!("Scratch write failed: {e}"))?;
+        for plane in &img.c {
             f.write_all(as_bytes(&plane.data))
-                .map_err(|e| format!("Scratch write failed: {}", e))?;
+                .map_err(|e| format!("Scratch write failed: {e}"))?;
         }
         Ok(())
     }
@@ -1919,11 +1960,11 @@ impl FrameSource for DiskSource {
     }
     fn get(&self, index: usize) -> Result<PlanarRgb, String> {
         let mut f =
-            fs::File::open(self.path(index)).map_err(|e| format!("Scratch read failed: {}", e))?;
+            fs::File::open(self.path(index)).map_err(|e| format!("Scratch read failed: {e}"))?;
         let mut out = PlanarRgb::new(self.w, self.h);
-        for plane in out.c.iter_mut() {
+        for plane in &mut out.c {
             f.read_exact(as_bytes_mut(&mut plane.data))
-                .map_err(|e| format!("Scratch read failed: {}", e))?;
+                .map_err(|e| format!("Scratch read failed: {e}"))?;
         }
         Ok(out)
     }
@@ -1936,10 +1977,10 @@ impl Drop for DiskSource {
 }
 
 fn as_bytes(v: &[f32]) -> &[u8] {
-    unsafe { std::slice::from_raw_parts(v.as_ptr() as *const u8, std::mem::size_of_val(v)) }
+    unsafe { std::slice::from_raw_parts(v.as_ptr().cast::<u8>(), std::mem::size_of_val(v)) }
 }
 fn as_bytes_mut(v: &mut [f32]) -> &mut [u8] {
-    unsafe { std::slice::from_raw_parts_mut(v.as_mut_ptr() as *mut u8, std::mem::size_of_val(v)) }
+    unsafe { std::slice::from_raw_parts_mut(v.as_mut_ptr().cast::<u8>(), std::mem::size_of_val(v)) }
 }
 
 pub async fn stitch_focus_stack_impl(
@@ -2013,7 +2054,7 @@ pub async fn stitch_focus_stack_impl(
     match task.await {
         Ok(Ok(())) => Ok(()),
         Ok(Err(e)) => Err(e),
-        Err(e) => Err(format!("Task failed: {}", e)),
+        Err(e) => Err(format!("Task failed: {e}")),
     }
 }
 
@@ -2024,7 +2065,7 @@ fn load_frames(
     let settings = crate::settings::AppSettings::default();
     let n = paths.len();
 
-    progress(&format!("Loading frame 1 of {}...", n));
+    progress(&format!("Loading frame 1 of {n}..."));
     let first = decode_frame(&paths[0], &settings)?;
     let (w, h) = (first.w, first.h);
     let estimated = (n as u64) * (w as u64) * (h as u64) * 3 * 4;
@@ -2072,10 +2113,10 @@ fn decode_frame(
     path: &str,
     settings: &crate::settings::AppSettings,
 ) -> Result<PlanarRgb, String> {
-    let bytes = fs::read(path).map_err(|e| format!("Failed to read {}: {}", path, e))?;
+    let bytes = fs::read(path).map_err(|e| format!("Failed to read {path}: {e}"))?;
     let mut dyn_img =
         crate::image_loader::load_base_image_from_bytes(&bytes, path, false, settings, None)
-            .map_err(|e| format!("Failed to decode {}: {}", path, e))?;
+            .map_err(|e| format!("Failed to decode {path}: {e}"))?;
     if is_raw_file(path) {
         apply_cpu_default_raw_processing(&mut dyn_img);
     }
@@ -2098,7 +2139,7 @@ fn make_preview(img: &image::Rgb32FImage, max_dim: u32) -> Result<String, String
     small
         .to_rgb8()
         .write_to(&mut buf, ImageFormat::Png)
-        .map_err(|e| format!("Failed to encode preview: {}", e))?;
+        .map_err(|e| format!("Failed to encode preview: {e}"))?;
     Ok(format!(
         "data:image/png;base64,{}",
         general_purpose::STANDARD.encode(buf.get_ref())
@@ -2113,7 +2154,7 @@ fn make_depth_preview(result: &StackResult, n_frames: usize) -> Result<String, S
     }
     let mut buf = Cursor::new(Vec::new());
     img.write_to(&mut buf, ImageFormat::Png)
-        .map_err(|e| format!("Failed to encode depth map: {}", e))?;
+        .map_err(|e| format!("Failed to encode depth map: {e}"))?;
     Ok(format!(
         "data:image/png;base64,{}",
         general_purpose::STANDARD.encode(buf.get_ref())
@@ -2137,7 +2178,7 @@ pub fn save_focus_stack_impl(
         .ok_or_else(|| "Could not determine output directory.".to_string())?;
     let stem = first_path.file_stem().unwrap_or_default().to_string_lossy();
 
-    let output_path = parent_dir.join(format!("{}_Stacked.tiff", stem));
+    let output_path = parent_dir.join(format!("{stem}_Stacked.tiff"));
 
     let rgb16 = focus_image.to_rgb16();
     rgb16

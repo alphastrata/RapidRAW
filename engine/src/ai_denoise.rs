@@ -43,24 +43,25 @@ static CACHE: LazyLock<Mutex<DenoiseCache>> = LazyLock::new(Default::default);
 static DISK_CACHE_LIMIT_BYTES: AtomicU64 = AtomicU64::new(u64::MAX);
 
 fn cache() -> std::sync::MutexGuard<'static, DenoiseCache> {
-    CACHE.lock().unwrap_or_else(|e| e.into_inner())
+    CACHE.lock().unwrap_or_else(std::sync::PoisonError::into_inner)
 }
 
 pub fn initialize_cache_dir(cache_dir: PathBuf) {
     let dir = cache_dir.join("ai_denoise");
-    let _ = fs::create_dir_all(&dir);
+    drop(fs::create_dir_all(&dir));
     cache().dir = Some(dir);
 }
 
 pub fn set_disk_cache_limit_gb(limit_gb: u32) {
     let limit = u64::from(limit_gb.max(1)) * 1024 * 1024 * 1024;
-    if DISK_CACHE_LIMIT_BYTES.swap(limit, Ordering::Relaxed) > limit
+    if DISK_CACHE_LIMIT_BYTES.swap(limit, Ordering::SeqCst) > limit
         && let Some(dir) = cache().dir.clone()
     {
         std::thread::spawn(move || evict_disk_cache(&dir, None));
     }
 }
 
+#[must_use]
 pub fn is_enabled(adjustments: &serde_json::Value) -> bool {
     crate::image_processing::is_effect_enabled(adjustments, "noiseReduction", "aiDenoiseEnabled")
 }
@@ -74,6 +75,7 @@ pub enum DenoiseMethod {
 impl DenoiseMethod {
     const ALL: [Self; 2] = [Self::Nind, Self::Bm3d];
 
+    #[must_use]
     pub fn from_adjustments(adjustments: &serde_json::Value) -> Self {
         match adjustments["aiDenoiseMethod"].as_str() {
             Some("bm3d") => Self::Bm3d,
@@ -91,6 +93,7 @@ impl DenoiseMethod {
 
 type Session = Arc<Mutex<ort::session::Session>>;
 
+#[must_use]
 pub fn cache_epoch() -> u64 {
     cache().epoch
 }
@@ -211,7 +214,7 @@ fn read_from_disk(key: &str, source: &str) -> Option<DenoisedBase> {
         .ok()?;
 
     if let Ok(file) = File::options().write(true).open(&path) {
-        let _ = file.set_modified(SystemTime::now());
+        drop(file.set_modified(SystemTime::now()));
     }
 
     Some(DenoisedBase {
@@ -231,13 +234,13 @@ fn write_to_disk(entry: &DenoisedBase) -> Result<(), String> {
     let mut file = BufWriter::new(File::create(&tmp_path).map_err(|e| e.to_string())?);
     let source = entry.source.as_bytes();
     file.write_all(FILE_MAGIC)
-        .and_then(|_| file.write_all(&(source.len() as u32).to_le_bytes()))
-        .and_then(|_| file.write_all(source))
-        .and_then(|_| file.write_all(&entry.fingerprint.to_le_bytes()))
-        .and_then(|_| file.write_all(&entry.width.to_le_bytes()))
-        .and_then(|_| file.write_all(&entry.height.to_le_bytes()))
-        .and_then(|_| file.write_all(bytemuck::cast_slice(&entry.data)))
-        .and_then(|_| file.flush())
+        .and_then(|()| file.write_all(&(source.len() as u32).to_le_bytes()))
+        .and_then(|()| file.write_all(source))
+        .and_then(|()| file.write_all(&entry.fingerprint.to_le_bytes()))
+        .and_then(|()| file.write_all(&entry.width.to_le_bytes()))
+        .and_then(|()| file.write_all(&entry.height.to_le_bytes()))
+        .and_then(|()| file.write_all(bytemuck::cast_slice(&entry.data)))
+        .and_then(|()| file.flush())
         .map_err(|e| e.to_string())?;
     drop(file);
 
@@ -252,10 +255,10 @@ fn evict_disk_cache(dir: &Path, keep: Option<&Path>) {
     let Ok(read_dir) = fs::read_dir(dir) else {
         return;
     };
-    let limit = DISK_CACHE_LIMIT_BYTES.load(Ordering::Relaxed);
+    let limit = DISK_CACHE_LIMIT_BYTES.load(Ordering::SeqCst);
 
     let mut entries: Vec<(PathBuf, u64, SystemTime)> = read_dir
-        .filter_map(|e| e.ok())
+        .filter_map(std::result::Result::ok)
         .filter(|e| e.path().extension().is_some_and(|ext| ext == "rrdn"))
         .filter_map(|e| {
             let meta = e.metadata().ok()?;
@@ -294,6 +297,7 @@ fn is_ready(key: &str, source: &str, fingerprints: [u64; 2]) -> bool {
         .is_some_and(|h| h.source == source && fingerprints.contains(&h.fingerprint))
 }
 
+#[must_use]
 pub fn apply_ai_denoise<'a>(
     base: &'a DynamicImage,
     path: &str,
@@ -460,7 +464,7 @@ fn denoise_into_cache(
         data,
     });
     if let Err(e) = write_to_disk(&entry) {
-        log::warn!("Failed to persist AI denoise cache: {}", e);
+        log::warn!("Failed to persist AI denoise cache: {e}");
     }
 
     let mut cache = cache();
@@ -511,7 +515,7 @@ fn generate_blocking(
     let is_open = state
         .original_image
         .lock()
-        .unwrap_or_else(|e| e.into_inner())
+        .unwrap_or_else(std::sync::PoisonError::into_inner)
         .as_ref()
         .is_some_and(|loaded| loaded.path == loaded_image.path);
     if !is_open {
@@ -552,7 +556,7 @@ pub fn ensure_generated(host: Arc<dyn Host>, loaded_image: &LoadedImage, adjustm
                 host.emit_json("ai-denoise-ready", path.into());
             }
             Err(error) => {
-                log::error!("AI denoise failed for {}: {}", path, error);
+                log::error!("AI denoise failed for {path}: {error}");
                 host.emit_json("ai-denoise-error", serde_json::json!({ "path": path, "error": error }),
                 );
             }
@@ -560,6 +564,7 @@ pub fn ensure_generated(host: Arc<dyn Host>, loaded_image: &LoadedImage, adjustm
     });
 }
 
+#[must_use]
 pub fn has_cached_entry(path: &str, method: DenoiseMethod) -> bool {
     let source = source_string(path);
     let key = entry_key(&source, method);
@@ -567,6 +572,7 @@ pub fn has_cached_entry(path: &str, method: DenoiseMethod) -> bool {
         || read_disk_header(&key).is_some_and(|h| h.source == source)
 }
 
+#[must_use]
 pub fn is_generating(path: &str) -> bool {
     let source = source_string(path);
     DenoiseMethod::ALL
@@ -626,7 +632,7 @@ fn cache_files() -> Vec<(PathBuf, u64)> {
         return Vec::new();
     };
     read_dir
-        .filter_map(|e| e.ok())
+        .filter_map(std::result::Result::ok)
         .filter(|e| {
             e.path()
                 .extension()

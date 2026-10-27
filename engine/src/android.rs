@@ -17,12 +17,6 @@ static INIT_RUSTLS_PLATFORM_VERIFIER: std::sync::Once = std::sync::Once::new();
 
 #[cfg(target_os = "android")]
 fn ndk_context_is_initialized() -> bool {
-    // tao 0.37+ initializes ndk-context in its Android `onCreate` glue (with the
-    // application context) before `main` runs; tao 0.35 (the Android CI pin) does
-    // not. `ndk-context` 0.1.x has no `get_or_init`, and `android_context()`
-    // panics when the context is unset, so probe with `catch_unwind`. A no-op
-    // panic hook is installed for the duration of the probe so the app's real
-    // hook doesn't log a scary `PANIC!` line on every startup.
     let previous_hook = std::panic::take_hook();
     std::panic::set_hook(Box::new(|_| {}));
     let initialized = std::panic::catch_unwind(ndk_context::android_context).is_ok();
@@ -31,6 +25,7 @@ fn ndk_context_is_initialized() -> bool {
 }
 
 
+#[must_use]
 pub fn is_android_content_uri(path: &str) -> bool {
     path.starts_with("content://")
 }

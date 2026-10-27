@@ -10,6 +10,7 @@ pub struct CameraSession {
 pub struct CameraSession {}
 
 impl CameraSession {
+    #[must_use]
     pub fn new() -> Self {
         #[cfg(feature = "tethering")]
         {

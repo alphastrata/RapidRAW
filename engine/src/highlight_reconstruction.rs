@@ -84,7 +84,7 @@ fn cube_root(v: f32) -> f32 {
 
 #[inline]
 fn opposed(roots: &[f32; 3], c: usize) -> f32 {
-    let m = 0.5 * (roots[(c + 1) % 3] + roots[(c + 2) % 3]);
+    let m = f32::midpoint(roots[(c + 1) % 3], roots[(c + 2) % 3]);
     m * m * m
 }
 
@@ -159,9 +159,9 @@ pub fn reconstruct_highlights(data: &mut [[f32; 3]], region: Region, clips: [f32
         .enumerate()
         .for_each(|(y, mask_row)| {
             for (m, p) in mask_row.iter_mut().zip(region.row(data, y)) {
-                *m = (p[0] >= thresholds[0]) as u8
-                    | (((p[1] >= thresholds[1]) as u8) << 1)
-                    | (((p[2] >= thresholds[2]) as u8) << 2);
+                *m = u8::from(p[0] >= thresholds[0])
+                    | (u8::from(p[1] >= thresholds[1]) << 1)
+                    | (u8::from(p[2] >= thresholds[2]) << 2);
             }
         });
     if !mask.par_iter().any(|&m| m != 0) {

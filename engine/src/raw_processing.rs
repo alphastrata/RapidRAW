@@ -43,10 +43,10 @@ fn metadata_orientation(decoder: &dyn Decoder, source: &RawSource) -> Result<Ori
     Ok(metadata
         .exif
         .orientation
-        .map(Orientation::from_u16)
-        .unwrap_or(Orientation::Normal))
+        .map_or(Orientation::Normal, Orientation::from_u16))
 }
 
+#[must_use]
 pub fn extract_embedded_preview(file_bytes: &[u8]) -> Option<DynamicImage> {
     let source = RawSource::new_from_slice(file_bytes);
     let decoder = rawler::get_decoder(&source).ok()?;
@@ -102,7 +102,7 @@ fn recover_clipped_pixel(r: f32, g: f32, b: f32) -> (f32, f32, f32) {
 
     let magenta = (cur_r.min(cur_b) - cur_g).max(0.0);
     if magenta > 0.0 {
-        let target_g = cur_r.min(cur_b) * 0.80 + ((cur_r + cur_b) * 0.5) * 0.20;
+        let target_g = cur_r.min(cur_b) * 0.80 + f32::midpoint(cur_r, cur_b) * 0.20;
         let correction = (target_g - cur_g).max(0.0);
         let magenta_weight = smoothstep(0.0, 0.25, magenta / max_c);
         cur_g += correction * outer_blend * magenta_weight;
@@ -288,18 +288,15 @@ fn develop_internal(
         .whitelevel
         .0
         .first()
-        .cloned()
-        .unwrap_or(u16::MAX as u32) as f32;
+        .copied()
+        .unwrap_or(u32::from(u16::MAX)) as f32;
     let original_black_level = raw_image
         .blacklevel
         .levels
         .first()
-        .map(|r| r.as_f32())
-        .unwrap_or(0.0);
+        .map_or(0.0, rawler::formats::tiff::Rational::as_f32);
 
-    for level in raw_image.whitelevel.0.iter_mut() {
-        *level = u32::MAX;
-    }
+    raw_image.whitelevel.0.fill(u32::MAX);
 
     let mut developer = RawDevelop::default();
     developer
@@ -474,7 +471,7 @@ fn default_crop(
     if let Some(active_area) = active_area {
         crop = crop.intersection(&active_area).adapt(&active_area);
     }
-    let original_width = active_area.map(|area| area.d.w).unwrap_or(raw_dim.w);
+    let original_width = active_area.map_or(raw_dim.w, |area| area.d.w);
     if original_width > 0 {
         let scale_factor = dim.w as f32 / original_width as f32;
         if (scale_factor - 1.0).abs() > 1e-6 {
@@ -521,9 +518,7 @@ pub fn read_as_shot(file_bytes: &[u8]) -> Option<AsShot> {
     Some(AsShot {
         white_balance: (!is_monochrome)
             .then(|| as_shot_color(&raw_image))
-            .flatten()
-            .map(|(white_balance, _)| white_balance)
-            .unwrap_or_else(WhiteBalance::reference),
+            .flatten().map_or_else(WhiteBalance::reference, |(white_balance, _)| white_balance),
         exposure: crate::baseline_exposure::read(decoder.as_ref(), file_bytes, is_monochrome),
     })
 }
@@ -573,6 +568,7 @@ fn mono_pixels_to_rgb(
         .ok_or_else(|| anyhow!("Developed image size does not match its dimensions"))
 }
 
+#[must_use]
 pub fn raw_dimensions(file_bytes: &[u8]) -> Option<(usize, usize)> {
     let source = RawSource::new_from_slice(file_bytes);
     let decoder = rawler::get_decoder(&source).ok()?;
@@ -582,6 +578,7 @@ pub fn raw_dimensions(file_bytes: &[u8]) -> Option<(usize, usize)> {
     Some((raw_img.width, raw_img.height))
 }
 
+#[must_use]
 pub fn get_fast_demosaic_scale_factor(
     file_bytes: &[u8],
     decoded_width: u32,

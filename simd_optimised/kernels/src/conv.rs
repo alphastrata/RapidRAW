@@ -66,6 +66,7 @@ pub fn conv_row_vertical(src: &[f32], w: usize, h: usize, kernel: &[f32], y: usi
     row_out(&RowScan { kernel, w, h, vertical: true, y }, src, dst_row);
 }
 
+#[must_use]
 pub fn convolve_separable(src: &[f32], w: usize, h: usize, kernel: &[f32]) -> Vec<f32> {
     let mut tmp = vec![0.0; w * h];
     let mut out = vec![0.0; w * h];

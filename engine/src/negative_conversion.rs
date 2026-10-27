@@ -40,6 +40,7 @@ impl NegativeConversionParams {
     }
 }
 
+#[must_use]
 pub fn is_enabled(adjustments: &Value) -> bool {
     crate::image_processing::is_effect_enabled(
         adjustments,
@@ -48,10 +49,12 @@ pub fn is_enabled(adjustments: &Value) -> bool {
     )
 }
 
+#[must_use]
 pub fn effective_is_raw(is_raw: bool, adjustments: &Value) -> bool {
     is_raw && !is_enabled(adjustments)
 }
 
+#[must_use]
 pub fn apply_negative_conversion<'a>(
     image: Cow<'a, DynamicImage>,
     adjustments: &Value,
@@ -136,12 +139,9 @@ fn channel_bounds(image: &DynamicImage) -> [ChannelBounds; 3] {
         downscale_f32_image_if_needed(image, BOUNDS_REFERENCE_DIM, BOUNDS_REFERENCE_DIM);
     let reference = downscaled.as_ref().unwrap_or(image);
     let converted;
-    let rgb = match reference.as_rgb32f() {
-        Some(buf) => buf,
-        None => {
-            converted = reference.to_rgb32f();
-            &converted
-        }
+    let rgb = if let Some(buf) = reference.as_rgb32f() { buf } else {
+        converted = reference.to_rgb32f();
+        &converted
     };
     let (width, height) = rgb.dimensions();
     let log_pixels: Vec<f32> = rgb.as_raw().par_iter().map(|&v| density(v)).collect();
