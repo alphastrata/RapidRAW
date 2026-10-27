@@ -222,12 +222,16 @@ impl WgpuDisplay {
 
 static GPU_DEVICE_LOST: AtomicBool = AtomicBool::new(false);
 
+pub struct DisplaySetup {
+    pub inner_size: (u32, u32),
+    pub create_surface:
+        Box<dyn FnOnce(&wgpu::Instance) -> Result<wgpu::Surface<'static>, String> + Send>,
+}
+
 pub fn get_or_init_gpu_context(
     state: &AppState,
     host: &dyn crate::host::Host,
 ) -> Result<GpuContext, String> {
-    #[cfg(any(target_os = "android", target_os = "linux"))]
-    let _ = host;
 
     let mut context_lock = match state.gpu_context.lock() {
         Ok(guard) => guard,
@@ -271,11 +275,10 @@ pub fn get_or_init_gpu_context(
 
     let instance = wgpu::Instance::new(instance_desc);
 
-    #[cfg(not(any(target_os = "android", target_os = "linux")))]
-    let surface_opt = host.create_display_surface(&instance);
-
-    #[cfg(any(target_os = "android", target_os = "linux"))]
-    let surface_opt: Option<wgpu::Surface> = None;
+    let (surface_opt, inner_size) = match host.display_setup() {
+        Some(setup) => ((setup.create_surface)(&instance).ok(), Some(setup.inner_size)),
+        None => (None, None),
+    };
 
     let adapter = pollster::block_on(instance.request_adapter(&wgpu::RequestAdapterOptions {
         power_preference: wgpu::PowerPreference::HighPerformance,
@@ -338,7 +341,6 @@ pub fn get_or_init_gpu_context(
         let _ = std::fs::remove_file(p);
     }
 
-    #[cfg(not(any(target_os = "android", target_os = "linux")))]
     let display_opt = if let Some(surface) = surface_opt {
         let swapchain_caps = surface.get_capabilities(&adapter);
         let swapchain_format = swapchain_caps
@@ -368,7 +370,7 @@ pub fn get_or_init_gpu_context(
             swapchain_caps.alpha_modes[0]
         };
 
-        let (width_px, height_px) = host.window_size();
+        let (width_px, height_px) = inner_size.unwrap_or((1280, 720));
         let config = wgpu::SurfaceConfiguration {
             width: width_px.max(1),
             height: height_px.max(1),
@@ -378,6 +380,7 @@ pub fn get_or_init_gpu_context(
             alpha_mode,
             view_formats: vec![],
             desired_maximum_frame_latency: 2,
+            color_space: wgpu::SurfaceColorSpace::Auto,
         };
         surface.configure(&device, &config);
 

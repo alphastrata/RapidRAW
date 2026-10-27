@@ -15,8 +15,7 @@ pub trait Host: Send + Sync {
     fn emit_str(&self, event: &str, payload: &str);
     fn load_settings(&self) -> AppSettings;
     fn app_data_dir(&self) -> PathBuf;
-    fn create_display_surface(&self, instance: &wgpu::Instance) -> Option<wgpu::Surface<'static>>;
-    fn window_size(&self) -> (u32, u32);
+    fn display_setup(&self) -> Option<crate::gpu_processing::DisplaySetup>;
     fn resource_dir(&self) -> PathBuf;
     fn models_dir(&self) -> PathBuf;
     fn app_state(&self) -> Arc<AppState>;
@@ -43,11 +42,8 @@ impl Host for SilentHost {
     fn app_data_dir(&self) -> PathBuf {
         std::env::temp_dir().join("rapidraw")
     }
-    fn create_display_surface(&self, _: &wgpu::Instance) -> Option<wgpu::Surface<'static>> {
+    fn display_setup(&self) -> Option<crate::gpu_processing::DisplaySetup> {
         None
-    }
-    fn window_size(&self) -> (u32, u32) {
-        (1280, 720)
     }
     fn resource_dir(&self) -> PathBuf {
         std::env::current_dir().unwrap_or_default()

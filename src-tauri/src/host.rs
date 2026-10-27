@@ -45,25 +45,26 @@ impl Host for TauriHost {
             .unwrap_or_else(|_| std::env::current_dir().unwrap_or_default())
     }
 
-    fn create_display_surface(&self, instance: &wgpu::Instance) -> Option<wgpu::Surface<'static>> {
+    #[cfg(any(target_os = "android", target_os = "linux"))]
+    fn display_setup(&self) -> Option<engine::gpu_processing::DisplaySetup> {
+        None
+    }
+
+    #[cfg(not(any(target_os = "android", target_os = "linux")))]
+    fn display_setup(&self) -> Option<engine::gpu_processing::DisplaySetup> {
         if !self.load_settings().use_wgpu_renderer.unwrap_or(true) {
             return None;
         }
         let window = self.app_handle.get_webview_window("main")?;
-        match instance.create_surface(window) {
-            Ok(surface) => Some(surface),
-            Err(e) => {
-                log::warn!("Failed to create surface, falling back to compute-only: {}", e);
-                None
-            }
-        }
-    }
-
-    fn window_size(&self) -> (u32, u32) {
-        self.app_handle
-            .get_webview_window("main")
-            .and_then(|w| w.inner_size().ok())
-            .map_or((1280, 720), |s| (s.width, s.height))
+        let inner_size = window
+            .inner_size()
+            .map_or((1280, 720), |s| (s.width, s.height));
+        Some(engine::gpu_processing::DisplaySetup {
+            inner_size,
+            create_surface: Box::new(move |instance| {
+                instance.create_surface(window).map_err(|e| e.to_string())
+            }),
+        })
     }
 
     fn models_dir(&self) -> PathBuf {
