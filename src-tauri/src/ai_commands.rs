@@ -939,7 +939,7 @@ pub async fn generate_effect_map(
         }
     };
 
-    crate::effect_maps::store_source_map(kind, source_id, &map)
+    crate::effect_maps::store_source_map(kind, source_id, &map).map_err(|e| e.to_string())
 }
 
 async fn generate_loaded_effect_map(
