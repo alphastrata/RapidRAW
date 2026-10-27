@@ -33,7 +33,8 @@ fn dot(a: [f64; 3], b: [f64; 3]) -> f64 {
 fn detect_segments(gray: &GrayImage) -> Vec<LineSegment> {
     let (width, height) = gray.dimensions();
     let min_length = width.max(height) as f64 * MIN_SEGMENT_LENGTH_FRACTION;
-    lsdetect::detect(gray.as_raw(), width as usize, height as usize, LSD_SCALE)
+    let (w, h) = (width as usize, height as usize);
+    lsdetect::detect(gray.as_raw(), w, h, LSD_SCALE)
         .unwrap_or_default()
         .into_iter()
         .filter_map(|segment| {
@@ -305,7 +306,7 @@ fn crop_for_rotation(
     };
     let (mut low, mut high) = (0.1, 1.0);
     let mut best = followed;
-    for _ in 0..12 {
+    (0..12).for_each(|_| {
         let mid = (low + high) / 2.0;
         let candidate = scaled(mid);
         if crop_within_bounds(&candidate, width, height, rotation) {
@@ -314,7 +315,7 @@ fn crop_for_rotation(
         } else {
             high = mid;
         }
-    }
+    });
     if low < 0.15 {
         return centered_crop(width, height, aspect_ratio, rotation);
     }
