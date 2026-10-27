@@ -518,8 +518,10 @@ fn render_stroke_layer_parallel(
 
                 let mut min_dist_sq = radius_sq + 1.0;
 
-                active_segments.iter().for_each(|seg| {
-                    if x_i32 >= seg.bounds_left && x_i32 <= seg.bounds_right {
+                active_segments
+                    .iter()
+                    .filter(|seg| x_i32 >= seg.bounds_left && x_i32 <= seg.bounds_right)
+                    .for_each(|seg| {
                         let dist_sq = if seg.len_sq < 0.0001 {
                             (px - seg.x1) * (px - seg.x1) + (py - seg.y1) * (py - seg.y1)
                         } else {
@@ -533,8 +535,7 @@ fn render_stroke_layer_parallel(
                         if dist_sq < min_dist_sq {
                             min_dist_sq = dist_sq;
                         }
-                    }
-                });
+                    });
 
                 if is_point_active {
                     if let Some(pt) = single_point.as_ref() {
@@ -1387,10 +1388,16 @@ pub fn generate_mask_bitmap(
 
     let mut final_mask = GrayImage::new(width, height);
 
-    mask_def.sub_masks.iter().for_each(|sub_mask| {
-        if let Some(mut sub_bitmap) =
-            generate_sub_mask_bitmap(sub_mask, width, height, scale, crop_offset, warped_image)
-        {
+    mask_def
+        .sub_masks
+        .iter()
+        .filter_map(|sub_mask| {
+            Some((
+                sub_mask,
+                generate_sub_mask_bitmap(sub_mask, width, height, scale, crop_offset, warped_image)?,
+            ))
+        })
+        .for_each(|(sub_mask, mut sub_bitmap)| {
             let invert = sub_mask.invert;
             let opacity_multiplier = (sub_mask.opacity / 100.0).clamp(0.0, 1.0);
             let mode = sub_mask.mode;
@@ -1411,8 +1418,7 @@ pub fn generate_mask_bitmap(
                         SubMaskMode::Intersect => (*pixel).min(*sub_pixel),
                     };
                 });
-        }
-    });
+        });
 
     let invert = mask_def.invert;
     let opacity_multiplier = (mask_def.opacity / 100.0).clamp(0.0, 1.0);
