@@ -67,13 +67,13 @@
       "whiteBalance": "White Balance"
     },
     "curves": {
-      "channelTitle": "{{channel}} Channel",
       "channels": {
         "blue": "Blue",
         "green": "Green",
         "luma": "Luma",
         "red": "Red"
       },
+      "channelTitle": "{{channel}} Channel",
       "copyParametric": "Copy {{channel}} Parametric Curve",
       "copyPoint": "Copy {{channel}} Point Curve",
       "curveDataUnavailable": "Curve data not available.",
@@ -97,12 +97,12 @@
     },
     "details": {
       "aiDenoise": "AI Denoise",
-      "classicDenoise": "Classic Denoise",
       "aiDenoiseDetail": "Detail",
       "blueYellow": "Blue/Yellow",
       "centre": "Centré",
       "chromaticAberration": "Chromatic Aberration",
       "clarity": "Clarity",
+      "classicDenoise": "Classic Denoise",
       "color": "Color",
       "convertNegative": "Convert Negative",
       "dehaze": "Dehaze",
@@ -157,8 +157,8 @@
       "relightIntensity": "Intensity",
       "relightLight": "Light {{index}}",
       "relightRemoveLight": "Remove Light",
-      "relightShadowSoftness": "Shadow Softness",
       "relightShadows": "Shadows",
+      "relightShadowSoftness": "Shadow Softness",
       "relightShine": "Shine",
       "relightSoftness": "Softness",
       "relightType": "Light Type",
@@ -385,12 +385,14 @@
         "duplicateAndInvertEdit": "Duplicate and Invert Edit",
         "duplicateComponent": "Duplicate Component",
         "duplicateEdit": "Duplicate Edit",
+        "hideComponent": "",
         "hideEdit": "Hide Edit",
         "intersectEditWith": "Intersect Edit with",
         "pasteComponent": "Paste Component",
         "pasteEdit": "Paste Edit",
         "rename": "Rename",
         "resetSelection": "Reset Selection",
+        "showComponent": "",
         "showEdit": "Show Edit",
         "subtractFromEdit": "Subtract from Edit",
         "switchToAdd": "Switch to Add",
@@ -465,7 +467,9 @@
         "quickErase": "Quick Erase {{count}}",
         "quickErase_one": "Quick Erase {{count}}",
         "quickErase_other": "Quick Erase {{count}}",
-        "retouch": "Retouch {{count}}"
+        "retouch": "Retouch {{count}}",
+        "retouch_one": "",
+        "retouch_other": ""
       },
       "resetInpaintingTooltip": "Reset Inpainting",
       "settings": {
@@ -505,8 +509,8 @@
         "hPlaceholder": "H",
         "hTooltip": "Height",
         "removeTooltip": "Remove saved aspect ratio",
-        "saveTooltip": "Save aspect ratio as preset",
         "savedTooltip": "Saved aspect ratio {{ratio}}",
+        "saveTooltip": "Save aspect ratio as preset",
         "wPlaceholder": "W",
         "wTooltip": "Width"
       },
@@ -706,8 +710,8 @@
         "copySectionSettings": "Copy {{section}} Settings",
         "faceParts": {
           "bodySkin": "Body Skin",
-          "eyeWhites": "Eye Whites",
           "eyebrows": "Eyebrows",
+          "eyeWhites": "Eye Whites",
           "faceSkin": "Face Skin",
           "hair": "Hair",
           "iris": "Iris & Pupil",
@@ -779,8 +783,8 @@
       "organization": {
         "addTagPlaceholder": "Add tag...",
         "colorLabel": "Color Label",
-        "noTags": "No tags",
         "none": "None",
+        "noTags": "No tags",
         "rating": "Rating",
         "ratingLabels": "Rating & Labels",
         "tags": "Tags",
@@ -960,12 +964,12 @@
       "estimatedSize": "Estimated file size: ~{{size}}",
       "estimatedTotalSize": "Estimated total size: ~{{size}}",
       "estimatingSize": "Estimating size...",
+      "exporting": "Exporting…",
+      "exportingProgress": "Exporting… ({{current}}/{{total}})",
       "exportMultiple": "Export {{count}} {{label}}",
       "exportMultiple_one": "Export {{count}} {{label}}",
       "exportMultiple_other": "Export {{count}} {{label}}",
       "exportSingle": "Export {{label}}",
-      "exporting": "Exporting…",
-      "exportingProgress": "Exporting… ({{current}}/{{total}})",
       "failed": "Export failed",
       "noImageSelected": "No image selected for export.",
       "noImagesSelected": "No images selected.",
@@ -1108,8 +1112,8 @@
       "iso": "ISO",
       "metadata": "Metadata",
       "noMetadataAvailable": "No metadata available",
-      "noTagsAdded": "No tags added",
       "none": "None",
+      "noTagsAdded": "No tags added",
       "rateAndLabel": "Rate & Label",
       "rating": "Rating",
       "selectImagesToCompare": "Select images to compare",
@@ -1120,9 +1124,9 @@
       "vc": "VC"
     },
     "filterExit": {
-      "hiddenSingle": "{{name}} no longer matches the filter",
       "hiddenMultiple_one": "{{count}} images no longer match the filter",
       "hiddenMultiple_other": "{{count}} images no longer match the filter",
+      "hiddenSingle": "{{name}} no longer matches the filter",
       "undo": "Undo"
     },
     "filters": {
@@ -1225,11 +1229,6 @@
         "filterByFileType": "Filter by File Type",
         "filterByFlag": "Filter by Flag",
         "filterByRating": "Filter by Rating",
-        "ratingOperator": {
-          "eq": "Exactly this rating",
-          "gte": "This rating or higher",
-          "lte": "This rating or lower"
-        },
         "groupEditedFiles": "Include edited files in groups",
         "groupIgnoreMetadata": "Ignore mismatched EXIF dates",
         "groupOff": "Off",
@@ -1240,6 +1239,11 @@
         "metadataHover": "On Hover",
         "metadataOff": "Off",
         "noLabel": "No Label",
+        "ratingOperator": {
+          "eq": "Exactly this rating",
+          "gte": "This rating or higher",
+          "lte": "This rating or lower"
+        },
         "recursive": "Recursive",
         "showMetadata": "Show Metadata",
         "sortAscending": "Sort Ascending",
@@ -1252,12 +1256,12 @@
     },
     "items": {
       "cloudPlaceholder": "Stored in iCloud — not downloaded",
-      "immichPlaceholder": "Stored in Immich — not downloaded",
       "collapseFolder": "Collapse Folder",
       "currentFolder": "Current Folder",
       "expandFolder": "Expand Folder",
       "imagesCount_one": "1 image",
       "imagesCount_other": "{{count}} images",
+      "immichPlaceholder": "Stored in Immich — not downloaded",
       "rejected": "Rejected",
       "tooltipAperture": "Aperture",
       "tooltipFocalLength": "Focal Length",
@@ -1356,6 +1360,11 @@
       "goHome": "Go to Home",
       "importImages": "Import Images",
       "select": "Select"
+    },
+    "viewMode": {
+      "culling": "Culling View",
+      "grid": "Grid View",
+      "list": "List View"
     }
   },
   "masks": {
@@ -1489,9 +1498,9 @@
       "applyButton_one": "Apply to 1 image",
       "applyButton_other": "Apply to {{count}} images",
       "bestImage": "Best Image",
+      "blurryImagesTab": "Blurry Images",
       "blurThreshold": "Blur Threshold",
       "blurThresholdDesc": "Images with a sharpness score below this value are flagged. Higher is stricter.",
-      "blurryImagesTab": "Blurry Images",
       "cancel": "Cancel",
       "close": "Close",
       "cullingFailed": "Culling Failed",
@@ -1880,16 +1889,23 @@
     },
     "processing": {
       "advanced": {
-        "heading": "Advanced",
-        "headingDesc": "Performance tuning for thumbnails, caching and exports. The defaults work well for most users.",
-        "title": "Advanced Settings",
         "auto": "Auto",
+        "exportMemoryLimit": "Export Memory Limit",
+        "exportMemoryLimitDesc": "Share of free RAM that batch exports may use. Lower it to keep other apps responsive during large exports.",
         "exportThreads": "Parallel Exports",
         "exportThreadsDesc": "Number of images exported at the same time. Auto picks a value based on your CPU. Lower it if large exports fail or your GPU has little memory.",
-        "exportMemoryLimit": "Export Memory Limit",
-        "exportMemoryLimitDesc": "Share of free RAM that batch exports may use. Lower it to keep other apps responsive during large exports."
+        "heading": "Advanced",
+        "headingDesc": "Performance tuning for thumbnails, caching and exports. The defaults work well for most users.",
+        "title": "Advanced Settings"
       },
       "ai": {
+        "aiFree": {
+          "description": "Turn off every AI feature. All AI-related controls are hidden from the interface so RapidRAW works as a purely traditional RAW editor.",
+          "feature1": "No AI masks, lens blur or generative edits in the UI",
+          "feature2": "Existing AI edits still render normally",
+          "feature3": "A cleaner, more focused interface",
+          "title": "AI-Free"
+        },
         "connector": {
           "address": "AI Connector Address",
           "addressDesc": "Enter the address and port of your running AI Connector instance. Required for generative AI features.",
@@ -1912,13 +1928,6 @@
           "gpuAccelerationDesc": "Run built-in AI features like denoise, masks, depth and normal maps and tagging on your graphics card for much faster results. Disable this if you experience crashes or incorrect AI results.",
           "gpuAccelerationLabel": "Use GPU for AI models",
           "title": "Built-in AI"
-        },
-        "aiFree": {
-          "description": "Turn off every AI feature. All AI-related controls are hidden from the interface so RapidRAW works as a purely traditional RAW editor.",
-          "feature1": "No AI masks, lens blur or generative edits in the UI",
-          "feature2": "Existing AI edits still render normally",
-          "feature3": "A cleaner, more focused interface",
-          "title": "AI-Free"
         },
         "description": "RapidRAW's AI is built for flexibility. Choose your ideal workflow, from fast local tools to powerful self-hosting.",
         "providers": {
@@ -2035,8 +2044,8 @@
     "tagging": {
       "addCustomPlaceholder": "Add custom AI tags (comma separated)...",
       "addCustomTooltip": "Add AI tag",
-      "addShortcutTooltip": "Add Shortcut",
       "addShortcutsPlaceholder": "Add shortcuts (comma separated)...",
+      "addShortcutTooltip": "Add Shortcut",
       "aiTagging": "AI Tagging",
       "aiTaggingDesc": "Enables automatic image tagging using an AI (CLIP) model. This will download an additional model and impact performance while browsing folders. Tags are used for searching a folder.",
       "amount": "Amount",

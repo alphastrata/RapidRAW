@@ -1,9 +1,4 @@
-<<<<<<< HEAD
-import { Mask, SubMaskMode, formatMaskTypeName } from '../components/panel/right/Masks';
-=======
-import { v4 as uuidv4 } from 'uuid';
 import { Mask, SubMask, SubMaskMode, formatMaskTypeName } from '../components/panel/right/Masks';
->>>>>>> d30a65a8
 import { ImageDimensions } from '../hooks/useImageRenderSize';
 import { MaskContainer } from './adjustments';
 
@@ -36,10 +31,7 @@ export const stripAiMaskResults = (masks: Array<MaskContainer>): Array<MaskConta
     }),
   }));
 
-export const mergeAiMaskResults = (
-  masks: Array<MaskContainer>,
-  source: Array<MaskContainer>,
-): Array<MaskContainer> => {
+export const mergeAiMaskResults = (masks: Array<MaskContainer>, source: Array<MaskContainer>): Array<MaskContainer> => {
   const results = new Map(
     source
       .flatMap((container) => container.subMasks)

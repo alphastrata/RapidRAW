@@ -67,13 +67,13 @@
       "whiteBalance": "白平衡"
     },
     "curves": {
-      "channelTitle": "{{channel}} 通道",
       "channels": {
         "blue": "蓝色",
         "green": "绿色",
         "luma": "亮度",
         "red": "红色"
       },
+      "channelTitle": "{{channel}} 通道",
       "copyParametric": "复制 {{channel}} 参数曲线",
       "copyPoint": "复制 {{channel}} 点曲线",
       "curveDataUnavailable": "曲线数据不可用。",
@@ -97,12 +97,12 @@
     },
     "details": {
       "aiDenoise": "AI 降噪",
-      "classicDenoise": "经典降噪",
       "aiDenoiseDetail": "细节",
       "blueYellow": "蓝/黄",
       "centre": "居中",
       "chromaticAberration": "色差",
       "clarity": "清晰度",
+      "classicDenoise": "经典降噪",
       "color": "颜色",
       "convertNegative": "转换负片",
       "dehaze": "去雾",
@@ -385,12 +385,14 @@
         "duplicateAndInvertEdit": "复制并反转编辑",
         "duplicateComponent": "复制组件",
         "duplicateEdit": "复制编辑",
+        "hideComponent": "",
         "hideEdit": "隐藏编辑",
         "intersectEditWith": "与编辑相交",
         "pasteComponent": "粘贴组件",
         "pasteEdit": "粘贴编辑",
         "rename": "重命名",
         "resetSelection": "重置选区",
+        "showComponent": "",
         "showEdit": "显示编辑",
         "subtractFromEdit": "从编辑中减去",
         "switchToAdd": "切换到添加",
@@ -463,7 +465,8 @@
         "quickErase": "快速擦除 {{count}}",
         "quickErase_one": "快速擦除 {{count}}",
         "quickErase_other": "快速擦除 {{count}}",
-        "retouch": "修饰 {{count}}"
+        "retouch": "修饰 {{count}}",
+        "retouch_other": ""
       },
       "resetInpaintingTooltip": "重置图像修复",
       "settings": {
@@ -503,8 +506,8 @@
         "hPlaceholder": "高",
         "hTooltip": "高度",
         "removeTooltip": "删除已保存的宽高比",
-        "saveTooltip": "将宽高比保存为预设",
         "savedTooltip": "已保存的宽高比 {{ratio}}",
+        "saveTooltip": "将宽高比保存为预设",
         "wPlaceholder": "宽",
         "wTooltip": "宽度"
       },
@@ -704,8 +707,8 @@
         "copySectionSettings": "复制 {{section}} 设置",
         "faceParts": {
           "bodySkin": "身体皮肤",
-          "eyeWhites": "眼白",
           "eyebrows": "眉毛",
+          "eyeWhites": "眼白",
           "faceSkin": "面部皮肤",
           "hair": "头发",
           "iris": "虹膜和瞳孔",
@@ -777,8 +780,8 @@
       "organization": {
         "addTagPlaceholder": "添加标签...",
         "colorLabel": "颜色标签",
-        "noTags": "无标签",
         "none": "无",
+        "noTags": "无标签",
         "rating": "评分",
         "ratingLabels": "评分与标签",
         "tags": "标签",
@@ -958,12 +961,12 @@
       "estimatedSize": "预计文件大小：约 {{size}}",
       "estimatedTotalSize": "预计总大小：约 {{size}}",
       "estimatingSize": "正在估算大小...",
+      "exporting": "导出中…",
+      "exportingProgress": "导出中…（{{current}}/{{total}}）",
       "exportMultiple": "导出 {{count}} {{label}}",
       "exportMultiple_one": "导出 {{count}} {{label}}",
       "exportMultiple_other": "导出 {{count}} {{label}}",
       "exportSingle": "导出 {{label}}",
-      "exporting": "导出中…",
-      "exportingProgress": "导出中…（{{current}}/{{total}}）",
       "failed": "导出失败",
       "noImageSelected": "未选择要导出的图像。",
       "noImagesSelected": "未选择图像。",
@@ -1105,8 +1108,8 @@
       "iso": "ISO",
       "metadata": "元数据",
       "noMetadataAvailable": "无可用元数据",
-      "noTagsAdded": "未添加标签",
       "none": "无",
+      "noTagsAdded": "未添加标签",
       "rateAndLabel": "评分与标签",
       "rating": "评分",
       "selectImagesToCompare": "选择要比较的图像",
@@ -1117,8 +1120,8 @@
       "vc": "VC"
     },
     "filterExit": {
-      "hiddenSingle": "{{name}} 已不再符合筛选条件",
       "hiddenMultiple_other": "{{count}} 张图像已不再符合筛选条件",
+      "hiddenSingle": "{{name}} 已不再符合筛选条件",
       "undo": "撤销"
     },
     "filters": {
@@ -1221,11 +1224,6 @@
         "filterByFileType": "按文件类型过滤",
         "filterByFlag": "按标记过滤",
         "filterByRating": "按评分过滤",
-        "ratingOperator": {
-          "eq": "仅此评分",
-          "gte": "此评分及以上",
-          "lte": "此评分及以下"
-        },
         "groupEditedFiles": "Include edited files in groups",
         "groupIgnoreMetadata": "Ignore mismatched EXIF dates",
         "groupOff": "Off",
@@ -1236,6 +1234,11 @@
         "metadataHover": "悬停时",
         "metadataOff": "关闭",
         "noLabel": "无标签",
+        "ratingOperator": {
+          "eq": "仅此评分",
+          "gte": "此评分及以上",
+          "lte": "此评分及以下"
+        },
         "recursive": "递归",
         "showMetadata": "显示元数据",
         "sortAscending": "升序排列",
@@ -1248,12 +1251,12 @@
     },
     "items": {
       "cloudPlaceholder": "存储在 iCloud 中 — 未下载",
-      "immichPlaceholder": "存储在 Immich 中 — 未下载",
       "collapseFolder": "折叠文件夹",
       "currentFolder": "当前文件夹",
       "expandFolder": "展开文件夹",
       "imagesCount_one": "1 张图像",
       "imagesCount_other": "{{count}} 张图像",
+      "immichPlaceholder": "存储在 Immich 中 — 未下载",
       "rejected": "已拒绝",
       "tooltipAperture": "光圈",
       "tooltipFocalLength": "焦距",
@@ -1351,6 +1354,11 @@
       "goHome": "返回首页",
       "importImages": "导入图像",
       "select": "选择"
+    },
+    "viewMode": {
+      "culling": "",
+      "grid": "",
+      "list": ""
     }
   },
   "masks": {
@@ -1484,9 +1492,9 @@
       "applyButton_one": "应用到 1 张图像",
       "applyButton_other": "应用到 {{count}} 张图像",
       "bestImage": "最佳图像",
+      "blurryImagesTab": "模糊图像",
       "blurThreshold": "模糊阈值",
       "blurThresholdDesc": "锐度评分低于此值的图像将被标记。值越高越严格。",
-      "blurryImagesTab": "模糊图像",
       "cancel": "取消",
       "close": "关闭",
       "cullingFailed": "筛选失败",
@@ -1875,16 +1883,23 @@
     },
     "processing": {
       "advanced": {
-        "heading": "高级",
-        "headingDesc": "缩略图、缓存和导出的性能调整。默认值适合大多数用户。",
-        "title": "高级设置",
         "auto": "自动",
+        "exportMemoryLimit": "导出内存上限",
+        "exportMemoryLimitDesc": "批量导出可使用的空闲内存比例。调低可在大型导出期间保持其他应用流畅。",
         "exportThreads": "并行导出",
         "exportThreadsDesc": "同时导出的图像数量。“自动”会根据你的 CPU 选择合适的值。如果大型导出失败或显卡显存较小，请调低。",
-        "exportMemoryLimit": "导出内存上限",
-        "exportMemoryLimitDesc": "批量导出可使用的空闲内存比例。调低可在大型导出期间保持其他应用流畅。"
+        "heading": "高级",
+        "headingDesc": "缩略图、缓存和导出的性能调整。默认值适合大多数用户。",
+        "title": "高级设置"
       },
       "ai": {
+        "aiFree": {
+          "description": "关闭所有 AI 功能。所有与 AI 相关的控件都会从界面中隐藏，RapidRAW 将作为纯传统的 RAW 编辑器运行。",
+          "feature1": "界面中不显示 AI 蒙版、镜头模糊或生成式编辑",
+          "feature2": "现有的 AI 编辑仍会正常渲染",
+          "feature3": "更简洁、更专注的界面",
+          "title": "无 AI"
+        },
         "connector": {
           "address": "AI 连接器地址",
           "addressDesc": "输入您正在运行的 AI 连接器实例的地址和端口。这是使用生成式 AI 功能所必需的。",
@@ -1907,13 +1922,6 @@
           "gpuAccelerationDesc": "在显卡上运行降噪、蒙版、深度图和法线图以及标签等内置 AI 功能，大幅提升速度。如果遇到崩溃或 AI 结果不正确，请关闭此选项。",
           "gpuAccelerationLabel": "为 AI 模型使用 GPU",
           "title": "内置 AI"
-        },
-        "aiFree": {
-          "description": "关闭所有 AI 功能。所有与 AI 相关的控件都会从界面中隐藏，RapidRAW 将作为纯传统的 RAW 编辑器运行。",
-          "feature1": "界面中不显示 AI 蒙版、镜头模糊或生成式编辑",
-          "feature2": "现有的 AI 编辑仍会正常渲染",
-          "feature3": "更简洁、更专注的界面",
-          "title": "无 AI"
         },
         "description": "RapidRAW 的 AI 专为灵活性而设计。选择您理想的工作流程，从快速的本地工具到强大的自托管。",
         "providers": {
@@ -2030,8 +2038,8 @@
     "tagging": {
       "addCustomPlaceholder": "添加自定义 AI 标签（逗号分隔）...",
       "addCustomTooltip": "添加 AI 标签",
-      "addShortcutTooltip": "添加快捷方式",
       "addShortcutsPlaceholder": "添加快捷方式（逗号分隔）...",
+      "addShortcutTooltip": "添加快捷方式",
       "aiTagging": "AI 标签",
       "aiTaggingDesc": "使用 AI（CLIP）模型启用自动图像标签。这将下载额外的模型，并在浏览文件夹时影响性能。标签用于搜索文件夹。",
       "amount": "数量",

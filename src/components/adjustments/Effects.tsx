@@ -3,7 +3,6 @@ import { useTranslation } from 'react-i18next';
 import { invoke } from '@tauri-apps/api/core';
 import { toast } from 'react-toastify';
 import { Loader2, Circle, Hexagon, Octagon, Aperture, Plus, X, CopyPlus, Trash2 } from 'lucide-react';
-import { v4 as uuidv4 } from 'uuid';
 import { motion } from 'framer-motion';
 import clsx from 'clsx';
 import Slider, { SliderChangeEvent } from '../ui/Slider';
@@ -355,7 +354,7 @@ function EffectsPanel({
   const handleDuplicateLight = (id: string) => {
     const source = relightLights.find((light) => light.id === id);
     if (!source) return;
-    const light = { ...source, id: uuidv4() };
+    const light = { ...source, id: crypto.randomUUID() };
     setAdjustments((prev: Partial<Adjustments>) => {
       const lights = prev.relightLights || [];
       const index = lights.findIndex((l: RelightLight) => l.id === id);

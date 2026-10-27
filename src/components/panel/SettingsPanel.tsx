@@ -47,14 +47,9 @@ import {
 import Text from '../ui/Text';
 import { TextColors, TextVariants, TextWeights } from '../../types/typography';
 import { useOsPlatform } from '../../hooks/useOsPlatform';
-<<<<<<< HEAD
-import { RotateCcw } from 'lucide-react';
-import { useUIStore } from '../../store/useUIStore';
-=======
 import { open } from '@tauri-apps/plugin-shell';
 import ImmichSettings from '../immich/ImmichSettings';
 import DataManagementSettings from './settings/DataManagementSettings';
->>>>>>> d30a65a8
 
 interface ConfirmModalState {
   confirmText: string;
@@ -606,169 +601,11 @@ export default function SettingsPanel({
 
   const effectiveRootPaths = rootPaths?.length > 0 ? rootPaths : appSettings?.rootFolders || [];
 
-<<<<<<< HEAD
-  const executeClearSidecars = async () => {
-    setIsClearing(true);
-    setClearMessage(t('settings.data.statuses.deleting'));
-    try {
-      let totalCount = 0;
-      for (const root of effectiveRootPaths) {
-        const count: number = await invoke(Invokes.ClearAllSidecars, { rootPath: root });
-        totalCount += count;
-      }
-      setClearMessage(t('settings.data.statuses.sidecarSuccess', { count: totalCount }));
-      onLibraryRefresh();
-    } catch (err: any) {
-      console.error('Failed to clear sidecars:', err);
-      setClearMessage(`Error: ${err}`);
-    } finally {
-      setTimeout(() => {
-        setIsClearing(false);
-        setClearMessage('');
-      }, EXECUTE_TIMEOUT);
-    }
-  };
-
-  const executeResetLayout = async () => {
-    setIsResettingLayout(true);
-    setLayoutResetMessage(t('settings.data.statuses.resettingLayout'));
-    try {
-      const resetWorkspaceLayout = useUIStore.getState().resetWorkspaceLayout;
-      const defaultWorkspace = resetWorkspaceLayout(false);
-
-      await onSettingsChange({
-        ...appSettings,
-        workspace: defaultWorkspace,
-      });
-
-      setLayoutResetMessage(t('settings.data.statuses.layoutResetSuccess'));
-    } catch (err: any) {
-      console.error('Failed to reset workspace layout:', err);
-      setLayoutResetMessage(`Error: ${err}`);
-    } finally {
-      setTimeout(() => {
-        setIsResettingLayout(false);
-        setLayoutResetMessage('');
-      }, EXECUTE_TIMEOUT);
-    }
-  };
-
-  const openDestructiveConfirm = (title: string, message: string, confirmText: string, onConfirm: () => void) => {
-    setConfirmModalState({ confirmText, confirmVariant: 'destructive', isOpen: true, message, onConfirm, title });
-  };
-
-  const handleResetLayout = () =>
-    openDestructiveConfirm(
-      t('settings.data.modals.confirmResetLayoutTitle'),
-      t('settings.data.modals.resetLayoutMessage'),
-      t('settings.data.modals.confirmResetLayout'),
-      executeResetLayout,
-    );
-
-  const handleClearSidecars = () =>
-    openDestructiveConfirm(
-      t('settings.data.modals.confirmTitle'),
-      t('settings.data.modals.sidecarMessage'),
-      t('settings.data.modals.confirmDeleteAllEdits'),
-      executeClearSidecars,
-    );
-
-  const executeClearAiTags = async () => {
-    setIsClearingAiTags(true);
-    setAiTagsClearMessage(t('settings.data.statuses.clearingAi'));
-    try {
-      let totalCount = 0;
-      for (const root of effectiveRootPaths) {
-        const count: number = await invoke(Invokes.ClearAiTags, { rootPath: root });
-        totalCount += count;
-      }
-      setAiTagsClearMessage(t('settings.data.statuses.aiSuccess', { count: totalCount }));
-      onLibraryRefresh();
-    } catch (err: any) {
-      console.error('Failed to clear AI tags:', err);
-      setAiTagsClearMessage(`Error: ${err}`);
-    } finally {
-      setTimeout(() => {
-        setIsClearingAiTags(false);
-        setAiTagsClearMessage('');
-      }, EXECUTE_TIMEOUT);
-    }
-  };
-
-  const handleClearAiTags = () =>
-    openDestructiveConfirm(
-      t('settings.data.modals.confirmAiTitle'),
-      t('settings.data.modals.aiMessage'),
-      t('settings.data.modals.confirmClearAi'),
-      executeClearAiTags,
-    );
-
-  const executeClearTags = async () => {
-    setIsClearingTags(true);
-    setTagsClearMessage(t('settings.data.statuses.clearingAll'));
-    try {
-      let totalCount = 0;
-      for (const root of effectiveRootPaths) {
-        const count: number = await invoke(Invokes.ClearAllTags, { rootPath: root });
-        totalCount += count;
-      }
-      setTagsClearMessage(t('settings.data.statuses.allSuccess', { count: totalCount }));
-      onLibraryRefresh();
-    } catch (err: any) {
-      console.error('Failed to clear tags:', err);
-      setTagsClearMessage(`Error: ${err}`);
-    } finally {
-      setTimeout(() => {
-        setIsClearingTags(false);
-        setTagsClearMessage('');
-      }, EXECUTE_TIMEOUT);
-    }
-  };
-
-  const handleClearTags = () =>
-    openDestructiveConfirm(
-      t('settings.data.modals.confirmAllTitle'),
-      t('settings.data.modals.allMessage'),
-      t('settings.data.modals.confirmClearAll'),
-      executeClearTags,
-    );
-
-=======
->>>>>>> d30a65a8
   const shortcutTagVariants = {
     visible: { opacity: 1, scale: 1, transition: { type: 'spring', stiffness: 500, damping: 30 } },
     exit: { opacity: 0, scale: 0.8, transition: { duration: 0.15 } },
   };
 
-<<<<<<< HEAD
-  const executeClearCache = async () => {
-    setIsClearingCache(true);
-    setCacheClearMessage(t('settings.data.statuses.clearingCache'));
-    try {
-      await invoke(Invokes.ClearThumbnailCache);
-      setCacheClearMessage(t('settings.data.statuses.cacheSuccess'));
-      onLibraryRefresh();
-    } catch (err: any) {
-      console.error('Failed to clear thumbnail cache:', err);
-      setCacheClearMessage(`Error: ${err}`);
-    } finally {
-      setTimeout(() => {
-        setIsClearingCache(false);
-        setCacheClearMessage('');
-      }, EXECUTE_TIMEOUT);
-    }
-  };
-
-  const handleClearCache = () =>
-    openDestructiveConfirm(
-      t('settings.data.modals.confirmCacheTitle'),
-      t('settings.data.modals.cacheMessage'),
-      t('settings.data.modals.confirmClearCache'),
-      executeClearCache,
-    );
-
-=======
->>>>>>> d30a65a8
   const handleTestConnection = async () => {
     if (!aiConnectorAddress) {
       return;
