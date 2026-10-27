@@ -154,30 +154,30 @@ fn prune_thumbnails(dir: &Path, limit_bytes: u64) -> u64 {
 
     let mut entries: HashMap<String, ThumbnailEntry> = HashMap::new();
     let mut total = 0u64;
-    for file in read_dir.filter_map(std::result::Result::ok) {
-        let path = file.path();
-        let Some(stem) = path.file_stem().and_then(|s| s.to_str()) else {
-            continue;
-        };
-        let Ok(meta) = file.metadata() else { continue };
-        if !meta.is_file() {
-            continue;
-        }
-        let key = stem
-            .strip_suffix("_small")
-            .or_else(|| stem.strip_suffix("_medium"))
-            .unwrap_or(stem)
-            .to_string();
-        let entry = entries.entry(key).or_insert(ThumbnailEntry {
-            files: Vec::new(),
-            size: 0,
-            last_used: UNIX_EPOCH,
+    read_dir
+        .filter_map(std::result::Result::ok)
+        .filter_map(|file| {
+            let path = file.path();
+            let stem = path.file_stem().and_then(|s| s.to_str())?.to_string();
+            let meta = file.metadata().ok()?;
+            meta.is_file().then(|| (path, stem, meta))
+        })
+        .for_each(|(path, stem, meta)| {
+            let key = stem
+                .strip_suffix("_small")
+                .or_else(|| stem.strip_suffix("_medium"))
+                .unwrap_or(&stem)
+                .to_string();
+            let entry = entries.entry(key).or_insert(ThumbnailEntry {
+                files: Vec::new(),
+                size: 0,
+                last_used: UNIX_EPOCH,
+            });
+            entry.files.push(path);
+            entry.size += meta.len();
+            entry.last_used = entry.last_used.max(meta.modified().unwrap_or(UNIX_EPOCH));
+            total += meta.len();
         });
-        entry.files.push(path);
-        entry.size += meta.len();
-        entry.last_used = entry.last_used.max(meta.modified().unwrap_or(UNIX_EPOCH));
-        total += meta.len();
-    }
     if total <= limit_bytes {
         return total;
     }
@@ -185,15 +185,16 @@ fn prune_thumbnails(dir: &Path, limit_bytes: u64) -> u64 {
     let target = limit_bytes / 10 * 9;
     let mut entries: Vec<ThumbnailEntry> = entries.into_values().collect();
     entries.sort_by_key(|entry| entry.last_used);
-    for entry in entries {
-        if total <= target || entry.last_used >= THUMBNAIL_CACHE.session_start {
-            break;
-        }
-        for file in &entry.files {
-            best_effort(fs::remove_file(file));
-        }
-        total = total.saturating_sub(entry.size);
-    }
+    entries.into_iter().map_while(|entry| {
+        (total > target && entry.last_used < THUMBNAIL_CACHE.session_start).then(|| {
+            entry
+                .files
+                .iter()
+                .for_each(|file| best_effort(fs::remove_file(file)));
+            total = total.saturating_sub(entry.size);
+            entry.size
+        })
+    }).count();
     total
 }
 

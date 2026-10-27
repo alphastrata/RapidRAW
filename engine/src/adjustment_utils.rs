@@ -15,7 +15,7 @@ pub fn hydrate_sub_masks(
     sub_masks: &mut Vec<serde_json::Value>,
     cache: &mut HashMap<String, serde_json::Value>,
 ) {
-    for sub_mask in sub_masks {
+    sub_masks.iter_mut().for_each(|sub_mask| {
         let id = sub_mask
             .get("id")
             .and_then(|v| v.as_str())
@@ -23,7 +23,7 @@ pub fn hydrate_sub_masks(
             .to_string();
 
         if id.is_empty() {
-            continue;
+            return;
         }
 
         if let Some(params) = sub_mask
@@ -48,7 +48,7 @@ pub fn hydrate_sub_masks(
                 }
             }
         }
-    }
+    });
 }
 
 pub fn hydrate_adjustments(state: &AppState, adjustments: &mut serde_json::Value) {
@@ -84,14 +84,14 @@ pub fn hydrate_adjustments(state: &AppState, adjustments: &mut serde_json::Value
     }
 
     if let Some(masks) = adjustments.get_mut("masks").and_then(|v| v.as_array_mut()) {
-        for mask_container in masks {
+        masks.iter_mut().for_each(|mask_container| {
             if let Some(sub_masks) = mask_container
                 .get_mut("subMasks")
                 .and_then(|v| v.as_array_mut())
             {
                 hydrate_sub_masks(sub_masks, &mut cache);
             }
-        }
+        });
     }
 
     let effect_map_ids = adjustments
@@ -166,8 +166,18 @@ pub fn transformed_dimensions(
 
     let crop: Option<Crop> = serde_json::from_value(adjustments["crop"].clone()).ok();
     crop.and_then(|c| {
-        let (x, y) = (c.x.round() as u32, c.y.round() as u32);
-        let (crop_w, crop_h) = (c.width.round() as u32, c.height.round() as u32);
+        let s32 = |v: f64| {
+            let rounded = v.round();
+            if rounded <= 0.0 {
+                0
+            } else if rounded >= f64::from(u32::MAX) {
+                u32::MAX
+            } else {
+                rounded as u32
+            }
+        };
+        let (x, y) = (s32(c.x), s32(c.y));
+        let (crop_w, crop_h) = (s32(c.width), s32(c.height));
         (crop_w > 0 && crop_h > 0 && x < w && y < h)
             .then(|| ((w - x).min(crop_w), (h - y).min(crop_h)))
     })

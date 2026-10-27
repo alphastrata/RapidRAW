@@ -3,6 +3,7 @@ use crate::image_processing::{
     GeometryParams, get_geometry_params_from_json, is_geometry_identity, warp_image_geometry,
 };
 use base64::{Engine as _, engine::general_purpose::STANDARD as BASE64};
+use anyhow::anyhow;
 use image::{DynamicImage, GrayImage, Luma, Rgb, Rgb32FImage, Rgba, RgbaImage};
 use rayon::prelude::*;
 use crate::best_effort::best_effort;
@@ -87,14 +88,14 @@ pub fn store_source_map(
     kind: EffectMapKind,
     source_id: &str,
     map: &DynamicImage,
-) -> Result<String, String> {
+) -> anyhow::Result<String> {
     let file_name = map_file_name(kind, source_id);
-    let path = map_file_path(&file_name).ok_or("AI map cache directory is not initialized")?;
+    let path = map_file_path(&file_name)
+        .ok_or_else(|| anyhow!("AI map cache directory is not initialised"))?;
 
     let mut buf = std::io::Cursor::new(Vec::new());
-    map.write_to(&mut buf, image::ImageFormat::Png)
-        .map_err(|e| e.to_string())?;
-    crate::paths::write_file_atomic(&path, buf.get_ref()).map_err(|e| e.to_string())?;
+    map.write_to(&mut buf, image::ImageFormat::Png)?;
+    crate::paths::write_file_atomic(&path, buf.get_ref()).map_err(|e| anyhow!("{e}"))?;
     if let Some(dir) = path.parent() {
         evict_map_disk_cache(dir, Some(&path));
     }
@@ -140,17 +141,17 @@ fn evict_map_disk_cache(dir: &Path, keep: Option<&Path>) {
     let mut total: u64 = entries.iter().map(|(_, len, _)| len).sum();
     entries.sort_by_key(|(_, _, modified)| *modified);
 
-    for (path, len, _) in entries {
-        if total <= limit {
-            break;
-        }
-        if Some(path.as_path()) != keep && fs::remove_file(&path).is_ok() {
-            total = total.saturating_sub(len);
-        }
-    }
+    entries.into_iter().map_while(|(path, len, _)| {
+        (total > limit).then(|| {
+            if Some(path.as_path()) != keep && fs::remove_file(&path).is_ok() {
+                total = total.saturating_sub(len);
+            }
+            path
+        })
+    }).count();
 }
 
-pub fn clear_disk_cache() -> Result<(), String> {
+pub fn clear_disk_cache() -> anyhow::Result<()> {
     let dir = MAP_CACHE_DIR
         .lock()
         .unwrap_or_else(std::sync::PoisonError::into_inner)
@@ -158,12 +159,16 @@ pub fn clear_disk_cache() -> Result<(), String> {
     let Some(read_dir) = dir.and_then(|dir| fs::read_dir(dir).ok()) else {
         return Ok(());
     };
-    for path in read_dir.filter_map(std::result::Result::ok).map(|e| e.path()) {
-        if path.is_file() {
-            fs::remove_file(&path)
-                .map_err(|e| format!("Failed to remove {}: {}", path.display(), e))?;
-        }
-    }
+    read_dir
+        .filter_map(std::result::Result::ok)
+        .map(|e| e.path())
+        .try_for_each(|path| -> anyhow::Result<()> {
+            if path.is_file() {
+                fs::remove_file(&path)
+                    .map_err(|e| anyhow!("Failed to remove {}: {}", path.display(), e))?;
+            }
+            Ok(())
+        })?;
     Ok(())
 }
 
@@ -178,12 +183,12 @@ pub fn effect_map_key(data_url: &str, adjustments: &serde_json::Value) -> u64 {
     data_url.hash(&mut hasher);
 
     if is_source_space_map(data_url) {
-        for key in GEOMETRY_KEYS {
+        GEOMETRY_KEYS.iter().for_each(|key| {
             if let Some(val) = adjustments.get(key) {
                 key.hash(&mut hasher);
                 val.to_string().hash(&mut hasher);
             }
-        }
+        });
     }
 
     hasher.finish()

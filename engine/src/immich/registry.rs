@@ -46,9 +46,9 @@ pub fn mark_trashing(asset_ids: &[String]) {
 
 pub fn done_trashing(asset_ids: &[String]) {
     let mut trashing = TRASHING.write().unwrap_or_else(std::sync::PoisonError::into_inner);
-    for id in asset_ids {
+    asset_ids.iter().for_each(|id| {
         trashing.remove(id);
-    }
+    });
 }
 
 pub fn is_trashing(asset_id: &str) -> bool {

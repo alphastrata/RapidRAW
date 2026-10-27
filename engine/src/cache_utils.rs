@@ -38,53 +38,55 @@ fn hash_ai_patches(adjustments: &serde_json::Value, hasher: &mut DefaultHasher) 
     {
         patches_arr.len().hash(hasher);
 
-        for patch in patches_arr {
-            if let Some(id) = patch.get("id").and_then(|v| v.as_str()) {
-                id.hash(hasher);
-            }
+        patches_arr
+            .iter()
+            .for_each(|patch| {
+                if let Some(id) = patch.get("id").and_then(|v| v.as_str()) {
+                    id.hash(hasher);
+                }
 
-            let is_visible = patch
-                .get("visible")
-                .and_then(serde_json::Value::as_bool)
-                .unwrap_or(true);
-            is_visible.hash(hasher);
+                let is_visible = patch
+                    .get("visible")
+                    .and_then(serde_json::Value::as_bool)
+                    .unwrap_or(true);
+                is_visible.hash(hasher);
 
-            let mask_from_sub_masks = if let Some(patch_data) = patch.get("patchData") {
-                let color_len = patch_data
-                    .get("color")
-                    .and_then(|v| v.as_str())
-                    .unwrap_or("")
-                    .len();
-                color_len.hash(hasher);
+                let mask_from_sub_masks = if let Some(patch_data) = patch.get("patchData") {
+                    let color_len = patch_data
+                        .get("color")
+                        .and_then(|v| v.as_str())
+                        .unwrap_or("")
+                        .len();
+                    color_len.hash(hasher);
 
-                let mask_len = patch_data
-                    .get("mask")
-                    .and_then(|v| v.as_str())
-                    .unwrap_or("")
-                    .len();
-                mask_len.hash(hasher);
+                    let mask_len = patch_data
+                        .get("mask")
+                        .and_then(|v| v.as_str())
+                        .unwrap_or("")
+                        .len();
+                    mask_len.hash(hasher);
 
-                color_len > 0 && mask_len == 0
-            } else {
-                let data_len = patch
-                    .get("patchDataBase64")
-                    .and_then(|v| v.as_str())
-                    .unwrap_or("")
-                    .len();
-                data_len.hash(hasher);
-                true
-            };
+                    color_len > 0 && mask_len == 0
+                } else {
+                    let data_len = patch
+                        .get("patchDataBase64")
+                        .and_then(|v| v.as_str())
+                        .unwrap_or("")
+                        .len();
+                    data_len.hash(hasher);
+                    true
+                };
 
-            if mask_from_sub_masks && let Some(sub_masks_val) = patch.get("subMasks") {
-                sub_masks_val.to_string().hash(hasher);
-            }
+                if mask_from_sub_masks && let Some(sub_masks_val) = patch.get("subMasks") {
+                    sub_masks_val.to_string().hash(hasher);
+                }
 
-            let invert = patch
-                .get("invert")
-                .and_then(serde_json::Value::as_bool)
-                .unwrap_or(false);
-            invert.hash(hasher);
-        }
+                let invert = patch
+                    .get("invert")
+                    .and_then(serde_json::Value::as_bool)
+                    .unwrap_or(false);
+                invert.hash(hasher);
+            });
     }
 }
 
@@ -130,7 +132,7 @@ fn hash_orientation(adjustments: &serde_json::Value, hasher: &mut DefaultHasher)
 }
 
 fn hash_effect_keys(adjustments: &serde_json::Value, keys: &[&str], hasher: &mut DefaultHasher) {
-    for key in keys {
+    keys.iter().for_each(|key| {
         if let Some(val) = adjustments.get(*key) {
             key.hash(hasher);
             match val.as_str() {
@@ -138,7 +140,7 @@ fn hash_effect_keys(adjustments: &serde_json::Value, keys: &[&str], hasher: &mut
                 None => val.to_string().hash(hasher),
             }
         }
-    }
+    });
 }
 
 #[must_use]
@@ -166,12 +168,12 @@ pub fn calculate_patch_hash(adjustments: &serde_json::Value) -> u64 {
     if uses_generated_masks {
         hash_orientation(adjustments, &mut hasher);
 
-        for key in GEOMETRY_KEYS {
+        GEOMETRY_KEYS.iter().for_each(|key| {
             if let Some(val) = adjustments.get(key) {
                 key.hash(&mut hasher);
                 val.to_string().hash(&mut hasher);
             }
-        }
+        });
     }
 
     hasher.finish()
@@ -183,12 +185,12 @@ pub fn calculate_geometry_hash(adjustments: &serde_json::Value) -> u64 {
 
     calculate_patch_hash(adjustments).hash(&mut hasher);
 
-    for key in GEOMETRY_KEYS {
+    GEOMETRY_KEYS.iter().for_each(|key| {
         if let Some(val) = adjustments.get(key) {
             key.hash(&mut hasher);
             val.to_string().hash(&mut hasher);
         }
-    }
+    });
 
     hasher.finish()
 }
@@ -337,18 +339,20 @@ pub fn calculate_transform_hash(adjustments: &serde_json::Value) -> u64 {
         crate::image_processing::is_effect_enabled(adjustments, "relight", "relightEnabled");
     relight_enabled.hash(&mut hasher);
     if relight_enabled {
-        for key in [
+        [
             "relightLights",
             "relightAmbient",
             "relightSoftness",
             "relightShine",
             "relightShadows",
             "relightShadowSoftness",
-        ] {
+        ]
+        .iter()
+        .for_each(|key| {
             if let Some(val) = adjustments.get(key) {
                 val.to_string().hash(&mut hasher);
             }
-        }
+        });
         if let Some(val) = adjustments.get("relightNormalMap") {
             val.as_str().unwrap_or("").len().hash(&mut hasher);
         }
@@ -357,7 +361,7 @@ pub fn calculate_transform_hash(adjustments: &serde_json::Value) -> u64 {
     let fog_enabled = crate::image_processing::is_effect_enabled(adjustments, "fog", "fogEnabled");
     fog_enabled.hash(&mut hasher);
     if fog_enabled {
-        for key in [
+        [
             "fogAmount",
             "fogStart",
             "fogDensity",
@@ -366,11 +370,13 @@ pub fn calculate_transform_hash(adjustments: &serde_json::Value) -> u64 {
             "fogGlow",
             "fogTemperature",
             "fogTint",
-        ] {
+        ]
+        .iter()
+        .for_each(|key| {
             if let Some(val) = adjustments.get(key) {
                 val.to_string().hash(&mut hasher);
             }
-        }
+        });
         if let Some(val) = adjustments.get("fogDepthMap") {
             val.as_str().unwrap_or("").len().hash(&mut hasher);
         }
@@ -382,12 +388,12 @@ pub fn calculate_transform_hash(adjustments: &serde_json::Value) -> u64 {
         crop_val.to_string().hash(&mut hasher);
     }
 
-    for key in GEOMETRY_KEYS {
+    GEOMETRY_KEYS.iter().for_each(|key| {
         if let Some(val) = adjustments.get(key) {
             key.hash(&mut hasher);
             val.to_string().hash(&mut hasher);
         }
-    }
+    });
 
     hash_ai_patches(adjustments, &mut hasher);
     hash_ai_denoise(adjustments, &mut hasher);
@@ -478,15 +484,15 @@ impl CachedImage {
                     .for_each(|(dst, src)| src.convert_to_f32_slice(dst));
 
                 let image = if *channels == 4 {
-                    DynamicImage::ImageRgba32F(
-                        Rgba32FImage::from_raw(*width, *height, raw)
-                            .expect("RGBA buffer matches image dimensions"),
-                    )
+                    let Some(image) = Rgba32FImage::from_raw(*width, *height, raw) else {
+                        unreachable!("invariant: RGBA buffer matches image dimensions");
+                    };
+                    DynamicImage::ImageRgba32F(image)
                 } else {
-                    DynamicImage::ImageRgb32F(
-                        Rgb32FImage::from_raw(*width, *height, raw)
-                            .expect("RGB buffer matches image dimensions"),
-                    )
+                    let Some(image) = Rgb32FImage::from_raw(*width, *height, raw) else {
+                        unreachable!("invariant: RGB buffer matches image dimensions");
+                    };
+                    DynamicImage::ImageRgb32F(image)
                 };
                 Arc::new(image)
             }
@@ -586,12 +592,13 @@ impl DecodedImageCache {
             let item = self.items.remove(pos);
             self.items.push(item);
         }
-        for item in &mut self.items {
-            if item.path != keep_path {
+        self.items
+            .iter_mut()
+            .filter(|item| item.path != keep_path)
+            .for_each(|item| {
                 let cached = std::mem::replace(&mut item.image, CachedImage::Full(Arc::default()));
                 item.image = cached.compact();
-            }
-        }
+            });
         self.evict();
     }
 

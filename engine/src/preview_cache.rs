@@ -1,6 +1,7 @@
 use std::collections::hash_map::DefaultHasher;
 use std::hash::{Hash, Hasher};
 use std::sync::{Arc, Mutex};
+use anyhow::anyhow;
 
 use image::{DynamicImage, GenericImageView};
 
@@ -19,7 +20,7 @@ pub fn generate_transformed_preview(
     loaded_image: &LoadedImage,
     adjustments: &serde_json::Value,
     preview_dim: u32,
-) -> Result<TransformedPreview, String> {
+) -> anyhow::Result<TransformedPreview> {
     let mut hasher = DefaultHasher::new();
     loaded_image.path.hash(&mut hasher);
     calculate_transform_hash(adjustments).hash(&mut hasher);
@@ -53,8 +54,8 @@ pub fn generate_transformed_preview(
 fn get_or_compute_stage(
     cache: &Mutex<Option<(u64, Arc<DynamicImage>)>>,
     key: u64,
-    compute: impl FnOnce() -> Result<Arc<DynamicImage>, String>,
-) -> Result<Arc<DynamicImage>, String> {
+    compute: impl FnOnce() -> anyhow::Result<Arc<DynamicImage>>,
+) -> anyhow::Result<Arc<DynamicImage>> {
     let mut cache_lock = cache.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
 
     if let Some((hash, img)) = cache_lock.as_ref()
@@ -74,7 +75,7 @@ fn compute_transformed_preview(
     loaded_image: &LoadedImage,
     adjustments: &serde_json::Value,
     preview_dim: u32,
-) -> Result<TransformedPreview, String> {
+) -> anyhow::Result<TransformedPreview> {
     let patched_key = patched_cache_key(&loaded_image.path, adjustments);
 
     let patched = get_or_compute_stage(&state.patched_cache, patched_key, || {
@@ -239,9 +240,9 @@ pub fn cached_patched_image(
 fn compute_patched(
     loaded_image: &LoadedImage,
     adjustments: &serde_json::Value,
-) -> Result<Arc<DynamicImage>, String> {
+) -> anyhow::Result<Arc<DynamicImage>> {
     match prepare_base_image_cow(&loaded_image.image, &loaded_image.path, adjustments)
-        .map_err(|e| format!("Failed to composite AI patches: {e}"))?
+        .map_err(|e| anyhow!("Failed to composite AI patches: {e}"))?
     {
         Cow::Owned(img) => Ok(Arc::new(img)),
         Cow::Borrowed(_) => Ok(Arc::clone(&loaded_image.image)),
