@@ -4,6 +4,7 @@ use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::time::Instant;
 
+use anyhow::anyhow;
 use half::f16;
 use image::{DynamicImage, GenericImageView, ImageBuffer, Luma, Rgba};
 use std::num::NonZero;
@@ -105,7 +106,10 @@ impl WgpuDisplay {
             let view = texture.create_view(&Default::default());
             self.original_texture = Some((texture, view));
         }
-        &self.original_texture.as_ref().unwrap().0
+        let Some((texture, _)) = self.original_texture.as_ref() else {
+            unreachable!("invariant: original texture was created above when absent");
+        };
+        texture
     }
 
     pub fn rebind(&mut self, device: &wgpu::Device) {
@@ -232,7 +236,7 @@ pub struct DisplaySetup {
 pub fn get_or_init_gpu_context(
     state: &AppState,
     host: &dyn crate::host::Host,
-) -> Result<GpuContext, String> {
+) -> anyhow::Result<GpuContext> {
 
     let mut context_lock = match state.gpu_context.lock() {
         Ok(guard) => guard,
@@ -291,7 +295,7 @@ pub fn get_or_init_gpu_context(
         if let Some(p) = &flag_path {
             best_effort(std::fs::remove_file(p));
         }
-        format!("Failed to find a wgpu adapter: {e}")
+        anyhow!("Failed to find a wgpu adapter: {e}")
     })?;
 
     let adapter_info = adapter.get_info();
@@ -327,7 +331,8 @@ pub fn get_or_init_gpu_context(
             best_effort(std::fs::remove_file(p));
         }
         e.to_string()
-    })?;
+    })
+    .map_err(|msg| anyhow!("{msg}"))?;
 
     device.on_uncaptured_error(Arc::new(|err: wgpu::Error| {
         log::error!("[wgpu-error] {err}");
@@ -586,23 +591,28 @@ fn read_texture_data_roi(
         .map_err(|e| format!("Failed receiving GPU map result: {e}"))?;
     map_result.map_err(|e| e.to_string())?;
 
-    std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-        let mapped = buffer_slice.get_mapped_range().unwrap();
+    std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| -> Result<Vec<u8>, String> {
+        let Ok(mapped) = buffer_slice.get_mapped_range() else {
+            return Err("GPU device was lost while reading back the image".to_string());
+        };
         let data = if padded_bytes_per_row == unpadded_bytes_per_row {
             mapped.to_vec()
         } else {
             let mut unpadded_data =
                 Vec::with_capacity((unpadded_bytes_per_row * size.height) as usize);
-            for chunk in mapped.chunks(padded_bytes_per_row as usize) {
-                unpadded_data.extend_from_slice(&chunk[..unpadded_bytes_per_row as usize]);
-            }
+            mapped
+                .chunks(padded_bytes_per_row as usize)
+                .for_each(|chunk| {
+                    unpadded_data.extend_from_slice(&chunk[..unpadded_bytes_per_row as usize]);
+                });
             unpadded_data
         };
         drop(mapped);
         output_buffer.unmap();
-        data
+        Ok(data)
     }))
     .map_err(|_| "GPU device was lost while reading back the image".to_string())
+    .and_then(|r| r)
 }
 
 fn to_rgba_f16(img: &DynamicImage) -> Vec<f16> {
@@ -839,11 +849,12 @@ fn complete_analytics_readback(readback: AnalyticsReadback) {
 
     if let Ok(Ok(())) = rx.recv() {
         let analytics = readback.analytics;
+        let view = readback.buffer.slice(..).get_mapped_range().ok();
         best_effort(analytics.sender.send(crate::app_state::AnalyticsJob {
             path: analytics.path,
             frame: AnalyticsFrame {
                 data: AnalyticsPixels::Mapped(PooledReadback {
-                    view: Some(readback.buffer.slice(..).get_mapped_range().unwrap()),
+                    view,
                     buffer: readback.buffer,
                     pool: readback.pool,
                 }),
@@ -980,7 +991,7 @@ fn lock_or_reset<'a, T>(
 }
 
 impl GpuProcessor {
-    pub fn new(context: GpuContext, max_width: u32, max_height: u32) -> Result<Self, String> {
+    pub fn new(context: GpuContext, max_width: u32, max_height: u32) -> anyhow::Result<Self> {
         let device = &context.device;
         const MAX_MASK_BINDINGS: u32 = 1;
 
@@ -1430,18 +1441,16 @@ impl GpuProcessor {
             count: None,
         });
 
-        for binding in 12..15 {
-            bind_group_layout_entries.push(wgpu::BindGroupLayoutEntry {
-                binding: binding + MAX_MASK_BINDINGS,
-                visibility: wgpu::ShaderStages::COMPUTE,
-                ty: wgpu::BindingType::Texture {
-                    sample_type: wgpu::TextureSampleType::Float { filterable: false },
-                    view_dimension: wgpu::TextureViewDimension::D2,
-                    multisampled: false,
-                },
-                count: None,
-            });
-        }
+        bind_group_layout_entries.extend((12..15).map(|binding| wgpu::BindGroupLayoutEntry {
+            binding: binding + MAX_MASK_BINDINGS,
+            visibility: wgpu::ShaderStages::COMPUTE,
+            ty: wgpu::BindingType::Texture {
+                sample_type: wgpu::TextureSampleType::Float { filterable: false },
+                view_dimension: wgpu::TextureViewDimension::D2,
+                multisampled: false,
+            },
+            count: None,
+        }));
 
         let main_bgl = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
             label: Some("Main BGL"),
@@ -1661,9 +1670,13 @@ impl GpuProcessor {
         let queue = &self.context.queue;
 
         let short = width.min(height).max(1);
-        let k = (GF_SHORT_EDGE as f32 / short as f32).min(1.0);
-        let lw = ((width as f32 * k).round() as u32).max(1);
-        let lh = ((height as f32 * k).round() as u32).max(1);
+        let short_f = short as f32;
+        let gf_short_edge_f = GF_SHORT_EDGE as f32;
+        let k = (gf_short_edge_f / short_f).min(1.0);
+        let width_f = width as f32;
+        let height_f = height as f32;
+        let lw = ((width_f * k).round() as u32).max(1);
+        let lh = ((height_f * k).round() as u32).max(1);
         let low_short = lw.min(lh) as f32;
         let cw = lw.div_ceil(GF_COARSE_DIV).max(1);
         let ch = lh.div_ceil(GF_COARSE_DIV).max(1);
@@ -1825,27 +1838,29 @@ impl GpuProcessor {
             coarse,
         );
 
-        for (params, out) in [(&params_clarity, &ab_clarity), (&params_tonal, &blurred)] {
-            pass(
-                &self.gf_blur_h_pipeline,
-                &moments,
-                &moments,
-                &tmp,
-                params,
-                fine,
-            );
-            pass(&self.gf_blur_v_pipeline, &tmp, &tmp, &blurred, params, fine);
-            pass(
-                &self.gf_coeffs_pipeline,
-                &blurred,
-                &blurred,
-                &ab,
-                params,
-                fine,
-            );
-            pass(&self.gf_blur_h_pipeline, &ab, &ab, &tmp, params, fine);
-            pass(&self.gf_blur_v_pipeline, &tmp, &tmp, out, params, fine);
-        }
+        [(&params_clarity, &ab_clarity), (&params_tonal, &blurred)]
+            .into_iter()
+            .for_each(|(params, out)| {
+                pass(
+                    &self.gf_blur_h_pipeline,
+                    &moments,
+                    &moments,
+                    &tmp,
+                    params,
+                    fine,
+                );
+                pass(&self.gf_blur_v_pipeline, &tmp, &tmp, &blurred, params, fine);
+                pass(
+                    &self.gf_coeffs_pipeline,
+                    &blurred,
+                    &blurred,
+                    &ab,
+                    params,
+                    fine,
+                );
+                pass(&self.gf_blur_h_pipeline, &ab, &ab, &tmp, params, fine);
+                pass(&self.gf_blur_v_pipeline, &tmp, &tmp, out, params, fine);
+            });
 
         pass(
             &self.gf_pack_pipeline,
@@ -1976,7 +1991,10 @@ impl GpuProcessor {
         let device = &self.context.device;
         let queue = &self.context.queue;
         let layers = mask_bitmaps.len().clamp(2, MAX_MASKS) as u32;
-        let buffer_size = (width as usize) * (height as usize) * (layers as usize);
+        let width_us = width as usize;
+        let height_us = height as usize;
+        let layers_us = layers as usize;
+        let buffer_size = width_us * height_us * layers_us;
 
         let mut cache = self.mask_cache.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
         if let (Some(c), Some(key)) = (cache.as_ref(), cache_key)
@@ -1989,9 +2007,12 @@ impl GpuProcessor {
         }
 
         let mut data = Vec::with_capacity(buffer_size);
-        for mask_bitmap in mask_bitmaps.iter().take(MAX_MASKS) {
-            data.extend_from_slice(mask_bitmap.as_raw());
-        }
+        data.extend(
+            mask_bitmaps
+                .iter()
+                .take(MAX_MASKS)
+                .flat_map(|mask_bitmap| mask_bitmap.as_raw().iter().copied()),
+        );
         data.resize(buffer_size, 0);
 
         let size = wgpu::Extent3d {
@@ -2446,8 +2467,8 @@ impl GpuProcessor {
         let end_tile_x = (bounds.x + bounds.width).div_ceil(TILE_SIZE);
         let end_tile_y = (bounds.y + bounds.height).div_ceil(TILE_SIZE);
 
-        for tile_y in start_tile_y..end_tile_y {
-            for tile_x in start_tile_x..end_tile_x {
+        (start_tile_y..end_tile_y).try_for_each(|tile_y| {
+            (start_tile_x..end_tile_x).try_for_each(|tile_x| -> Result<(), String> {
                 let x_start_unclamped = tile_x * TILE_SIZE;
                 let y_start_unclamped = tile_y * TILE_SIZE;
 
@@ -2463,8 +2484,11 @@ impl GpuProcessor {
                 let tile_width = x_end - x_start;
                 let tile_height = y_end - y_start;
 
-                let input_x_start = (x_start as i32 - TILE_OVERLAP as i32).max(0) as u32;
-                let input_y_start = (y_start as i32 - TILE_OVERLAP as i32).max(0) as u32;
+                let x_start_i32 = x_start as i32;
+                let y_start_i32 = y_start as i32;
+                let overlap_i32 = TILE_OVERLAP as i32;
+                let input_x_start = (x_start_i32 - overlap_i32).max(0) as u32;
+                let input_y_start = (y_start_i32 - overlap_i32).max(0) as u32;
                 let input_x_end = (x_end + TILE_OVERLAP).min(width);
                 let input_y_end = (y_end + TILE_OVERLAP).min(height);
                 let input_width = input_x_end - input_x_start;
@@ -2774,7 +2798,7 @@ impl GpuProcessor {
 
                     match &mut final_pixels {
                         RenderedPixels::U8(final_pixels) => {
-                            for row in 0..tile_height {
+                            (0..tile_height).for_each(|row| {
                                 let final_y = y_start + row - bounds.y;
                                 let final_x = x_start - bounds.x;
                                 let final_row_offset = (final_y * out_width + final_x) as usize * 4;
@@ -2786,28 +2810,30 @@ impl GpuProcessor {
                                         &processed_tile_data
                                             [source_row_offset..source_row_offset + copy_bytes],
                                     );
-                            }
+                            });
                         }
                         RenderedPixels::U16(final_pixels) => {
-                            for row in 0..tile_height {
+                            (0..tile_height).for_each(|row| {
                                 let final_y = y_start + row - bounds.y;
                                 let final_x = x_start - bounds.x;
                                 let final_row_offset = (final_y * out_width + final_x) as usize * 4;
                                 let source_pixel_offset = (row * tile_width) as usize;
 
-                                for sample in 0..(tile_width as usize * 4) {
+                                (0..tile_width as usize * 4).for_each(|sample| {
                                     let source_byte_offset = (source_pixel_offset * 4 + sample) * 2;
                                     final_pixels[final_row_offset + sample] = u16::from_ne_bytes([
                                         processed_tile_data[source_byte_offset],
                                         processed_tile_data[source_byte_offset + 1],
                                     ]);
-                                }
-                            }
+                                });
+                            });
                         }
                     }
                 }
-            }
-        }
+
+                Ok(())
+            })
+        })?;
 
         Ok((final_pixels, out_width, out_height, bounds.x, bounds.y))
     }
@@ -2820,7 +2846,7 @@ pub fn process_and_get_dynamic_image(
     transform_hash: u64,
     request: RenderRequest,
     caller_id: &str,
-) -> Result<DynamicImage, String> {
+) -> anyhow::Result<DynamicImage> {
     process_and_get_dynamic_image_inner(
         context,
         state,
@@ -2842,7 +2868,7 @@ pub fn process_and_get_dynamic_image_with_precision(
     request: RenderRequest,
     caller_id: &str,
     output_precision: RenderOutputPrecision,
-) -> Result<DynamicImage, String> {
+) -> anyhow::Result<DynamicImage> {
     process_and_get_dynamic_image_inner(
         context,
         state,
@@ -2865,7 +2891,7 @@ pub fn process_and_get_dynamic_image_with_analytics(
     caller_id: &str,
     display_layer: Option<DisplayLayer>,
     analytics_config: Option<crate::app_state::AnalyticsConfig>,
-) -> Result<DynamicImage, String> {
+) -> anyhow::Result<DynamicImage> {
     process_and_get_dynamic_image_inner(
         context,
         state,
@@ -2889,7 +2915,7 @@ fn process_and_get_dynamic_image_inner(
     output_precision: RenderOutputPrecision,
     display_layer: Option<DisplayLayer>,
     analytics_config: Option<crate::app_state::AnalyticsConfig>,
-) -> Result<DynamicImage, String> {
+) -> anyhow::Result<DynamicImage> {
     let start_time = Instant::now();
     let output_to_display = display_layer.is_some();
     let (width, height) = base_image.dimensions();
@@ -2967,7 +2993,7 @@ fn process_and_get_dynamic_image_inner(
         });
     }
 
-    let processor_state = processor_lock.as_ref().unwrap();
+    let processor_state = processor_lock.as_ref().ok_or_else(|| anyhow!("GPU processor state missing after initialisation"))?;
     let processor = &processor_state.processor;
 
     let cache = cache_lock.get_or_insert_with(|| GpuImageCache {
@@ -3027,12 +3053,16 @@ fn process_and_get_dynamic_image_inner(
         }
     }
 
-    let cache = cache.entries.last().unwrap();
+    let cache = cache
+        .entries
+        .last()
+        .ok_or_else(|| anyhow!("GPU image cache is empty"))?;
 
     let skip_readback = output_to_display;
 
     let (processed_pixels, out_w, out_h, out_x, out_y) =
-        processor.run(cache, request, output_to_display, output_precision)?;
+        processor.run(cache, request, output_to_display, output_precision)
+            .map_err(|e| anyhow!("{e}"))?;
 
     let mut final_encoder = device.create_command_encoder(&wgpu::CommandEncoderDescriptor {
         label: Some("Final Passes Encoder"),
@@ -3199,7 +3229,7 @@ fn process_and_get_dynamic_image_inner(
     match processed_pixels {
         RenderedPixels::U8(pixels) => {
             let img_buf = ImageBuffer::<Rgba<u8>, Vec<u8>>::from_raw(out_w, out_h, pixels)
-                .ok_or("Failed to create 8-bit image buffer from GPU data")?;
+                .ok_or_else(|| anyhow!("Failed to create 8-bit image buffer from GPU data"))?;
             Ok(DynamicImage::ImageRgba8(img_buf))
         }
         RenderedPixels::U16(mut pixels) => {
@@ -3213,7 +3243,7 @@ fn process_and_get_dynamic_image_inner(
                 };
             });
             let img_buf = ImageBuffer::<Rgba<u16>, Vec<u16>>::from_raw(out_w, out_h, pixels)
-                .ok_or("Failed to create 16-bit image buffer from GPU data")?;
+                .ok_or_else(|| anyhow!("Failed to create 16-bit image buffer from GPU data"))?;
             Ok(DynamicImage::ImageRgba16(img_buf))
         }
     }
