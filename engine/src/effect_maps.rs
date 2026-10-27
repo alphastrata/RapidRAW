@@ -183,12 +183,13 @@ pub fn effect_map_key(data_url: &str, adjustments: &serde_json::Value) -> u64 {
     data_url.hash(&mut hasher);
 
     if is_source_space_map(data_url) {
-        GEOMETRY_KEYS.iter().for_each(|key| {
-            if let Some(val) = adjustments.get(key) {
+        GEOMETRY_KEYS
+            .iter()
+            .filter_map(|key| adjustments.get(key).map(|val| (*key, val)))
+            .for_each(|(key, val)| {
                 key.hash(&mut hasher);
                 val.to_string().hash(&mut hasher);
-            }
-        });
+            });
     }
 
     hasher.finish()
