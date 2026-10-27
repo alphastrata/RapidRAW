@@ -1,33 +1,16 @@
+use crate::image_processing::{apply_cpu_default_raw_processing, apply_linear_to_srgb};
+use crate::panorama as pano;
 use anyhow::{Result, anyhow};
-use image::{DynamicImage, GenericImageView, GrayImage, Rgb32FImage};
+use image::{DynamicImage, GenericImageView, Rgb32FImage};
 use nalgebra::{Matrix2, Matrix3};
 
-pub const BRIEF_DESCRIPTOR_SIZE: usize = 256;
-const BRIEF_BITS_PER_BYTE: usize = 8;
-pub const DEGHOST_FAST_THRESHOLD: u8 = 8;
+pub use pano::{Descriptor, Feature, KeyPoint, Match};
+
+const DEGHOST_FAST_THRESHOLD: u8 = 8;
 const DEGHOST_NON_MAXIMA_SUPPRESSION_RADIUS: f32 = 8.0;
 const DEGHOST_MAX_PROCESSING_DIMENSION: u32 = 3200;
 const DEGHOST_IDENTITY_MAX_DISPLACEMENT: f64 = 1.0;
 const DEGHOST_MIN_RIGID_INLIERS: usize = 2;
-
-pub type Descriptor = [u8; BRIEF_DESCRIPTOR_SIZE / BRIEF_BITS_PER_BYTE];
-
-#[derive(Debug, Clone, Copy)]
-pub struct KeyPoint {
-    pub x: u32,
-    pub y: u32,
-}
-
-pub struct Feature {
-    pub keypoint: KeyPoint,
-    pub descriptor: Descriptor,
-}
-
-#[derive(Debug, Clone, Copy)]
-pub struct Match {
-    pub index1: usize,
-    pub index2: usize,
-}
 
 pub struct FrameDetection {
     pub keypoints: Vec<KeyPoint>,
@@ -41,39 +24,34 @@ pub enum AlignmentOutcome {
     Failed,
 }
 
-pub struct FeaturePipeline<'a> {
-    pub prepare_view: &'a (dyn Fn(&DynamicImage, bool) -> DynamicImage + Sync),
-    pub downscale_dims: &'a (dyn Fn(u32, u32, u32) -> (u32, u32, f64) + Sync),
-    pub normalize_grayscale: &'a (dyn Fn(&GrayImage) -> GrayImage + Sync),
-    pub detect_features: &'a (dyn Fn(&GrayImage, u8, f32) -> Vec<Feature> + Sync),
-    pub min_inliers: usize,
-    pub find_matches: &'a (dyn Fn(&[Feature], &[Feature]) -> Vec<Match> + Sync),
-    pub ransac_inliers:
-        &'a (dyn Fn(&[Match], &[KeyPoint], &[KeyPoint]) -> Option<Vec<Match>> + Sync),
-    pub warp_homography: &'a (dyn Fn(&Rgb32FImage, &Matrix3<f64>, u32, u32) -> Rgb32FImage + Sync),
-}
-
-pub fn detect_frame_features(
-    image: &DynamicImage,
-    source_is_raw: bool,
-    pipeline: &FeaturePipeline<'_>,
-) -> FrameDetection {
-    let detection_proxy = (pipeline.prepare_view)(image, source_is_raw);
+pub fn detect_frame_features(image: &DynamicImage, source_is_raw: bool) -> FrameDetection {
+    let detection_proxy = if source_is_raw {
+        let mut proxy = image.clone();
+        apply_cpu_default_raw_processing(&mut proxy);
+        proxy
+    } else {
+        apply_linear_to_srgb(image.clone())
+    };
     let gray_full = image::imageops::colorops::grayscale(&detection_proxy.to_rgb8());
     let (width, height) = gray_full.dimensions();
 
-    let (small_width, small_height, scale_factor) =
-        (pipeline.downscale_dims)(width, height, DEGHOST_MAX_PROCESSING_DIMENSION);
+    let (small_width, small_height, scale_factor) = pano::calculate_downscale_dimensions_capped(
+        width,
+        height,
+        DEGHOST_MAX_PROCESSING_DIMENSION,
+    );
     let gray_small = image::imageops::resize(
         &gray_full,
         small_width,
         small_height,
         image::imageops::FilterType::Triangle,
     );
-    let normalized = (pipeline.normalize_grayscale)(&gray_small);
+    let normalized = pano::normalize_grayscale(&gray_small);
 
-    let features = (pipeline.detect_features)(
+    let brief_pairs = pano::generate_brief_pairs();
+    let features = pano::find_features_tuned(
         &normalized,
+        &brief_pairs,
         DEGHOST_FAST_THRESHOLD,
         DEGHOST_NON_MAXIMA_SUPPRESSION_RADIUS,
     );
@@ -89,17 +67,16 @@ pub fn align_frame_to_reference(
     frame_image: &DynamicImage,
     frame: &FrameDetection,
     reference: &FrameDetection,
-    pipeline: &FeaturePipeline<'_>,
 ) -> Result<AlignmentOutcome> {
-    let matches = (pipeline.find_matches)(&reference.features, &frame.features);
-
-    if matches.len() < pipeline.min_inliers {
+    let matches = pano::match_features(&reference.features, &frame.features);
+    if matches.len() < pano::MIN_INLIERS_FOR_CONNECTION {
         return Ok(AlignmentOutcome::Failed);
     }
-    let inliers = match (pipeline.ransac_inliers)(&matches, &reference.keypoints, &frame.keypoints)
-    {
-        Some(inliers) => inliers,
-        None => return Ok(AlignmentOutcome::Failed),
+    let Some(inliers) =
+        pano::find_homography_ransac(&matches, &reference.keypoints, &frame.keypoints)
+            .map(|(_, inliers)| inliers)
+    else {
+        return Ok(AlignmentOutcome::Failed);
     };
     let rigid_full = estimate_rigid_transform(&inliers, reference, frame)?;
     let (width, height) = frame_image.dimensions();
@@ -108,14 +85,8 @@ pub fn align_frame_to_reference(
     if displacement < DEGHOST_IDENTITY_MAX_DISPLACEMENT {
         return Ok(AlignmentOutcome::AlreadyAligned);
     }
-    let source = frame_image.to_rgb32f();
-
-    Ok(AlignmentOutcome::Warped((pipeline.warp_homography)(
-        &source,
-        &rigid_full,
-        width,
-        height,
-    )))
+    let warped = pano::warp_image_homography(&frame_image.to_rgb32f(), &rigid_full, width, height)?;
+    Ok(AlignmentOutcome::Warped(warped))
 }
 
 fn estimate_rigid_transform(
@@ -134,7 +105,6 @@ fn estimate_rigid_transform(
                 .keypoints
                 .get(m.index1)
                 .ok_or_else(|| anyhow!("inlier index out of range"))?;
-
             let frame_point = frame
                 .keypoints
                 .get(m.index2)
@@ -156,7 +126,6 @@ fn estimate_rigid_transform(
         |(sum_h00, sum_h01, sum_h10, sum_h11), ((rx, ry), (fx, fy))| {
             let (ax, ay) = (rx - reference_centroid.0, ry - reference_centroid.1);
             let (bx, by) = (fx - frame_centroid.0, fy - frame_centroid.1);
-
             (
                 sum_h00 + ax * bx,
                 sum_h01 + ax * by,
@@ -167,10 +136,8 @@ fn estimate_rigid_transform(
     );
 
     let covariance = Matrix2::new(h00, h01, h10, h11);
-
     let svd = covariance.svd(true, true);
     let u = svd.u.ok_or_else(|| anyhow!("svd failed to produce u"))?;
-
     let v = svd
         .v_t
         .ok_or_else(|| anyhow!("svd failed to produce v_t"))?

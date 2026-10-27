@@ -2,14 +2,9 @@ use crate::app_settings::AppSettings;
 use crate::exif_processing::{read_exposure_time_secs, read_iso};
 use crate::formats::is_raw_file;
 use crate::image_loader::load_base_image_from_bytes;
-use crate::image_processing::{
-    apply_cpu_default_raw_processing, apply_linear_to_srgb, apply_srgb_to_linear,
-};
-use crate::panorama_stitching::{self, Feature as ShellFeature, KeyPoint as ShellKeyPoint};
-use crate::panorama_utils::{processing, stitching};
+use crate::image_processing::apply_srgb_to_linear;
 use engine::hdr_deghosting as deghost;
-use image::{DynamicImage, GenericImageView, GrayImage, Rgb32FImage};
-use nalgebra::{Matrix3, Point2};
+use image::DynamicImage;
 use std::{fs, path::Path, time::Duration};
 use tauri::{AppHandle, Emitter};
 
@@ -90,80 +85,10 @@ pub fn assert_uniform_dimensions(frames: &[HdrFrame]) -> Result<(), String> {
 pub fn align_hdr_frames(frames: &mut [HdrFrame], app_handle: &AppHandle) {
     assert!(!frames.is_empty(), "alignment requires at least one frame");
     let _ = app_handle.emit("hdr-progress", "Deghosting...");
-    let brief_pairs = processing::generate_brief_pairs();
-    let prepare_view = |image: &DynamicImage, source_is_raw: bool| -> DynamicImage {
-        if source_is_raw {
-            let mut proxy = image.clone();
-            apply_cpu_default_raw_processing(&mut proxy);
-            proxy
-        } else {
-            apply_linear_to_srgb(image.clone())
-        }
-    };
-    let downscale_dims = |width: u32, height: u32, max_dimension: u32| -> (u32, u32, f64) {
-        processing::calculate_downscale_dimensions_capped(width, height, max_dimension)
-    };
-    let normalize = |img: &GrayImage| -> GrayImage { processing::normalize_grayscale(img) };
-    let detect_features =
-        |img: &GrayImage, fast_threshold: u8, suppression_radius: f32| -> Vec<deghost::Feature> {
-            processing::find_features_tuned(img, &brief_pairs, fast_threshold, suppression_radius)
-                .into_iter()
-                .map(|feature| deghost::Feature {
-                    keypoint: deghost::KeyPoint {
-                        x: feature.keypoint.x,
-                        y: feature.keypoint.y,
-                    },
-                    descriptor: feature.descriptor,
-                })
-                .collect()
-        };
-    let find_matches =
-        |reference: &[deghost::Feature], frame: &[deghost::Feature]| -> Vec<deghost::Match> {
-            processing::match_features(&shell_features(reference), &shell_features(frame))
-                .iter()
-                .map(|m| deghost::Match {
-                    index1: m.index1,
-                    index2: m.index2,
-                })
-                .collect()
-        };
-    let ransac_inliers = |matches: &[deghost::Match],
-                          reference: &[deghost::KeyPoint],
-                          frame: &[deghost::KeyPoint]|
-     -> Option<Vec<deghost::Match>> {
-        processing::find_homography_ransac(
-            &shell_matches(matches),
-            &shell_keypoints(reference),
-            &shell_keypoints(frame),
-        )
-        .map(|(_, inliers)| {
-            inliers
-                .iter()
-                .map(|m| deghost::Match {
-                    index1: m.index1,
-                    index2: m.index2,
-                })
-                .collect::<Vec<_>>()
-        })
-    };
-    let warp =
-        |source: &Rgb32FImage, transform: &Matrix3<f64>, width: u32, height: u32| -> Rgb32FImage {
-            stitching::warp_image_homography(source, transform, width, height)
-        };
-    let pipeline = deghost::FeaturePipeline {
-        prepare_view: &prepare_view,
-        downscale_dims: &downscale_dims,
-        normalize_grayscale: &normalize,
-        detect_features: &detect_features,
-        min_inliers: processing::MIN_INLIERS_FOR_CONNECTION,
-        find_matches: &find_matches,
-        ransac_inliers: &ransac_inliers,
-        warp_homography: &warp,
-    };
     let reference_index = frames.len() / 2;
     let detections: Vec<deghost::FrameDetection> = frames
         .iter()
-        .map(|frame| deghost::detect_frame_features(&frame.1, is_raw_file(&frame.0), &pipeline))
+        .map(|frame| deghost::detect_frame_features(&frame.1, is_raw_file(&frame.0)))
         .collect();
     frames
         .iter_mut()
@@ -180,7 +105,6 @@ pub fn align_hdr_frames(frames: &mut [HdrFrame], app_handle: &AppHandle) {
                 &frame.1,
                 &detections[index],
                 &detections[reference_index],
-                &pipeline,
             ) {
                 Ok(deghost::AlignmentOutcome::Warped(warped)) => {
                     frame.1 = DynamicImage::ImageRgb32F(warped);
@@ -196,34 +120,4 @@ pub fn align_hdr_frames(frames: &mut [HdrFrame], app_handle: &AppHandle) {
                 );
             }
         });
-}
-
-fn shell_keypoints(keypoints: &[deghost::KeyPoint]) -> Vec<ShellKeyPoint> {
-    keypoints
-        .iter()
-        .map(|kp| ShellKeyPoint { x: kp.x, y: kp.y })
-        .collect()
-}
-
-fn shell_features(features: &[deghost::Feature]) -> Vec<ShellFeature> {
-    features
-        .iter()
-        .map(|feature| ShellFeature {
-            keypoint: ShellKeyPoint {
-                x: feature.keypoint.x,
-                y: feature.keypoint.y,
-            },
-            descriptor: feature.descriptor,
-        })
-        .collect()
-}
-
-fn shell_matches(matches: &[deghost::Match]) -> Vec<panorama_stitching::Match> {
-    matches
-        .iter()
-        .map(|m| panorama_stitching::Match {
-            index1: m.index1,
-            index2: m.index2,
-        })
-        .collect()
 }
