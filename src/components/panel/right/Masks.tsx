@@ -69,7 +69,7 @@ export enum SubMaskMode {
 }
 
 export enum ToolType {
-  AiSeletor = 'ai-selector',
+  AiSelector = 'ai-selector',
   Brush = 'brush',
   Eraser = 'eraser',
   GenerativeReplace = 'generative-replace',

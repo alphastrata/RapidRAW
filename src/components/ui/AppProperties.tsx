@@ -85,7 +85,7 @@ export enum Invokes {
   HandleImportPresetsFromFiles = 'handle_import_presets_from_files',
   HandleImportLegacyPresetsFromFile = 'handle_import_legacy_presets_from_file',
   ImportFiles = 'import_files',
-  InvokeGenerativeReplaseWithMaskDef = 'invoke_generative_replace_with_mask_def',
+  InvokeGenerativeReplaceWithMaskDef = 'invoke_generative_replace_with_mask_def',
   IsTetheringSupported = 'is_tethering_supported',
   ListImagesInDir = 'list_images_in_dir',
   ListImagesRecursive = 'list_images_recursive',
