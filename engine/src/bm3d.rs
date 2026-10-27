@@ -68,10 +68,14 @@ pub fn denoise(
         let blurred_y = gaussian_blur_1ch(&original_y, width as usize, height as usize, 3.0);
         let detail_strength = (intensity * 0.5_f32).clamp(0.0_f32, 0.5_f32);
         let y_ch = &mut denoised_channels[0];
-        for i in 0..y_ch.len() {
-            let hf = original_y[i] - blurred_y[i];
-            y_ch[i] = (y_ch[i] + detail_strength * hf).clamp(0.0, 255.0);
-        }
+        y_ch
+            .iter_mut()
+            .zip(&original_y)
+            .zip(&blurred_y)
+            .for_each(|((y, &orig), &blur)| {
+                let hf = orig - blur;
+                *y = (*y + detail_strength * hf).clamp(0.0, 255.0);
+            });
     }
 
     let (r, g, b) = ycbcr_to_rgb(
@@ -84,35 +88,31 @@ pub fn denoise(
 }
 
 fn rgb_to_ycbcr(r: &[f32], g: &[f32], b: &[f32]) -> (Vec<f32>, Vec<f32>, Vec<f32>) {
-    let n = r.len();
-    let mut y = vec![0.0f32; n];
-    let mut cb = vec![0.0f32; n];
-    let mut cr = vec![0.0f32; n];
-    for i in 0..n {
-        let rv = r[i];
-        let gv = g[i];
-        let bv = b[i];
-        y[i] = 0.299 * rv + 0.587 * gv + 0.114 * bv;
-        cb[i] = -0.168736 * rv - 0.331264 * gv + 0.5 * bv + 128.0;
-        cr[i] = 0.5 * rv - 0.418688 * gv - 0.081312 * bv + 128.0;
-    }
-    (y, cb, cr)
+    r.iter()
+        .zip(g)
+        .zip(b)
+        .map(|((&rv, &gv), &bv)| {
+            (
+                0.299 * rv + 0.587 * gv + 0.114 * bv,
+                -0.168736 * rv - 0.331264 * gv + 0.5 * bv + 128.0,
+                0.5 * rv - 0.418688 * gv - 0.081312 * bv + 128.0,
+            )
+        })
+        .collect()
 }
 
 fn ycbcr_to_rgb(y: &[f32], cb: &[f32], cr: &[f32]) -> (Vec<f32>, Vec<f32>, Vec<f32>) {
-    let n = y.len();
-    let mut r = vec![0.0f32; n];
-    let mut g = vec![0.0f32; n];
-    let mut b = vec![0.0f32; n];
-    for i in 0..n {
-        let yv = y[i];
-        let cbv = cb[i] - 128.0;
-        let crv = cr[i] - 128.0;
-        r[i] = yv + 1.402 * crv;
-        g[i] = yv - 0.344136 * cbv - 0.714136 * crv;
-        b[i] = yv + 1.772 * cbv;
-    }
-    (r, g, b)
+    y.iter()
+        .zip(cb)
+        .zip(cr)
+        .map(|((&yv, &cbv), &crv)| {
+            (
+                yv + 1.402 * (crv - 128.0),
+                yv - 0.344136 * (cbv - 128.0) - 0.714136 * (crv - 128.0),
+                yv + 1.772 * (cbv - 128.0),
+            )
+        })
+        .collect()
 }
 
 fn bm3d_process_joint(
@@ -162,19 +162,17 @@ fn run_bm3d_step_joint(
     let count = w * h;
     let num_channels = 3;
 
-    let mut numerators = Vec::new();
-    let mut denominators = Vec::new();
-    for _ in 0..num_channels {
-        numerators.push(Arc::new(AtomicAccumulator::new(count)));
-        denominators.push(Arc::new(AtomicAccumulator::new(count)));
-    }
+    let numerators: Vec<_> = (0..num_channels)
+        .map(|_| Arc::new(AtomicAccumulator::new(count)))
+        .collect();
+    let denominators: Vec<_> = (0..num_channels)
+        .map(|_| Arc::new(AtomicAccumulator::new(count)))
+        .collect();
 
-    let mut ref_patches = Vec::with_capacity((w / STRIDE) * (h / STRIDE));
-    for y in (0..h.saturating_sub(BLOCK_SIZE)).step_by(STRIDE) {
-        for x in (0..w.saturating_sub(BLOCK_SIZE)).step_by(STRIDE) {
-            ref_patches.push((x, y));
-        }
-    }
+    let ref_patches: Vec<(usize, usize)> = (0..h.saturating_sub(BLOCK_SIZE))
+        .step_by(STRIDE)
+        .flat_map(|y| (0..w.saturating_sub(BLOCK_SIZE)).step_by(STRIDE).map(move |x| (x, y)))
+        .collect();
 
     ref_patches.par_iter().for_each(|&(rx, ry)| {
         let c = progress.counter.fetch_add(1, AtomicOrdering::Relaxed);
@@ -187,7 +185,7 @@ fn run_bm3d_step_joint(
             block_matching_joint(guide, w, h, rx, ry, is_step_1, params, &mut group_locs_buf);
         let group_locs = &group_locs_buf[0..group_size];
 
-        for ch in 0..num_channels {
+        (0..num_channels).for_each(|ch| {
             let guide_ch = &guide[ch];
             let noisy_ch = &noisy[ch];
 
@@ -228,69 +226,70 @@ fn run_bm3d_step_joint(
             let num_acc = &numerators[ch];
             let den_acc = &denominators[ch];
 
-            for (k, &(lx, ly)) in group_locs.iter().enumerate() {
+            group_locs.iter().enumerate().for_each(|(k, &(lx, ly))| {
                 let patch_offset = k * BLOCK_AREA;
-                for dy in 0..BLOCK_SIZE {
+                (0..BLOCK_SIZE).for_each(|dy| {
                     let row_global = (ly + dy) * w + lx;
                     let row_patch = dy * BLOCK_SIZE;
-                    for dx in 0..BLOCK_SIZE {
+                    (0..BLOCK_SIZE).for_each(|dx| {
                         let idx = row_global + dx;
                         let val = noisy_stack[patch_offset + row_patch + dx];
                         let w_val = tables.kaiser[row_patch + dx] * weight;
                         num_acc.add(idx, val * w_val);
                         den_acc.add(idx, w_val);
-                    }
-                }
-            }
-        }
+                    });
+                });
+            });
+        });
     });
 
-    let mut results = Vec::new();
-    for ch in 0..num_channels {
-        let num_vec = numerators[ch].to_vec();
-        let den_vec = denominators[ch].to_vec();
-        let final_ch = num_vec
-            .iter()
-            .zip(den_vec.iter())
-            .zip(noisy[ch].iter())
-            .map(|((&n, &d), &orig)| if d > 1e-6 { n / d } else { orig })
-            .collect();
-        results.push(final_ch);
-    }
-    results
+    (0..num_channels)
+        .map(|ch| {
+            let num_vec = numerators[ch].to_vec();
+            let den_vec = denominators[ch].to_vec();
+            num_vec
+                .iter()
+                .zip(den_vec.iter())
+                .zip(noisy[ch].iter())
+                .map(|((&n, &d), &orig)| if d > 1e-6 { n / d } else { orig })
+                .collect()
+        })
+        .collect()
 }
 
 fn hard_threshold(stack: &mut [f32], th: f32) -> usize {
-    let mut c = 0;
-    for (i, x) in stack.iter_mut().enumerate() {
-        if i == 0 {
-            c += 1;
-            continue;
-        }
-
-        if x.abs() < th {
-            *x = 0.0;
-        } else {
-            c += 1;
-        }
-    }
-    c
+    stack
+        .iter_mut()
+        .enumerate()
+        .map(|(i, x)| {
+            if i == 0 || x.abs() >= th {
+                1_usize
+            } else {
+                *x = 0.0;
+                0
+            }
+        })
+        .sum::<usize>()
+        + 1
 }
 
 fn wiener_filter(noisy: &mut [f32], guide: &[f32], sigma: f32) -> f32 {
-    let mut sum = 0.0;
     let s2 = sigma * sigma;
-    for (i, (n, g)) in noisy.iter_mut().zip(guide).enumerate() {
-        if i == 0 {
-            sum += 1.0;
-            continue;
-        }
-
-        let energy = g * g;
-        let coef = energy / (energy + s2 + 1e-5);
-        *n *= coef;
-        sum += coef * coef;
-    }
+    let sum = noisy
+        .iter_mut()
+        .zip(guide)
+        .enumerate()
+        .map(|(i, (n, &g))| {
+            if i == 0 {
+                1.0
+            } else {
+                let energy = g * g;
+                let coef = energy / (energy + s2 + 1e-5);
+                *n *= coef;
+                coef * coef
+            }
+        })
+        .sum::<f32>();
     if sum > 0.0 { 1.0 / sum } else { 1.0 }
 }
 
@@ -314,13 +313,6 @@ fn block_matching_joint(
     out_buf: &mut [(usize, usize)],
 ) -> usize {
     const MAX_CANDIDATES: usize = 1024;
-    let mut candidates: [Match; MAX_CANDIDATES] = [Match {
-        dist: f32::MAX,
-        x: 0,
-        y: 0,
-    }; MAX_CANDIDATES];
-    let mut cand_count = 0;
-
     let threshold = if is_step_1 {
         params.max_dist_hard
     } else {
@@ -340,49 +332,51 @@ fn block_matching_joint(
     let sy_start = ry.saturating_sub(half_sw);
     let sy_end = (ry + half_sw).min(h.saturating_sub(BLOCK_SIZE));
 
-    candidates[0] = Match {
+    let mut candidates: Vec<Match> = std::iter::once(Match {
         dist: 0.0,
         x: rx as u16,
         y: ry as u16,
-    };
-    cand_count += 1;
+    })
+    .chain(
+        (sy_start..=sy_end)
+            .flat_map(|y| (sx_start..=sx_end).map(move |x| (x, y)))
+            .filter(|&(x, y)| !(x == rx && y == ry))
+            .filter_map(|(x, y)| {
+                let d_r = compute_ssd_flat(&channels[0], w, x, y, &ref_r, threshold);
+                if d_r > threshold {
+                    return None;
+                }
+                let d_g = compute_ssd_flat(&channels[1], w, x, y, &ref_g, threshold - d_r);
+                if d_r + d_g > threshold {
+                    return None;
+                }
+                let d_b = compute_ssd_flat(&channels[2], w, x, y, &ref_b, threshold - (d_r + d_g));
+                let total_dist = d_r + d_g + d_b;
+                if total_dist < threshold {
+                    Some(Match {
+                        dist: total_dist,
+                        x: x as u16,
+                        y: y as u16,
+                    })
+                } else {
+                    None
+                }
+            }),
+    )
+    .take(MAX_CANDIDATES)
+    .collect();
 
-    for y in sy_start..=sy_end {
-        for x in sx_start..=sx_end {
-            if x == rx && y == ry {
-                continue;
-            }
-            let d_r = compute_ssd_flat(&channels[0], w, x, y, &ref_r, threshold);
-            if d_r > threshold {
-                continue;
-            }
-            let d_g = compute_ssd_flat(&channels[1], w, x, y, &ref_g, threshold - d_r);
-            if d_r + d_g > threshold {
-                continue;
-            }
-            let d_b = compute_ssd_flat(&channels[2], w, x, y, &ref_b, threshold - (d_r + d_g));
-            let total_dist = d_r + d_g + d_b;
+    candidates
+        .sort_unstable_by(|a, b| a.dist.partial_cmp(&b.dist).unwrap_or(Ordering::Equal));
 
-            if total_dist < threshold && cand_count < MAX_CANDIDATES {
-                candidates[cand_count] = Match {
-                    dist: total_dist,
-                    x: x as u16,
-                    y: y as u16,
-                };
-                cand_count += 1;
-            }
-        }
-    }
-
-    let valid_slice = &mut candidates[0..cand_count];
-    valid_slice.sort_unstable_by(|a, b| a.dist.partial_cmp(&b.dist).unwrap_or(Ordering::Equal));
-
-    let limit = MAX_GROUP_SIZE.min(cand_count);
+    let limit = MAX_GROUP_SIZE.min(candidates.len());
     let p2_limit = prev_power_of_two(limit);
 
-    for i in 0..p2_limit {
-        out_buf[i] = (valid_slice[i].x as usize, valid_slice[i].y as usize);
-    }
+    out_buf
+        .iter_mut()
+        .zip(candidates.iter())
+        .take(p2_limit)
+        .for_each(|(slot, m)| *slot = (m.x as usize, m.y as usize));
     p2_limit
 }
 
@@ -412,19 +406,19 @@ fn compute_ssd_flat(
 
 #[inline(always)]
 fn extract_patch(img: &[f32], w: usize, x: usize, y: usize, out: &mut [f32]) {
-    for dy in 0..8 {
+    (0..8).for_each(|dy| {
         let src_idx = (y + dy) * w + x;
         let dst_idx = dy * 8;
         out[dst_idx..dst_idx + 8].copy_from_slice(&img[src_idx..src_idx + 8]);
-    }
+    });
 }
 
 fn build_3d_group(img: &[f32], w: usize, locs: &[(usize, usize)]) -> Vec<f32> {
     let mut stack = vec![0.0; locs.len() * 64];
-    for (i, &(lx, ly)) in locs.iter().enumerate() {
+    locs.iter().enumerate().for_each(|(i, &(lx, ly))| {
         let offset = i * 64;
         extract_patch(img, w, lx, ly, &mut stack[offset..offset + 64]);
-    }
+    });
     stack
 }
 
@@ -438,29 +432,29 @@ impl DctTables {
     fn new() -> Self {
         let mut dct_coeff = [0.0; 64];
         let mut idct_coeff = [0.0; 64];
-        for k in 0..8 {
-            for n in 0..8 {
+        (0..8).for_each(|k| {
+            (0..8).for_each(|n| {
                 let c = k as f32 * std::f32::consts::PI / 8.0;
                 let val = ((n as f32 + 0.5) * c).cos();
                 let scale = if k == 0 { 0.35355339 } else { 0.5 };
                 dct_coeff[k * 8 + n] = val * scale;
-            }
-        }
-        for n in 0..8 {
-            for k in 0..8 {
+            });
+        });
+        (0..8).for_each(|n| {
+            (0..8).for_each(|k| {
                 let theta = (std::f32::consts::PI / 8.0) * (n as f32 + 0.5) * (k as f32);
                 let scale = if k == 0 { 0.35355339 } else { 0.5 };
                 idct_coeff[n * 8 + k] = scale * theta.cos();
-            }
-        }
+            });
+        });
         let mut kaiser = vec![0.0; 64];
-        for y in 0..8 {
-            for x in 0..8 {
+        (0..8).for_each(|y| {
+            (0..8).for_each(|x| {
                 let wx = (std::f32::consts::PI * x as f32 / 7.0).sin();
                 let wy = (std::f32::consts::PI * y as f32 / 7.0).sin();
                 kaiser[y * 8 + x] = wx * wy;
-            }
-        }
+            });
+        });
         Self {
             dct_coeff,
             idct_coeff,
@@ -475,11 +469,9 @@ struct AtomicAccumulator {
 
 impl AtomicAccumulator {
     fn new(size: usize) -> Self {
-        let mut data = Vec::with_capacity(size);
-        for _ in 0..size {
-            data.push(AtomicI64::new(0));
+        Self {
+            data: (0..size).map(|_| AtomicI64::new(0)).collect(),
         }
-        Self { data }
     }
     #[inline(always)]
     fn add(&self, index: usize, value: f32) {
@@ -498,62 +490,46 @@ impl AtomicAccumulator {
 
 #[inline(always)]
 fn transform_3d(stack: &mut [f32], group_size: usize, tables: &DctTables) {
-    for i in 0..group_size {
+    (0..group_size).for_each(|i| {
         let offset = i * 64;
         dct_2d_8x8(&mut stack[offset..offset + 64], &tables.dct_coeff);
-    }
-    for i in 0..64 {
+    });
+    (0..64).for_each(|i| {
         let mut col = [0.0; MAX_GROUP_SIZE];
-        for k in 0..group_size {
-            col[k] = stack[k * 64 + i];
-        }
+        (0..group_size).for_each(|k| col[k] = stack[k * 64 + i]);
         walsh_hadamard_1d(&mut col[0..group_size]);
-        for k in 0..group_size {
-            stack[k * 64 + i] = col[k];
-        }
-    }
+        (0..group_size).for_each(|k| stack[k * 64 + i] = col[k]);
+    });
 }
 
 #[inline(always)]
 fn inverse_transform_3d(stack: &mut [f32], group_size: usize, tables: &DctTables) {
-    for i in 0..64 {
+    (0..64).for_each(|i| {
         let mut col = [0.0; MAX_GROUP_SIZE];
-        for k in 0..group_size {
-            col[k] = stack[k * 64 + i];
-        }
+        (0..group_size).for_each(|k| col[k] = stack[k * 64 + i]);
         walsh_hadamard_1d(&mut col[0..group_size]);
-        for k in 0..group_size {
-            stack[k * 64 + i] = col[k];
-        }
-    }
-    for i in 0..group_size {
+        (0..group_size).for_each(|k| stack[k * 64 + i] = col[k]);
+    });
+    (0..group_size).for_each(|i| {
         let offset = i * 64;
         idct_2d_8x8(&mut stack[offset..offset + 64], &tables.idct_coeff);
-    }
+    });
 }
 
 #[inline]
 fn dct_2d_8x8(block: &mut [f32], coeffs: &[f32; 64]) {
-    for i in 0..8 {
-        dct_1d_8(&mut block[i * 8..(i + 1) * 8], coeffs);
-    }
+    (0..8).for_each(|i| dct_1d_8(&mut block[i * 8..(i + 1) * 8], coeffs));
     transpose_8x8(block);
-    for i in 0..8 {
-        dct_1d_8(&mut block[i * 8..(i + 1) * 8], coeffs);
-    }
+    (0..8).for_each(|i| dct_1d_8(&mut block[i * 8..(i + 1) * 8], coeffs));
     transpose_8x8(block);
 }
 
 #[inline]
 fn idct_2d_8x8(block: &mut [f32], coeffs: &[f32; 64]) {
     transpose_8x8(block);
-    for i in 0..8 {
-        idct_1d_8(&mut block[i * 8..(i + 1) * 8], coeffs);
-    }
+    (0..8).for_each(|i| idct_1d_8(&mut block[i * 8..(i + 1) * 8], coeffs));
     transpose_8x8(block);
-    for i in 0..8 {
-        idct_1d_8(&mut block[i * 8..(i + 1) * 8], coeffs);
-    }
+    (0..8).for_each(|i| idct_1d_8(&mut block[i * 8..(i + 1) * 8], coeffs));
 }
 
 #[inline]
@@ -586,11 +562,9 @@ fn idct_1d_8(x: &mut [f32], coeffs: &[f32; 64]) {
 
 #[inline]
 fn transpose_8x8(b: &mut [f32]) {
-    for y in 0..8 {
-        for x in (y + 1)..8 {
-            b.swap(y * 8 + x, x * 8 + y);
-        }
-    }
+    (0..8).for_each(|y| {
+        (y + 1..8).for_each(|x| b.swap(y * 8 + x, x * 8 + y));
+    });
 }
 
 #[inline]
@@ -598,14 +572,14 @@ fn walsh_hadamard_1d(data: &mut [f32]) {
     let n = data.len();
     let mut h = 1;
     while h < n {
-        for i in (0..n).step_by(h * 2) {
-            for j in i..i + h {
+        (0..n).step_by(h * 2).for_each(|i| {
+            (i..i + h).for_each(|j| {
                 let x = data[j];
                 let y = data[j + h];
                 data[j] = x + y;
                 data[j + h] = x - y;
-            }
-        }
+            });
+        });
         h *= 2;
     }
     let scale = 1.0 / (n as f32).sqrt();
@@ -615,27 +589,22 @@ fn walsh_hadamard_1d(data: &mut [f32]) {
 }
 
 fn split_channels(img: &Rgb32FImage) -> Vec<Vec<f32>> {
-    let (w, h) = img.dimensions();
-    let size = (w * h) as usize;
-    let mut r = vec![0.0; size];
-    let mut g = vec![0.0; size];
-    let mut b = vec![0.0; size];
-    for (i, p) in img.pixels().enumerate() {
-        r[i] = p[0] * 255.0;
-        g[i] = p[1] * 255.0;
-        b[i] = p[2] * 255.0;
-    }
+    let (r, g, b): (Vec<f32>, Vec<f32>, Vec<f32>) = img
+        .pixels()
+        .map(|p| (p[0] * 255.0, p[1] * 255.0, p[2] * 255.0))
+        .collect();
     vec![r, g, b]
 }
 
 fn merge_channels(channels: &[Vec<f32>], w: u32, h: u32) -> Rgb32FImage {
     let mut img = Rgb32FImage::new(w, h);
-    for (i, p) in img.pixels_mut().enumerate() {
-        let r = channels[0][i].clamp(0.0, 255.0) / 255.0;
-        let g = channels[1][i].clamp(0.0, 255.0) / 255.0;
-        let b = channels[2][i].clamp(0.0, 255.0) / 255.0;
-        *p = Rgb([r, g, b]);
-    }
+    img.pixels_mut().enumerate().for_each(|(i, p)| {
+        *p = Rgb([
+            channels[0][i].clamp(0.0, 255.0) / 255.0,
+            channels[1][i].clamp(0.0, 255.0) / 255.0,
+            channels[2][i].clamp(0.0, 255.0) / 255.0,
+        ]);
+    });
     img
 }
 
@@ -655,10 +624,10 @@ fn gaussian_blur_1ch(data: &[f32], width: usize, height: usize, sigma: f32) -> V
     let klen = 2 * radius + 1;
     let mut kernel = vec![0.0f32; klen];
     let two_s2 = 2.0 * sigma * sigma;
-    for (i, kernel_val) in kernel.iter_mut().enumerate() {
+    kernel.iter_mut().enumerate().for_each(|(i, kernel_val)| {
         let k = i as f32 - radius as f32;
         *kernel_val = (-k * k / two_s2).exp();
-    }
+    });
     let ksum: f32 = kernel.iter().sum();
     for k in &mut kernel {
         *k /= ksum;
