@@ -1,6 +1,6 @@
 use crate::app_settings::load_settings;
 use crate::app_state::AppState;
-use crate::file_management::parse_virtual_path;
+use engine::paths::parse_virtual_path;
 use base64::{Engine as _, engine::general_purpose};
 use image::ImageFormat;
 use image::{DynamicImage, GenericImageView, GrayImage, Rgb32FImage};
@@ -166,7 +166,7 @@ pub async fn save_panorama(
         .save(&output_path)
         .map_err(|e| format!("Failed to save panorama image: {}", e))?;
 
-    let (real_path, _) = crate::file_management::parse_virtual_path(&first_path_str);
+    let (real_path, _) = engine::paths::parse_virtual_path(&first_path_str);
     let _ =
         crate::exif_processing::write_rrexif_sidecar(&real_path.to_string_lossy(), &output_path);
 

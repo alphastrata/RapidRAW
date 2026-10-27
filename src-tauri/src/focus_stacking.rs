@@ -9,7 +9,7 @@ use tauri::{AppHandle, Emitter};
 
 use crate::app_settings::load_settings;
 use crate::app_state::AppState;
-use crate::file_management::parse_virtual_path;
+use engine::paths::parse_virtual_path;
 use crate::formats::is_raw_file;
 use crate::image_processing::apply_cpu_default_raw_processing;
 

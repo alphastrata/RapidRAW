@@ -1,5 +1,5 @@
 use crate::app_state::{AppState, LoadedImage};
-use crate::file_management::parse_virtual_path;
+use engine::paths::parse_virtual_path;
 use crate::relight::RelightTap;
 use half::f16;
 use half::slice::HalfFloatSliceExt;

@@ -11,7 +11,7 @@ pub fn trash_remote(
 ) -> Result<Vec<String>, String> {
     let (remote, local): (Vec<_>, Vec<_>) = paths.into_iter().partition(|p| {
         !p.contains("?vc=")
-            && registry::get(&crate::file_management::parse_virtual_path(p).0).is_some()
+            && registry::get(&engine::paths::parse_virtual_path(p).0).is_some()
     });
     if remote.is_empty() {
         return Ok(local);
@@ -27,7 +27,7 @@ pub fn trash_remote(
     let mut ids = Vec::new();
     let mut sources = Vec::new();
     for path in &remote {
-        let (source, _) = crate::file_management::parse_virtual_path(path);
+        let (source, _) = engine::paths::parse_virtual_path(path);
         let Some(entry) = registry::get(&source) else {
             continue;
         };

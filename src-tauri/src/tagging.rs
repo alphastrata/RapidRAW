@@ -14,7 +14,8 @@ use tokenizers::Tokenizer;
 use tokio::task::JoinHandle;
 use walkdir::WalkDir;
 
-use crate::file_management::{self, parse_virtual_path};
+use crate::file_management;
+use engine::paths::parse_virtual_path;
 use crate::formats::is_supported_image_file;
 use crate::hierarchy::TAG_HIERARCHY;
 use crate::image_processing::ImageMetadata;

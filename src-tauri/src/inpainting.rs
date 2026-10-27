@@ -478,7 +478,7 @@ pub async fn invoke_generative_replace_with_mask_def(
         }
         let mask_image_dynamic = DynamicImage::ImageRgba8(rgba_mask);
 
-        let (real_path_buf, _) = crate::file_management::parse_virtual_path(&path);
+        let (real_path_buf, _) = engine::paths::parse_virtual_path(&path);
         let real_path_str = real_path_buf.to_string_lossy().to_string();
 
         let inpaint_fut = ai_connector::process_inpainting(

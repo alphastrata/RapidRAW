@@ -4,7 +4,7 @@ use crate::app_state::{AppState, LoadedImage};
 use crate::baseline_exposure::BaselineOptions;
 use crate::cache_utils::{DecodeFingerprint, FlightRole};
 use crate::exif_processing;
-use crate::file_management::{parse_virtual_path, read_file_mapped};
+use engine::paths::{parse_virtual_path, read_file_mapped};
 use crate::formats::is_raw_file;
 use crate::image_processing::ImageMetadata;
 use crate::image_processing::{

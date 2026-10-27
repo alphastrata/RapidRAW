@@ -3,7 +3,7 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Condvar, Mutex};
 use std::time::Duration;
 
-use crate::file_management::read_file_mapped;
+use engine::paths::read_file_mapped;
 
 pub struct MemoryBudget {
     total: u64,

@@ -17,7 +17,7 @@ use crate::ai_processing::{AiDepthMaskParameters, AiMaskModel, get_or_init_ai_mo
 use crate::app_state::AppState;
 use crate::cache_utils::GEOMETRY_KEYS;
 use crate::effect_maps::{EffectMapKind, is_map_reference, is_map_valid_for};
-use crate::file_management::{parse_virtual_path, read_file_mapped};
+use engine::paths::{parse_virtual_path, read_file_mapped};
 use crate::image_processing::is_effect_enabled;
 
 const JOURNAL_FILE: &str = "ai_jobs.json";

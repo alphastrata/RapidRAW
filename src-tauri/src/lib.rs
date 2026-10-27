@@ -105,7 +105,7 @@ use tokio::sync::Mutex as TokioMutex;
 use crate::cache_utils::{
     DecodedImageCache, calculate_full_job_hash, calculate_geometry_hash, calculate_transform_hash,
 };
-use crate::file_management::parse_virtual_path;
+use engine::paths::parse_virtual_path;
 use crate::formats::is_raw_file;
 use crate::gpu_processing::DisplayLayer;
 use crate::hdr_deghosting::{align_hdr_frames, assert_uniform_dimensions, load_hdr_frames};
@@ -1676,7 +1676,7 @@ async fn save_hdr(
         .save(&output_path)
         .map_err(|e| format!("Failed to save hdr image: {}", e))?;
 
-    let (real_path, _) = crate::file_management::parse_virtual_path(&first_path_str);
+    let (real_path, _) = engine::paths::parse_virtual_path(&first_path_str);
     let _ =
         crate::exif_processing::write_rrexif_sidecar(&real_path.to_string_lossy(), &output_path);
 

@@ -83,7 +83,7 @@ pub async fn immich_remove_from_album(
         .iter()
         .filter(|path| !path.contains("?vc="))
         .filter_map(|path| {
-            registry::get(&crate::file_management::parse_virtual_path(path).0)
+            registry::get(&engine::paths::parse_virtual_path(path).0)
                 .map(|entry| entry.listed_asset_id)
         })
         .collect();

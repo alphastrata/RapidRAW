@@ -17,7 +17,7 @@ pub fn placeholder_thumbnail(
     path_str: &str,
     thumb_cache_dir: &Path,
 ) -> Option<Option<(String, String)>> {
-    let (source, _) = crate::file_management::parse_virtual_path(path_str);
+    let (source, _) = engine::paths::parse_virtual_path(path_str);
     if !is_placeholder(&source) {
         return None;
     }

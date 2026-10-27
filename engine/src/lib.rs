@@ -1,5 +1,6 @@
 pub mod formats;
 pub mod immich;
+pub mod paths;
 pub mod settings;
 pub mod bm3d;
 pub mod highlight_reconstruction;

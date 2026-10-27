@@ -72,7 +72,7 @@ pub fn on_exported(
     };
     let session = session(app_handle)?;
 
-    let (source, _) = crate::file_management::parse_virtual_path(source_path);
+    let (source, _) = engine::paths::parse_virtual_path(source_path);
     let file_name = output_path
         .file_name()
         .map(|n| n.to_string_lossy().into_owned())

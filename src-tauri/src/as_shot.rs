@@ -1,5 +1,5 @@
 use crate::baseline_exposure::RawExposure;
-use crate::file_management::{parse_virtual_path, read_file_mapped};
+use engine::paths::{parse_virtual_path, read_file_mapped};
 use crate::formats::is_raw_file;
 use crate::white_balance::WhiteBalance;
 use std::collections::HashMap;

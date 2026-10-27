@@ -1814,10 +1814,12 @@ dependencies = [
  "blake3",
  "image",
  "log",
+ "memmap2",
  "rayon",
  "reqwest",
  "serde",
  "serde_json",
+ "tempfile",
 ]
 
 [[package]]
