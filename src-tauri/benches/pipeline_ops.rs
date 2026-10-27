@@ -207,7 +207,7 @@ fn lut_parse_cube_33(b: Bencher) {
 #[divan::bench]
 fn visual_hash(b: Bencher) {
     let adjustments = json!({"exposure": 0.3, "contrast": 12.0});
-    b.bench(|| cache_utils::calculate_visual_hash(black_box("IMG_0001.CR2"), black_box(&adjustments)));
+    b.bench(|| cache_utils::calculate_full_job_hash(black_box("IMG_0001.CR2"), black_box(&adjustments)));
 }
 
 #[divan::bench]

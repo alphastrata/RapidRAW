@@ -218,14 +218,24 @@ fn remove_raw_artifacts_enhance(b: Bencher) {
     });
 }
 
+static ANALYTICS_FRAME: LazyLock<image_processing::AnalyticsFrame> = LazyLock::new(|| {
+    let rgba = SAMPLE.to_rgba8();
+    image_processing::AnalyticsFrame {
+        data: image_processing::AnalyticsPixels::Owned(rgba.as_raw().clone()),
+        width: W,
+        height: H,
+        row_stride: (W as usize) * 4,
+    }
+});
+
 #[divan::bench]
 fn histogram(b: Bencher) {
-    b.bench(|| image_processing::calculate_histogram_from_image(black_box(&*SAMPLE)).unwrap());
+    b.bench(|| image_processing::calculate_histogram(black_box(&*ANALYTICS_FRAME)).unwrap());
 }
 
 #[divan::bench]
 fn waveform(b: Bencher) {
-    b.bench(|| image_processing::calculate_waveform_from_image(black_box(&*SAMPLE), black_box(None)).unwrap());
+    b.bench(|| image_processing::calculate_waveform(black_box(&*ANALYTICS_FRAME), black_box(None)).unwrap());
 }
 
 #[divan::bench]

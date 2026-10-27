@@ -93,3 +93,25 @@ ORT_DYLIB_PATH=src-tauri/resources/libonnxruntime.so cargo bench --bench ai_ops
 ```
 
 Custom weights directory: `RAPIDRAW_MODELS_DIR=/path/to/models`.
+# Export Benchmark (headless)
+
+`replay.js` above measures UI smoothness. To compare the image processing pipeline of two
+builds without opening the GUI, `compare-renders.sh` exports a folder with each build through
+the headless `export` command, as 16-bit TIFF and as JPEG using each image's sidecar edits:
+
+```bash
+bench/compare-renders.sh ./rapidraw-before ./rapidraw-after ~/Pictures/test-set /tmp/render-check
+```
+
+For each build and format it prints the total export time and the median per-image raw
+enhance and GPU times, read from the timing lines the app already logs. It then checks that
+both builds wrote byte-identical files and exits with status 1 if any file differs, so it also
+confirms that an optimization left rendered output unchanged.
+
+Exports process several images at once, so the per-image GPU time includes waiting for the
+shared GPU; use the total time to compare throughput. For a per-function breakdown, run a
+single export under a sampling profiler instead, for example
+`perf record -g -- rapidraw export photo.ARW --output /tmp/out.jpg` on Linux.
+
+Only compare builds on the same machine. GPU output is deterministic for one GPU and driver,
+but can differ slightly between GPUs.

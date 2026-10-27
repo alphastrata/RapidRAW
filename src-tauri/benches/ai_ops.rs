@@ -52,8 +52,6 @@ fn mask(w: u32, h: u32) -> GrayImage {
 static SIZE: u32 = 512;
 
 static LAMA: LazyLock<Mutex<Session>> = LazyLock::new(|| load("lama_fp16.onnx"));
-static SKY: LazyLock<Mutex<Session>> = LazyLock::new(|| load("skyseg_u2net.onnx"));
-static U2NETP: LazyLock<Mutex<Session>> = LazyLock::new(|| load("u2net.onnx"));
 static DEPTH: LazyLock<Mutex<Session>> = LazyLock::new(|| load("depth_anything_v2_vits.onnx"));
 static NORMAL: LazyLock<Mutex<Session>> = LazyLock::new(|| load("moge-2-vits-normal-onnx.onnx"));
 static DENOISE: LazyLock<Mutex<Session>> = LazyLock::new(|| load("nind_denoise_utnet_684.onnx"));
@@ -73,17 +71,7 @@ fn lama_inpaint_512(b: Bencher) {
     b.bench(|| ai_processing::run_lama_inpainting(black_box(&img), black_box(&m), black_box(&LAMA)).unwrap());
 }
 
-#[divan::bench]
-fn sky_seg_512(b: Bencher) {
-    let img = image(SIZE, SIZE);
-    b.bench(|| ai_processing::run_sky_seg_model(black_box(&img), black_box(&SKY)).unwrap());
-}
 
-#[divan::bench]
-fn u2netp_512(b: Bencher) {
-    let img = image(SIZE, SIZE);
-    b.bench(|| ai_processing::run_u2netp_model(black_box(&img), black_box(&U2NETP)).unwrap());
-}
 
 #[divan::bench]
 fn depth_anything_512(b: Bencher) {
@@ -101,8 +89,7 @@ fn normal_moge_512(b: Bencher) {
 fn denoise_nind_256(b: Bencher) {
     let img = image(256, 256).to_rgb32f();
     b.bench(|| {
-        ai_processing::run_ai_denoise(black_box(&img), black_box(0.5), black_box(&DENOISE), None)
-            .unwrap()
+        ai_processing::run_ai_denoise(black_box(&img), black_box(&DENOISE), black_box(&|_| {})).unwrap()
     });
 }
 
