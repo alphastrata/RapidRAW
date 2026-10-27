@@ -233,6 +233,106 @@ impl Default for ParametricMaskParameters {
     }
 }
 
+#[derive(Clone, Copy, Default)]
+pub struct MaskTransform {
+    pub rotation: f32,
+    pub flip_horizontal: bool,
+    pub flip_vertical: bool,
+    pub orientation_steps: u8,
+}
+
+impl MaskTransform {
+    #[must_use]
+    pub fn from_adjustments(adjustments: &serde_json::Value) -> Self {
+        Self {
+            rotation: adjustments["rotation"].as_f64().unwrap_or(0.0) as f32,
+            flip_horizontal: adjustments["flipHorizontal"].as_bool().unwrap_or(false),
+            flip_vertical: adjustments["flipVertical"].as_bool().unwrap_or(false),
+            orientation_steps: adjustments["orientationSteps"].as_u64().unwrap_or(0) as u8,
+        }
+    }
+
+    #[must_use]
+    pub fn box_space(&self, (width, height): (u32, u32)) -> (u32, u32) {
+        if self.orientation_steps % 2 == 1 {
+            (height, width)
+        } else {
+            (width, height)
+        }
+    }
+
+    #[must_use]
+    pub fn unrotate_box(
+        &self,
+        start_point: (f64, f64),
+        end_point: (f64, f64),
+        (img_w, img_h): (u32, u32),
+    ) -> ((f64, f64), (f64, f64)) {
+        let (coarse_rotated_w, coarse_rotated_h) = {
+            let (w, h) = self.box_space((img_w, img_h));
+            (w as f64, h as f64)
+        };
+        let center = (coarse_rotated_w / 2.0, coarse_rotated_h / 2.0);
+
+        let angle_rad = (self.rotation as f64).to_radians();
+        let cos_a = angle_rad.cos();
+        let sin_a = angle_rad.sin();
+
+        let unrotate = |p: (f64, f64)| {
+            let px = p.0 - center.0;
+            let py = p.1 - center.1;
+            (
+                px * cos_a + py * sin_a + center.0,
+                -px * sin_a + py * cos_a + center.1,
+            )
+        };
+
+        let unflip = |p: (f64, f64)| {
+            let mut new_px = p.0;
+            let mut new_py = p.1;
+            if self.flip_horizontal {
+                new_px = coarse_rotated_w - p.0;
+            }
+            if self.flip_vertical {
+                new_py = coarse_rotated_h - p.1;
+            }
+            (new_px, new_py)
+        };
+
+        let un_coarse_rotate = |p: (f64, f64)| -> (f64, f64) {
+            let w = img_w as f64;
+            let h = img_h as f64;
+            match self.orientation_steps {
+                1 => (p.1, h - p.0),
+                2 => (w - p.0, h - p.1),
+                3 => (w - p.1, p.0),
+                _ => p,
+            }
+        };
+
+        let corners = [
+            start_point,
+            (start_point.0, end_point.1),
+            end_point,
+            (end_point.0, start_point.1),
+        ]
+        .map(|p| un_coarse_rotate(unflip(unrotate(p))));
+
+        let min_x = corners.iter().map(|p| p.0).fold(f64::INFINITY, f64::min);
+        let min_y = corners.iter().map(|p| p.1).fold(f64::INFINITY, f64::min);
+        let max_x = corners
+            .iter()
+            .map(|p| p.0)
+            .fold(f64::NEG_INFINITY, f64::max);
+        let max_y = corners
+            .iter()
+            .map(|p| p.1)
+            .fold(f64::NEG_INFINITY, f64::max);
+
+        ((min_x, min_y), (max_x, max_y))
+    }
+}
+
 fn grayscale_dilate(image: &GrayImage, k: u8) -> GrayImage {
     let (width, height) = image.dimensions();
     if width == 0 || height == 0 {

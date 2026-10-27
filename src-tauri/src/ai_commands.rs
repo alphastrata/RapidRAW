@@ -61,32 +61,7 @@ fn encode_to_base64_png(image: &GrayImage) -> Result<String, String> {
     Ok(format!("data:image/png;base64,{}", base64_str))
 }
 
-#[derive(Clone, Copy)]
-pub struct MaskTransform {
-    pub rotation: f32,
-    pub flip_horizontal: bool,
-    pub flip_vertical: bool,
-    pub orientation_steps: u8,
-}
-
-impl MaskTransform {
-    pub fn from_adjustments(adjustments: &serde_json::Value) -> Self {
-        Self {
-            rotation: adjustments["rotation"].as_f64().unwrap_or(0.0) as f32,
-            flip_horizontal: adjustments["flipHorizontal"].as_bool().unwrap_or(false),
-            flip_vertical: adjustments["flipVertical"].as_bool().unwrap_or(false),
-            orientation_steps: adjustments["orientationSteps"].as_u64().unwrap_or(0) as u8,
-        }
-    }
-
-    pub fn box_space(&self, (width, height): (u32, u32)) -> (u32, u32) {
-        if self.orientation_steps % 2 == 1 {
-            (height, width)
-        } else {
-            (width, height)
-        }
-    }
-}
+pub use engine::mask_generation::MaskTransform;
 
 pub fn to_json<T: Serialize>(params: T) -> Result<Value, String> {
     serde_json::to_value(params).map_err(|e| e.to_string())
@@ -435,74 +410,6 @@ fn cached_image_embeddings(
     Ok(embeddings)
 }
 
-fn unrotate_box(
-    start_point: (f64, f64),
-    end_point: (f64, f64),
-    (img_w, img_h): (u32, u32),
-    transform: MaskTransform,
-) -> ((f64, f64), (f64, f64)) {
-    let (coarse_rotated_w, coarse_rotated_h) = {
-        let (w, h) = transform.box_space((img_w, img_h));
-        (w as f64, h as f64)
-    };
-    let center = (coarse_rotated_w / 2.0, coarse_rotated_h / 2.0);
-
-    let angle_rad = (transform.rotation as f64).to_radians();
-    let cos_a = angle_rad.cos();
-    let sin_a = angle_rad.sin();
-
-    let unrotate = |p: (f64, f64)| {
-        let px = p.0 - center.0;
-        let py = p.1 - center.1;
-        (
-            px * cos_a + py * sin_a + center.0,
-            -px * sin_a + py * cos_a + center.1,
-        )
-    };
-
-    let unflip = |p: (f64, f64)| {
-        let mut new_px = p.0;
-        let mut new_py = p.1;
-        if transform.flip_horizontal {
-            new_px = coarse_rotated_w - p.0;
-        }
-        if transform.flip_vertical {
-            new_py = coarse_rotated_h - p.1;
-        }
-        (new_px, new_py)
-    };
-
-    let un_coarse_rotate = |p: (f64, f64)| -> (f64, f64) {
-        match transform.orientation_steps {
-            0 => p,
-            1 => (p.1, img_h as f64 - p.0),
-            2 => (img_w as f64 - p.0, img_h as f64 - p.1),
-            3 => (img_w as f64 - p.1, p.0),
-            _ => p,
-        }
-    };
-
-    let corners = [
-        start_point,
-        (start_point.0, end_point.1),
-        end_point,
-        (end_point.0, start_point.1),
-    ]
-    .map(|p| un_coarse_rotate(unflip(unrotate(p))));
-
-    let min_x = corners.iter().map(|p| p.0).fold(f64::INFINITY, f64::min);
-    let min_y = corners.iter().map(|p| p.1).fold(f64::INFINITY, f64::min);
-    let max_x = corners
-        .iter()
-        .map(|p| p.0)
-        .fold(f64::NEG_INFINITY, f64::max);
-    let max_y = corners
-        .iter()
-        .map(|p| p.1)
-        .fold(f64::NEG_INFINITY, f64::max);
-
-    ((min_x, min_y), (max_x, max_y))
-}
 
 #[allow(clippy::too_many_arguments)]
 pub fn generate_subject_mask(
@@ -518,7 +425,7 @@ pub fn generate_subject_mask(
 ) -> Result<AiSubjectMaskParameters, String> {
     let embeddings = cached_image_embeddings(ai_state, models, cache_key, warped_image)?;
     let (unrotated_start, unrotated_end) =
-        unrotate_box(start_point, end_point, embeddings.original_size, transform);
+        transform.unrotate_box(start_point, end_point, embeddings.original_size);
 
     let mask_bitmap = run_sam_decoder(
         &*models.sam_decoder().map_err(|e| e.to_string())?,

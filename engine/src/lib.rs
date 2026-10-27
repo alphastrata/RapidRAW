@@ -3,6 +3,7 @@
 pub mod adjustment_utils;
 pub mod ai_connector;
 pub mod ai_denoise;
+pub mod ai_jobs;
 pub mod ai_processing;
 pub mod android;
 pub mod app_state;
