@@ -240,7 +240,7 @@ fn grayscale_dilate(image: &GrayImage, k: u8) -> GrayImage {
     }
     let w = width as usize;
     let h = height as usize;
-    let r = i32::from(k);
+    let r = usize::from(k);
     let src = image.as_raw();
 
     let mut temp = vec![0u8; w * h];
@@ -249,30 +249,35 @@ fn grayscale_dilate(image: &GrayImage, k: u8) -> GrayImage {
     temp.par_chunks_mut(w)
         .zip(src.par_chunks(w))
         .for_each(|(temp_row, src_row)| {
-            for (x, slot) in temp_row.iter_mut().enumerate() {
-                let mut max_val = 0;
-                let start = (x as i32 - r).max(0) as usize;
-                let end = (x as i32 + r).min((w - 1) as i32) as usize;
-                for &value in &src_row[start..=end] {
-                    max_val = max_val.max(value);
-                }
-                *slot = max_val;
-            }
+            temp_row
+                .iter_mut()
+                .enumerate()
+                .for_each(|(x, slot)| {
+                    let start = x.saturating_sub(r);
+                    let end = (x + r).min(w - 1);
+                    let max_val = src_row[start..=end].iter().fold(0, |a, &b| a.max(b));
+                    *slot = max_val;
+                });
         });
 
-    let r = r as usize;
     out.par_chunks_mut(w).enumerate().for_each(|(y, out_row)| {
         let start = y.saturating_sub(r);
         let end = (y + r).min(h - 1);
         out_row.copy_from_slice(&temp[start * w..(start + 1) * w]);
-        for yi in (start + 1)..=end {
-            for (o, &t) in out_row.iter_mut().zip(&temp[yi * w..(yi + 1) * w]) {
-                *o = (*o).max(t);
-            }
-        }
+        ((start + 1)..=end).for_each(|yi| {
+            out_row
+                .iter_mut()
+                .zip(&temp[yi * w..(yi + 1) * w])
+                .for_each(|(o, &t)| {
+                    *o = (*o).max(t);
+                });
+        });
     });
 
-    GrayImage::from_raw(width, height, out).unwrap()
+    let Some(image) = GrayImage::from_raw(width, height, out) else {
+        unreachable!("out has exactly width * height bytes")
+    };
+    image
 }
 
 fn grayscale_erode(image: &GrayImage, k: u8) -> GrayImage {
@@ -282,7 +287,7 @@ fn grayscale_erode(image: &GrayImage, k: u8) -> GrayImage {
     }
     let w = width as usize;
     let h = height as usize;
-    let r = i32::from(k);
+    let r = usize::from(k);
     let src = image.as_raw();
 
     let mut temp = vec![0u8; w * h];
@@ -291,30 +296,35 @@ fn grayscale_erode(image: &GrayImage, k: u8) -> GrayImage {
     temp.par_chunks_mut(w)
         .zip(src.par_chunks(w))
         .for_each(|(temp_row, src_row)| {
-            for (x, slot) in temp_row.iter_mut().enumerate() {
-                let mut min_val = 255;
-                let start = (x as i32 - r).max(0) as usize;
-                let end = (x as i32 + r).min((w - 1) as i32) as usize;
-                for &value in &src_row[start..=end] {
-                    min_val = min_val.min(value);
-                }
-                *slot = min_val;
-            }
+            temp_row
+                .iter_mut()
+                .enumerate()
+                .for_each(|(x, slot)| {
+                    let start = x.saturating_sub(r);
+                    let end = (x + r).min(w - 1);
+                    let min_val = src_row[start..=end].iter().fold(255, |a, &b| a.min(b));
+                    *slot = min_val;
+                });
         });
 
-    let r = r as usize;
     out.par_chunks_mut(w).enumerate().for_each(|(y, out_row)| {
         let start = y.saturating_sub(r);
         let end = (y + r).min(h - 1);
         out_row.copy_from_slice(&temp[start * w..(start + 1) * w]);
-        for yi in (start + 1)..=end {
-            for (o, &t) in out_row.iter_mut().zip(&temp[yi * w..(yi + 1) * w]) {
-                *o = (*o).min(t);
-            }
-        }
+        ((start + 1)..=end).for_each(|yi| {
+            out_row
+                .iter_mut()
+                .zip(&temp[yi * w..(yi + 1) * w])
+                .for_each(|(o, &t)| {
+                    *o = (*o).min(t);
+                });
+        });
     });
 
-    GrayImage::from_raw(width, height, out).unwrap()
+    let Some(image) = GrayImage::from_raw(width, height, out) else {
+        unreachable!("out has exactly width * height bytes")
+    };
+    image
 }
 
 fn apply_grow_and_feather(mask: &mut GrayImage, grow: f32, feather: f32, width: u32, height: u32) {
@@ -357,30 +367,36 @@ fn stroke_bounds(
         return None;
     }
 
-    let mut min_x = f32::INFINITY;
-    let mut min_y = f32::INFINITY;
-    let mut max_x = f32::NEG_INFINITY;
-    let mut max_y = f32::NEG_INFINITY;
     let r_pad = radius.ceil() + 2.0;
 
-    for p in points {
-        let px = p.x as f32 * scale - crop_offset.0;
-        let py = p.y as f32 * scale - crop_offset.1;
+    let (min_x, min_y, max_x, max_y) = points
+        .iter()
+        .fold(
+            (f32::INFINITY, f32::INFINITY, f32::NEG_INFINITY, f32::NEG_INFINITY),
+            |(min_x, min_y, max_x, max_y), p| {
+                let px = p.x as f32 * scale - crop_offset.0;
+                let py = p.y as f32 * scale - crop_offset.1;
 
-        min_x = min_x.min(px - r_pad);
-        min_y = min_y.min(py - r_pad);
-        max_x = max_x.max(px + r_pad);
-        max_y = max_y.max(py + r_pad);
-    }
+                (
+                    min_x.min(px - r_pad),
+                    min_y.min(py - r_pad),
+                    max_x.max(px + r_pad),
+                    max_y.max(py + r_pad),
+                )
+            },
+        );
 
-    if max_x < 0.0 || max_y < 0.0 || min_x > (width - 1) as f32 || min_y > (height - 1) as f32 {
+    let width_limit = (width - 1) as f32;
+    let height_limit = (height - 1) as f32;
+
+    if max_x < 0.0 || max_y < 0.0 || min_x > width_limit || min_y > height_limit {
         return None;
     }
 
-    let min_x = min_x.floor().max(0.0).min((width - 1) as f32) as u32;
-    let min_y = min_y.floor().max(0.0).min((height - 1) as f32) as u32;
-    let max_x = max_x.ceil().max(0.0).min((width - 1) as f32) as u32;
-    let max_y = max_y.ceil().max(0.0).min((height - 1) as f32) as u32;
+    let min_x = min_x.floor().max(0.0).min(width_limit) as u32;
+    let min_y = min_y.floor().max(0.0).min(height_limit) as u32;
+    let max_x = max_x.ceil().max(0.0).min(width_limit) as u32;
+    let max_y = max_y.ceil().max(0.0).min(height_limit) as u32;
 
     if min_x > max_x || min_y > max_y {
         None
@@ -402,7 +418,10 @@ fn render_stroke_layer_parallel(
 ) -> GrayImage {
     let mut out_pixels = vec![0u8; (bb_w * bb_h) as usize];
     if points.is_empty() || radius <= 0.0 {
-        return GrayImage::from_raw(bb_w, bb_h, out_pixels).unwrap();
+        return match GrayImage::from_raw(bb_w, bb_h, out_pixels) {
+            Some(image) => image,
+            None => unreachable!("out_pixels has exactly bb_w * bb_h bytes"),
+        };
     }
 
     struct Segment {
@@ -417,47 +436,51 @@ fn render_stroke_layer_parallel(
         bounds_bottom: i32,
     }
 
-    let mut segments = Vec::with_capacity(points.len().saturating_sub(1));
-    for pair in points.windows(2) {
-        let x1 = pair[0].x as f32 * scale - crop_offset.0 - layer_offset.0;
-        let y1 = pair[0].y as f32 * scale - crop_offset.1 - layer_offset.1;
-        let x2 = pair[1].x as f32 * scale - crop_offset.0 - layer_offset.0;
-        let y2 = pair[1].y as f32 * scale - crop_offset.1 - layer_offset.1;
+    let bb_w_i = bb_w as i32;
+    let bb_h_i = bb_h as i32;
 
-        let left = ((x1.min(x2) - radius).floor() as i32).max(0);
-        let right = ((x1.max(x2) + radius).ceil() as i32).min(bb_w as i32 - 1);
-        let top = ((y1.min(y2) - radius).floor() as i32).max(0);
-        let bottom = ((y1.max(y2) + radius).ceil() as i32).min(bb_h as i32 - 1);
+    let segments: Vec<Segment> = points
+        .windows(2)
+        .filter_map(|pair| {
+            let x1 = pair[0].x as f32 * scale - crop_offset.0 - layer_offset.0;
+            let y1 = pair[0].y as f32 * scale - crop_offset.1 - layer_offset.1;
+            let x2 = pair[1].x as f32 * scale - crop_offset.0 - layer_offset.0;
+            let y2 = pair[1].y as f32 * scale - crop_offset.1 - layer_offset.1;
 
-        if left > right || top > bottom {
-            continue;
-        }
+            let left = ((x1.min(x2) - radius).floor() as i32).max(0);
+            let right = ((x1.max(x2) + radius).ceil() as i32).min(bb_w_i - 1);
+            let top = ((y1.min(y2) - radius).floor() as i32).max(0);
+            let bottom = ((y1.max(y2) + radius).ceil() as i32).min(bb_h_i - 1);
 
-        let dx = x2 - x1;
-        let dy = y2 - y1;
-        let len_sq = dx * dx + dy * dy;
+            if left > right || top > bottom {
+                return None;
+            }
 
-        segments.push(Segment {
-            x1,
-            y1,
-            dx,
-            dy,
-            len_sq,
-            bounds_left: left,
-            bounds_right: right,
-            bounds_top: top,
-            bounds_bottom: bottom,
-        });
-    }
+            let dx = x2 - x1;
+            let dy = y2 - y1;
+
+            Some(Segment {
+                x1,
+                y1,
+                dx,
+                dy,
+                len_sq: dx * dx + dy * dy,
+                bounds_left: left,
+                bounds_right: right,
+                bounds_top: top,
+                bounds_bottom: bottom,
+            })
+        })
+        .collect();
 
     let mut single_point = None;
     if segments.is_empty() && !points.is_empty() {
         let x1 = points[0].x as f32 * scale - crop_offset.0 - layer_offset.0;
         let y1 = points[0].y as f32 * scale - crop_offset.1 - layer_offset.1;
         let left = ((x1 - radius).floor() as i32).max(0);
-        let right = ((x1 + radius).ceil() as i32).min(bb_w as i32 - 1);
+        let right = ((x1 + radius).ceil() as i32).min(bb_w_i - 1);
         let top = ((y1 - radius).floor() as i32).max(0);
-        let bottom = ((y1 + radius).ceil() as i32).min(bb_h as i32 - 1);
+        let bottom = ((y1 + radius).ceil() as i32).min(bb_h_i - 1);
         if left <= right && top <= bottom {
             single_point = Some((x1, y1, left, right, top, bottom));
         }
@@ -476,30 +499,26 @@ fn render_stroke_layer_parallel(
             let py = y as f32;
             let y_i32 = y as i32;
 
-            let mut active_segments = Vec::new();
-            for seg in &segments {
-                if y_i32 >= seg.bounds_top && y_i32 <= seg.bounds_bottom {
-                    active_segments.push(seg);
-                }
-            }
+            let active_segments: Vec<&Segment> = segments
+                .iter()
+                .filter(|seg| y_i32 >= seg.bounds_top && y_i32 <= seg.bounds_bottom)
+                .collect();
 
-            let is_point_active = if let Some(pt) = &single_point {
+            let is_point_active = single_point.as_ref().is_some_and(|pt| {
                 y_i32 >= pt.4 && y_i32 <= pt.5
-            } else {
-                false
-            };
+            });
 
             if active_segments.is_empty() && !is_point_active {
                 return;
             }
 
-            for (x, pixel) in row.iter_mut().enumerate() {
+            row.iter_mut().enumerate().for_each(|(x, pixel)| {
                 let px = x as f32;
                 let x_i32 = x as i32;
 
                 let mut min_dist_sq = radius_sq + 1.0;
 
-                for seg in &active_segments {
+                active_segments.iter().for_each(|seg| {
                     if x_i32 >= seg.bounds_left && x_i32 <= seg.bounds_right {
                         let dist_sq = if seg.len_sq < 0.0001 {
                             (px - seg.x1) * (px - seg.x1) + (py - seg.y1) * (py - seg.y1)
@@ -515,14 +534,16 @@ fn render_stroke_layer_parallel(
                             min_dist_sq = dist_sq;
                         }
                     }
-                }
+                });
 
                 if is_point_active {
-                    let pt = single_point.as_ref().unwrap();
-                    if x_i32 >= pt.2 && x_i32 <= pt.3 {
-                        let dist_sq = (px - pt.0) * (px - pt.0) + (py - pt.1) * (py - pt.1);
-                        if dist_sq < min_dist_sq {
-                            min_dist_sq = dist_sq;
+                    if let Some(pt) = single_point.as_ref() {
+                        if x_i32 >= pt.2 && x_i32 <= pt.3 {
+                            let dist_sq =
+                                (px - pt.0) * (px - pt.0) + (py - pt.1) * (py - pt.1);
+                            if dist_sq < min_dist_sq {
+                                min_dist_sq = dist_sq;
+                            }
                         }
                     }
                 }
@@ -537,10 +558,13 @@ fn render_stroke_layer_parallel(
                     };
                     *pixel = (intensity * 255.0).round() as u8;
                 }
-            }
+            });
         });
 
-    GrayImage::from_raw(bb_w, bb_h, out_pixels).unwrap()
+    match GrayImage::from_raw(bb_w, bb_h, out_pixels) {
+        Some(image) => image,
+        None => unreachable!("out_pixels has exactly bb_w * bb_h bytes"),
+    }
 }
 
 fn generate_radial_bitmap(
@@ -554,8 +578,10 @@ fn generate_radial_bitmap(
         serde_json::from_value(params_value.clone()).unwrap_or_default();
     let mut mask = GrayImage::new(width, height);
 
-    let center_x = (params.center_x as f32 * scale - crop_offset.0) as i32;
-    let center_y = (params.center_y as f32 * scale - crop_offset.1) as i32;
+    let center_x_f = params.center_x as f32 * scale - crop_offset.0;
+    let center_y_f = params.center_y as f32 * scale - crop_offset.1;
+    let center_x = center_x_f as i32;
+    let center_y = center_y_f as i32;
     let radius_x = params.radius_x as f32 * scale;
     let radius_y = params.radius_y as f32 * scale;
     let rotation_rad = params.rotation * PI / 180.0;
@@ -563,10 +589,12 @@ fn generate_radial_bitmap(
     let sin_rot = rotation_rad.sin();
     let inner_bound = 1.0 - params.feather.clamp(0.0, 1.0);
 
+    let (cx, cy) = (center_x as f32, center_y as f32);
+
     for_each_mask_row(&mut mask, |y, row| {
-        for (x, value) in row.iter_mut().enumerate() {
-            let dx = x as f32 - center_x as f32;
-            let dy = y as f32 - center_y as f32;
+        row.iter_mut().enumerate().for_each(|(x, value)| {
+            let dx = x as f32 - cx;
+            let dy = y as f32 - cy;
 
             let rot_dx = dx * cos_rot + dy * sin_rot;
             let rot_dy = -dx * sin_rot + dy * cos_rot;
@@ -580,7 +608,7 @@ fn generate_radial_bitmap(
             let clamped_intensity = intensity.clamp(0.0, 1.0);
 
             *value = (clamped_intensity * 255.0) as u8;
-        }
+        });
     });
 
     mask
@@ -619,7 +647,7 @@ fn generate_linear_bitmap(
 
     for_each_mask_row(&mut mask, |y_u, row| {
         let y = y_u as f32;
-        for (x_u, value) in row.iter_mut().enumerate() {
+        row.iter_mut().enumerate().for_each(|(x_u, value)| {
             let x = x_u as f32;
 
             let pixel_vec_x = x - start_x;
@@ -634,7 +662,7 @@ fn generate_linear_bitmap(
             let clamped_intensity = intensity.clamp(0.0, 1.0);
 
             *value = (clamped_intensity * 255.0) as u8;
-        }
+        });
     });
 
     mask
@@ -651,9 +679,9 @@ fn generate_brush_bitmap(
         serde_json::from_value(params_value.clone()).unwrap_or_default();
     let mut final_mask = GrayImage::new(width, height);
 
-    for line in &params.lines {
+    params.lines.iter().for_each(|line| {
         if line.points.is_empty() {
-            continue;
+            return;
         }
 
         let is_eraser = line.tool == "eraser";
@@ -663,7 +691,7 @@ fn generate_brush_bitmap(
         let Some((min_x, min_y, max_x, max_y)) =
             stroke_bounds(&line.points, width, height, radius, scale, crop_offset)
         else {
-            continue;
+            return;
         };
 
         let bb_w = max_x - min_x + 1;
@@ -681,11 +709,11 @@ fn generate_brush_bitmap(
             bb_h,
         );
 
-        for y in 0..bb_h {
-            for x in 0..bb_w {
+        (0..bb_h).for_each(|y| {
+            (0..bb_w).for_each(|x| {
                 let src_val = f32::from(line_mask.get_pixel(x, y)[0]) / 255.0;
                 if src_val <= 0.0 {
-                    continue;
+                    return;
                 }
 
                 let abs_x = min_x + x;
@@ -700,9 +728,9 @@ fn generate_brush_bitmap(
                 };
 
                 dst_pixel[0] = (blended.clamp(0.0, 1.0) * 255.0).round() as u8;
-            }
-        }
-    }
+            });
+        });
+    });
 
     final_mask
 }
@@ -718,9 +746,9 @@ fn generate_flow_bitmap(
         serde_json::from_value(params_value.clone()).unwrap_or_default();
     let mut final_mask = GrayImage::new(width, height);
 
-    for line in &params.lines {
+    params.lines.iter().for_each(|line| {
         if line.points.is_empty() {
-            continue;
+            return;
         }
 
         let is_eraser = line.tool == "eraser";
@@ -731,7 +759,7 @@ fn generate_flow_bitmap(
         let Some((min_x, min_y, max_x, max_y)) =
             stroke_bounds(&line.points, width, height, radius, scale, crop_offset)
         else {
-            continue;
+            return;
         };
 
         let bb_w = max_x - min_x + 1;
@@ -749,11 +777,11 @@ fn generate_flow_bitmap(
             bb_h,
         );
 
-        for y in 0..bb_h {
-            for x in 0..bb_w {
+        (0..bb_h).for_each(|y| {
+            (0..bb_w).for_each(|x| {
                 let stroke_pixel = f32::from(line_mask.get_pixel(x, y)[0]);
                 if stroke_pixel <= 0.0 {
-                    continue;
+                    return;
                 }
 
                 let abs_x = min_x + x;
@@ -771,9 +799,9 @@ fn generate_flow_bitmap(
                 };
 
                 pixel[0] = (next.clamp(0.0, 1.0) * 255.0).round() as u8;
-            }
-        }
-    }
+            });
+        });
+    });
 
     final_mask
 }
@@ -812,7 +840,7 @@ fn generate_ai_bitmap_from_full_mask(
     let center_y = scaled_coarse_rotated_h / 2.0;
 
     for_each_mask_row(&mut final_mask, |y_out, row| {
-        for (x_out, value) in row.iter_mut().enumerate() {
+        row.iter_mut().enumerate().for_each(|(x_out, value)| {
             let x_uncrop = x_out as f32 + tf.crop_offset.0;
             let y_uncrop = y_out as f32 + tf.crop_offset.1;
 
@@ -854,7 +882,7 @@ fn generate_ai_bitmap_from_full_mask(
             {
                 *value = full_mask_image.get_pixel(x_src as u32, y_src as u32)[0];
             }
-        }
+        });
     });
 
     final_mask
@@ -1062,7 +1090,9 @@ fn generate_color_bitmap(
 
     let target_x = params.target_x.round() as i32;
     let target_y = params.target_y.round() as i32;
-    if target_x < 0 || target_y < 0 || target_x >= full_w as i32 || target_y >= full_h as i32 {
+    let full_w_i = full_w as i32;
+    let full_h_i = full_h as i32;
+    if target_x < 0 || target_y < 0 || target_x >= full_w_i || target_y >= full_h_i {
         return None;
     }
 
@@ -1097,7 +1127,7 @@ fn generate_color_bitmap(
         let y_sin = y_centered * sin_a;
         let y_cos = y_centered * cos_a;
 
-        for (x_out, value) in row.iter_mut().enumerate() {
+        row.iter_mut().enumerate().for_each(|(x_out, value)| {
             let x_uncrop = x_out as f32 + crop_offset.0;
             let x_centered = x_uncrop - center_x;
 
@@ -1142,7 +1172,7 @@ fn generate_color_bitmap(
                     }
                 }
             }
-        }
+        });
     });
 
     apply_grow_and_feather(&mut mask, params.grow, params.feather, width, height);
@@ -1163,7 +1193,9 @@ fn generate_luminance_bitmap(
 
     let target_x = params.target_x.round() as i32;
     let target_y = params.target_y.round() as i32;
-    if target_x < 0 || target_y < 0 || target_x >= full_w as i32 || target_y >= full_h as i32 {
+    let full_w_i = full_w as i32;
+    let full_h_i = full_h as i32;
+    if target_x < 0 || target_y < 0 || target_x >= full_w_i || target_y >= full_h_i {
         return None;
     }
 
@@ -1197,7 +1229,7 @@ fn generate_luminance_bitmap(
         let y_sin = y_centered * sin_a;
         let y_cos = y_centered * cos_a;
 
-        for (x_out, value) in row.iter_mut().enumerate() {
+        row.iter_mut().enumerate().for_each(|(x_out, value)| {
             let x_uncrop = x_out as f32 + crop_offset.0;
             let x_centered = x_uncrop - center_x;
 
@@ -1242,7 +1274,7 @@ fn generate_luminance_bitmap(
                     }
                 }
             }
-        }
+        });
     });
 
     apply_grow_and_feather(&mut mask, params.grow, params.feather, width, height);
@@ -1355,7 +1387,7 @@ pub fn generate_mask_bitmap(
 
     let mut final_mask = GrayImage::new(width, height);
 
-    for sub_mask in &mask_def.sub_masks {
+    mask_def.sub_masks.iter().for_each(|sub_mask| {
         if let Some(mut sub_bitmap) =
             generate_sub_mask_bitmap(sub_mask, width, height, scale, crop_offset, warped_image)
         {
@@ -1380,7 +1412,7 @@ pub fn generate_mask_bitmap(
                     };
                 });
         }
-    }
+    });
 
     let invert = mask_def.invert;
     let opacity_multiplier = (mask_def.opacity / 100.0).clamp(0.0, 1.0);
@@ -1509,8 +1541,11 @@ pub fn build_full_warped_image_rgb8(
                 .par_iter()
                 .map(|v| (v.clamp(0.0, 1.0) * 255.0).round() as u8)
                 .collect();
-            image::RgbImage::from_raw(buffer.width(), buffer.height(), data)
-                .expect("RGB8 buffer matches image dimensions")
+            let Some(rgb8) = image::RgbImage::from_raw(buffer.width(), buffer.height(), data)
+            else {
+                unreachable!("data length matches buffer dimensions")
+            };
+            rgb8
         }
         None => warped.to_rgb8(),
     };
@@ -1554,7 +1589,7 @@ pub fn get_cached_or_generate_masks(
     let mut combined_hasher = DefaultHasher::new();
     let mut bitmaps = Vec::with_capacity(definitions.len());
 
-    for def in definitions {
+    definitions.iter().for_each(|def| {
         let mut hasher = DefaultHasher::new();
         let def_json = serde_json::to_string(&(
             &def.id,
@@ -1609,7 +1644,7 @@ pub fn get_cached_or_generate_masks(
 
         (key, bitmap.is_some()).hash(&mut combined_hasher);
         bitmaps.extend(bitmap);
-    }
+    });
 
     GeneratedMasks {
         bitmaps,
