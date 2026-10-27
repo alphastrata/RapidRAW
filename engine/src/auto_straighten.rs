@@ -32,8 +32,9 @@ fn dot(a: [f64; 3], b: [f64; 3]) -> f64 {
 
 fn detect_segments(gray: &GrayImage) -> Vec<LineSegment> {
     let (width, height) = gray.dimensions();
+    let w = width as usize;
+    let h = height as usize;
     let min_length = width.max(height) as f64 * MIN_SEGMENT_LENGTH_FRACTION;
-    let (w, h) = (width as usize, height as usize);
     lsdetect::detect(gray.as_raw(), w, h, LSD_SCALE)
         .unwrap_or_default()
         .into_iter()
