@@ -8,15 +8,12 @@ import { TextColors, TextVariants, TextWeights } from '../../../types/typography
 import { AppSettings, Invokes } from '../../ui/AppProperties';
 import { useUIStore } from '../../../store/useUIStore';
 import { formatBytes } from '../../../utils/formatBytes';
-import { DEFAULT_IMMICH_SETTINGS } from '../../immich/immichApi';
-import { useImmichStore } from '../../immich/useImmichStore';
 
 interface StorageUsage {
   thumbnails: number;
   aiDenoise: number;
   aiMaps: number;
   metadata: number;
-  immich: number;
   models: number;
   logs: number;
 }
@@ -58,17 +55,6 @@ const storageItems: StorageItem[] = [
     },
   },
   { key: 'models', color: 'bg-[#b0a189]' },
-  {
-    key: 'immich',
-    color: 'bg-[#8fa597]',
-    limit: {
-      get: (settings) => settings?.immich?.cacheLimitGb ?? DEFAULT_IMMICH_SETTINGS.cacheLimitGb,
-      set: (settings, gb) => ({
-        ...settings,
-        immich: { ...DEFAULT_IMMICH_SETTINGS, ...settings.immich, cacheLimitGb: gb },
-      }),
-    },
-  },
   { key: 'metadata', color: 'bg-[#8aa3a4]' },
   { key: 'logs', color: 'bg-[#8e8e8e]' },
 ];
@@ -319,11 +305,6 @@ export default function DataManagementSettings({
       message: t('settings.data.modals.modelsMessage'),
       success: t('settings.data.statuses.cleared'),
     },
-    immich: {
-      invoke: Invokes.ClearImmichCache,
-      message: t('settings.data.modals.immichMessage'),
-      success: t('settings.data.statuses.cleared'),
-    },
     metadata: {
       invoke: Invokes.ClearMetadataCache,
       message: t('settings.data.modals.metadataMessage'),
@@ -387,7 +368,7 @@ export default function DataManagementSettings({
       title: t('settings.data.modals.confirmResetLayoutTitle'),
       onConfirm: () =>
         run('layout', async () => {
-          const workspace = useUIStore.getState().resetWorkspaceLayout(false);
+          const workspace = useUIStore.getState().resetWorkspaceLayout();
           await onSettingsChange({ ...appSettings, workspace } as AppSettings);
           return t('settings.data.statuses.layoutResetSuccess');
         }),
@@ -397,7 +378,6 @@ export default function DataManagementSettings({
     if (!limit || !appSettings) return;
     try {
       await onSettingsChange(limit.set(appSettings, limitGb));
-      if (key === 'immich') await useImmichStore.getState().refresh();
     } catch (err) {
       console.error(`Failed to set the ${key} cache limit:`, err);
       showStatus(key, { text: `Error: ${err}`, error: true });
@@ -408,10 +388,7 @@ export default function DataManagementSettings({
   const total = usage ? storageItems.reduce((sum, { key }) => sum + usage[key], 0) : 0;
   const sizeOf = (key: StorageKey) => (usage ? formatBytes(usage[key], t, 1) : '…');
 
-  const immichConfigured = !!appSettings?.immich?.serverUrl?.trim();
-  const visibleItems = storageItems.filter(
-    ({ key }) => key !== 'immich' || immichConfigured || (usage?.immich ?? 0) > 0,
-  );
+  const visibleItems = storageItems;
 
   return (
     <div className="space-y-8">

@@ -2,7 +2,6 @@ import { ExportPreset } from './ExportImportProperties';
 import { Adjustments, CopyPasteSettings } from '../../utils/adjustments';
 import { ToolType } from '../panel/right/Masks';
 import type { WhiteBalance, WhiteBalanceMode } from '../../utils/whiteBalance';
-import type { ImmichSettings } from '../immich/immichApi';
 
 export const GLOBAL_KEYS = [
   ' ',
@@ -70,13 +69,11 @@ export enum Invokes {
   GetStorageUsage = 'get_storage_usage',
   ClearAiMapsCache = 'clear_ai_maps_cache',
   ClearAiModels = 'clear_ai_models',
-  ClearImmichCache = 'clear_immich_cache',
   ClearMetadataCache = 'clear_metadata_cache',
   GetAiJobsStatus = 'get_ai_jobs_status',
   GetFolderTree = 'get_folder_tree',
   GetFolderChildren = 'get_folder_children',
   GetLogFilePath = 'get_log_file_path',
-  GetOrCreateInternalLibraryRoot = 'get_or_create_internal_library_root',
   GetPendingAiPaths = 'get_pending_ai_paths',
   GetPinnedFolderTrees = 'get_pinned_folder_trees',
   GetSupportedFileTypes = 'get_supported_file_types',
@@ -86,7 +83,7 @@ export enum Invokes {
   HandleImportLegacyPresetsFromFile = 'handle_import_legacy_presets_from_file',
   ImportFiles = 'import_files',
   InvokeGenerativeReplaceWithMaskDef = 'invoke_generative_replace_with_mask_def',
-  IsTetheringSupported = 'is_tethering_supported',
+
   ListImagesInDir = 'list_images_in_dir',
   ListImagesRecursive = 'list_images_recursive',
   LoadImage = 'load_image',
@@ -131,12 +128,6 @@ export enum Invokes {
   SaveAlbums = 'save_albums',
   AddToAlbum = 'add_to_album',
   GetAlbumImages = 'get_album_images',
-  TetherListCameras = 'tether_list_cameras',
-  TetherConnect = 'tether_connect',
-  TetherGetSettings = 'tether_get_settings',
-  TetherSetSetting = 'tether_set_setting',
-  TetherCapture = 'tether_capture',
-  TetherGetPreview = 'tether_get_preview',
 }
 
 export enum ExifOverlay {
@@ -154,7 +145,6 @@ export enum Panel {
   Metadata = 'metadata',
   Presets = 'presets',
   FolderTree = 'folderTree',
-  Tethering = 'tethering',
 }
 
 export type PanelRegion = 'leftTop' | 'leftBottom' | 'rightTop' | 'rightBottom';
@@ -292,7 +282,6 @@ export interface AppSettings {
   groupPreferredType?: GroupPreference; // legacy
   alwaysDecodeRawThumbnails?: boolean;
   workspace?: WorkspaceState;
-  immich?: ImmichSettings;
 }
 
 export interface BrushSettings {

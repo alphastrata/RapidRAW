@@ -71,7 +71,6 @@ const ALL_PANELS: Panel[] = [
   Panel.Metadata,
   Panel.FolderTree,
   Panel.Export,
-  Panel.Tethering,
   Panel.Adjustments,
   Panel.Crop,
   Panel.Masks,
@@ -83,7 +82,6 @@ const DEFAULT_PANEL_DEFAULT_REGIONS: Record<Panel, PanelRegion> = {
   [Panel.Metadata]: 'leftTop',
   [Panel.FolderTree]: 'leftTop',
   [Panel.Export]: 'leftTop',
-  [Panel.Tethering]: 'leftTop',
   [Panel.Adjustments]: 'rightTop',
   [Panel.Crop]: 'rightTop',
   [Panel.Masks]: 'rightTop',
@@ -95,11 +93,8 @@ export const DEFAULT_PANEL_WIDTH = 350;
 export const DEFAULT_PANEL_SECTION_HEIGHT = 450;
 export const DEFAULT_BOTTOM_PANEL_HEIGHT = 144;
 
-export function reconcileWorkspace(
-  savedWorkspace: WorkspaceState | undefined,
-  isTetheringSupported: boolean,
-): WorkspaceState {
-  const allowedPanels = new Set(ALL_PANELS.filter((p) => p !== Panel.Tethering || isTetheringSupported));
+export function reconcileWorkspace(savedWorkspace: WorkspaceState | undefined): WorkspaceState {
+  const allowedPanels = new Set(ALL_PANELS);
 
   const defaultWorkspace: WorkspaceState = {
     leftPanelWidth: DEFAULT_PANEL_WIDTH,
@@ -107,7 +102,7 @@ export function reconcileWorkspace(
     leftTopHeight: DEFAULT_PANEL_SECTION_HEIGHT,
     rightTopHeight: DEFAULT_PANEL_SECTION_HEIGHT,
     panelLayout: {
-      leftTop: [Panel.Metadata, Panel.FolderTree, Panel.Export, ...(isTetheringSupported ? [Panel.Tethering] : [])],
+      leftTop: [Panel.Metadata, Panel.FolderTree, Panel.Export],
       leftBottom: [],
       rightTop: [Panel.Adjustments, Panel.Crop, Panel.Masks, Panel.Ai, Panel.Presets],
       rightBottom: [],
@@ -258,7 +253,7 @@ export interface UIState {
   searchFocusRequest: number;
   requestSearchFocus: () => void;
   toggleFullScreen: () => void;
-  resetWorkspaceLayout: (isTetheringSupported?: boolean) => WorkspaceState;
+  resetWorkspaceLayout: () => WorkspaceState;
 }
 
 export const useUIStore = create<UIState>((set, get) => ({
@@ -488,8 +483,8 @@ export const useUIStore = create<UIState>((set, get) => ({
     }
   },
 
-  resetWorkspaceLayout: (isTetheringSupported = false) => {
-    const defaultWorkspace = reconcileWorkspace(undefined, isTetheringSupported);
+  resetWorkspaceLayout: () => {
+    const defaultWorkspace = reconcileWorkspace(undefined);
     set({
       leftPanelWidth: defaultWorkspace.leftPanelWidth,
       rightPanelWidth: defaultWorkspace.rightPanelWidth,

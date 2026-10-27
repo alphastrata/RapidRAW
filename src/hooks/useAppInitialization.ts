@@ -147,8 +147,8 @@ export const useAppInitialization = ({
   }, [setSupportedTypes]);
 
   useEffect(() => {
-    Promise.all([invoke(Invokes.LoadSettings), invoke<boolean>(Invokes.IsTetheringSupported).catch(() => false)])
-      .then(async ([settings, isTetheringSupported]: [any, boolean]) => {
+    invoke(Invokes.LoadSettings)
+      .then(async (settings: any) => {
         if (
           !settings.copyPasteSettings ||
           !settings.copyPasteSettings.includedAdjustments ||
@@ -170,7 +170,7 @@ export const useAppInitialization = ({
           handleSettingsChange(settings);
         }
 
-        const reconciledWorkspace = reconcileWorkspace(settings?.workspace, isTetheringSupported);
+        const reconciledWorkspace = reconcileWorkspace(settings?.workspace);
         settings.workspace = reconciledWorkspace;
 
         setAppSettings(settings);

@@ -332,9 +332,8 @@ export function useFileOperations(
 
   const handleImportClick = useCallback(
     async (targetPath: string) => {
-      const { supportedTypes, osPlatform } = useSettingsStore.getState();
+      const { supportedTypes } = useSettingsStore.getState();
       const { setUI } = useUIStore.getState();
-      const isAndroid = osPlatform === 'android';
 
       try {
         const nonRaw = supportedTypes?.nonRaw || [];
@@ -348,14 +347,12 @@ export function useFileOperations(
         const processedRaw = expandExtensions(raw);
         const allImageExtensions = [...processedNonRaw, ...processedRaw];
 
-        const typeFilters = isAndroid
-          ? []
-          : [
-              { name: 'All Supported Images', extensions: allImageExtensions },
-              { name: 'RAW Images', extensions: processedRaw },
-              { name: 'Standard Images (JPEG, PNG, etc.)', extensions: processedNonRaw },
-              { name: 'All Files', extensions: ['*'] },
-            ];
+        const typeFilters = [
+          { name: 'All Supported Images', extensions: allImageExtensions },
+          { name: 'RAW Images', extensions: processedRaw },
+          { name: 'Standard Images (JPEG, PNG, etc.)', extensions: processedNonRaw },
+          { name: 'All Files', extensions: ['*'] },
+        ];
 
         const selected = await open({
           filters: typeFilters,
@@ -367,19 +364,7 @@ export function useFileOperations(
           const invalidExtensions = new Set<string>();
           const allowedExtensions = new Set(allImageExtensions.map((e) => e.toLowerCase()));
 
-          const resolvedFiles = await Promise.all(
-            selected.map(async (path) => {
-              if (isAndroid) {
-                try {
-                  return await invoke<string>('resolve_android_content_uri_name', { uriStr: path });
-                } catch (e) {
-                  console.error('Failed to resolve URI:', e);
-                  return path;
-                }
-              }
-              return path;
-            }),
-          );
+          const resolvedFiles = await Promise.all(selected);
 
           const validFiles = selected.filter((originalPath, index) => {
             const resolvedName = resolvedFiles[index];
@@ -395,17 +380,6 @@ export function useFileOperations(
           if (invalidExtensions.size > 0) {
             const extList = Array.from(invalidExtensions).join(', ');
             toast.error(`Unsupported file format(s) detected: ${extList}`);
-            return;
-          }
-
-          if (isAndroid) {
-            const DEFAULT_IMPORT_SETTINGS = {
-              filenameTemplate: '{original_filename}',
-              organizeByDate: false,
-              dateFolderFormat: 'YYYY/MM-DD',
-              deleteAfterImport: false,
-            };
-            await startImportFiles(validFiles, targetPath, DEFAULT_IMPORT_SETTINGS);
             return;
           }
 

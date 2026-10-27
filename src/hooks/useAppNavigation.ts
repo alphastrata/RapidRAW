@@ -14,7 +14,6 @@ import { globalImageCache } from '../utils/ImageLRUCache';
 import { debouncedSave, debouncedSetHistory } from './useEditorActions';
 import { clearLibrarySelection } from './useLibraryActions';
 import { computeSortedLibrary } from './useSortedLibrary';
-import { getImmichAlbumImages, isImmichAlbumId } from '../components/immich/immichApi';
 
 export interface AppNavigationProps {
   clearThumbnailQueue: () => void;
@@ -487,9 +486,7 @@ export function useAppNavigation({ clearThumbnailQueue, refs }: AppNavigationPro
       });
 
       try {
-        const files: ImageFile[] = isImmichAlbumId(albumId)
-          ? await getImmichAlbumImages(albumId)
-          : await invoke(Invokes.GetAlbumImages, { paths: imagePaths });
+        const files: ImageFile[] = await invoke(Invokes.GetAlbumImages, { paths: imagePaths });
         if (!isCurrentAlbum()) return true;
 
         const initialRatings: Record<string, number> = {};
@@ -550,19 +547,14 @@ export function useAppNavigation({ clearThumbnailQueue, refs }: AppNavigationPro
   }, [handleSelectSubfolder, handleSelectAlbum]);
 
   const handleOpenFolder = useCallback(async () => {
-    const { osPlatform, appSettings, handleSettingsChange } = useSettingsStore.getState();
+    const { appSettings, handleSettingsChange } = useSettingsStore.getState();
     const { rootPaths, folderTrees, setLibrary } = useLibraryStore.getState();
-    const isAndroid = osPlatform === 'android';
 
     try {
       let selectedPath = '';
-      if (isAndroid) {
-        selectedPath = await invoke<string>(Invokes.GetOrCreateInternalLibraryRoot);
-      } else {
-        const selected = await open({ directory: true, multiple: false, defaultPath: await homeDir() });
-        if (typeof selected === 'string') {
-          selectedPath = selected;
-        }
+      const selected = await open({ directory: true, multiple: false, defaultPath: await homeDir() });
+      if (typeof selected === 'string') {
+        selectedPath = selected;
       }
 
       if (selectedPath) {
@@ -592,8 +584,8 @@ export function useAppNavigation({ clearThumbnailQueue, refs }: AppNavigationPro
         await handleSelectSubfolder(selectedPath, true);
       }
     } catch (err) {
-      console.error(isAndroid ? 'Failed to open Android library root:' : 'Failed to open directory dialog:', err);
-      toast.error(isAndroid ? 'Failed to open library.' : 'Failed to open folder selection dialog.');
+      console.error('Failed to open directory dialog:', err);
+      toast.error('Failed to open folder selection dialog.');
     }
   }, [handleSelectSubfolder]);
 
@@ -676,10 +668,7 @@ export function useAppNavigation({ clearThumbnailQueue, refs }: AppNavigationPro
             const album = findObj(albumTree);
             if (album) {
               await handleSelectAlbum(album.id, album.name, album.images);
-            } else if (
-              !isImmichAlbumId(activeAlbumId) ||
-              !(await handleSelectAlbum(activeAlbumId, pathToSelect.slice('Album: '.length), []))
-            ) {
+            } else if (!(await handleSelectAlbum(activeAlbumId, pathToSelect.slice('Album: '.length), []))) {
               await handleSelectSubfolder(rootFolders[0], false, undefined, false);
             }
           } catch (e) {

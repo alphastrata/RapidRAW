@@ -28,13 +28,10 @@ import {
 import { Invokes, SelectedImage, AppSettings, Panel } from '../../ui/AppProperties';
 import ExportPresetsList from '../../ui/ExportPresetsList';
 import { useExportSettings } from '../../../hooks/useExportSettings';
-import { useOsPlatform } from '../../../hooks/useOsPlatform';
 import Text from '../../ui/Text';
 import { TextColors, TextVariants, TextWeights } from '../../../types/typography';
 import { useEditorStore } from '../../../store/useEditorStore';
 import { useUIStore } from '../../../store/useUIStore';
-import ImmichExportOptions, { useImmichExportAvailable, useImmichExportChoice } from '../../immich/ImmichExportOptions';
-import { prepareImmichExport } from '../../immich/immichApi';
 import { formatBytes } from '../../../utils/formatBytes';
 
 interface ExportPanelProps {
@@ -384,11 +381,7 @@ export default function ExportPanel({
   const [watermarkImageAspectRatio, setWatermarkImageAspectRatio] = useState(1);
   const [imageAspectRatio, setImageAspectRatio] = useState(16 / 9);
   const filenameInputRef = useRef<HTMLInputElement>(null);
-  const osPlatform = useOsPlatform();
-  const isAndroid = osPlatform === 'android';
-  const canExportToImmich = useImmichExportAvailable() && !isAndroid;
-  const destination = destinationType === 'immich' && !canExportToImmich ? 'customFolder' : destinationType;
-  const immichExport = useImmichExportChoice();
+  const destination = destinationType;
   const activePanels = useUIStore((state) => state.activePanels);
   const isPanelReallyActive = Object.values(activePanels).includes(Panel.Export);
 
@@ -619,13 +612,9 @@ export default function ExportPanel({
 
       let outputFolderOrFile = '';
       const isOriginalFolder = destination === 'originalFolder';
-      const isImmich = destination === 'immich';
-      const shouldChooseOutputFile = numImages === 1 && !preserveFolders && !isOriginalFolder && !isImmich;
+      const shouldChooseOutputFile = numImages === 1 && !preserveFolders && !isOriginalFolder;
 
-      if (isImmich) {
-        exportSettings.preserveFolders = false;
-        outputFolderOrFile = await prepareImmichExport(immichExport.album, immichExport.withOriginal);
-      } else if (isOriginalFolder) {
+      if (isOriginalFolder) {
         outputFolderOrFile = 'originalFolderDummy';
       } else if (shouldChooseOutputFile) {
         const originalFilename = pathsToExport[0].split(/[\\/]/).pop() || '';
@@ -633,9 +622,7 @@ export default function ExportPanel({
         const suggestedName = (filenameTemplate || '').replace('{original_filename}', stem);
         const outputFileName = `${suggestedName}.${selectedFormat.extensions[0]}`;
 
-        outputFolderOrFile = isAndroid
-          ? outputFileName
-          : ((await save({
+        outputFolderOrFile = ((await save({
               title: t('export.dialog.saveEditedImageTitle'),
               defaultPath: lastExportPath ? `${lastExportPath}/${outputFileName}` : outputFileName,
               filters: [
@@ -647,32 +634,28 @@ export default function ExportPanel({
               ],
             })) as string);
       } else {
-        outputFolderOrFile = isAndroid
-          ? ''
-          : ((await open({
+        outputFolderOrFile = ((await open({
               title: t('export.dialog.selectFolderTitle', { count: numImages }),
               directory: true,
               defaultPath: lastExportPath ?? undefined,
             })) as string);
       }
 
-      if (isAndroid || outputFolderOrFile) {
-        if (!isAndroid) {
-          if (isOriginalFolder || isImmich) {
-            saveLastUsedPreset(lastExportPath || '');
-          } else {
-            const dir = shouldChooseOutputFile
-              ? outputFolderOrFile.substring(
-                  0,
-                  Math.max(outputFolderOrFile.lastIndexOf('/'), outputFolderOrFile.lastIndexOf('\\')),
-                )
-              : outputFolderOrFile;
-            if (dir) saveLastUsedPreset(dir);
-          }
+      if (outputFolderOrFile) {
+        if (isOriginalFolder) {
+          saveLastUsedPreset(lastExportPath || '');
+        } else {
+          const dir = shouldChooseOutputFile
+            ? outputFolderOrFile.substring(
+                0,
+                Math.max(outputFolderOrFile.lastIndexOf('/'), outputFolderOrFile.lastIndexOf('\\')),
+              )
+            : outputFolderOrFile;
+          if (dir) saveLastUsedPreset(dir);
         }
 
         setExportState({
-          destination: isOriginalFolder || isImmich || isAndroid ? null : outputFolderOrFile,
+          destination: isOriginalFolder ? null : outputFolderOrFile,
           errorMessage: '',
           progress: { current: 0, total: numImages },
           status: Status.Exporting,
@@ -788,15 +771,12 @@ export default function ExportPanel({
                   options={[
                     { label: t('export.destination.customFolder'), value: 'customFolder' },
                     { label: t('export.destination.originalFolder'), value: 'originalFolder' },
-                    ...(canExportToImmich ? [{ label: t('immich.export.destination'), value: 'immich' }] : []),
                   ]}
                   value={destination || 'customFolder'}
                   onChange={(val) => setDestinationType(val as string)}
                   disabled={isExporting}
                   className="w-full"
                 />
-
-                {destination === 'immich' && <ImmichExportOptions disabled={isExporting} />}
 
                 {destination === 'originalFolder' && (
                   <div className="flex items-center gap-3 pl-2 border-l-2 border-surface">
