@@ -7,3 +7,6 @@ pedantic = "warn"
 perf = "deny"
 
 [dependencies]
+
+[dev-dependencies]
+divan = "0.1"

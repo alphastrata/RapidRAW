@@ -6386,6 +6386,9 @@ dependencies = [
 [[package]]
 name = "simd_kernels"
 version = "0.0.0"
+dependencies = [
+ "divan",
+]
 
 [[package]]
 name = "simdutf8"
