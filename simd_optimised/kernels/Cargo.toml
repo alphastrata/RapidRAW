@@ -1,0 +1,5 @@
+[package]
+name = "simd_kernels"
+edition = "2024"
+
+[dependencies]
