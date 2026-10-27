@@ -4,6 +4,7 @@ use std::sync::LazyLock;
 use divan::Bencher;
 use image::{DynamicImage, GrayImage, Rgb, RgbImage};
 use rapidraw_lib::focus_stacking::{LensWarp, PlanarRgb, Plane};
+use rayon::prelude::*;
 use rapidraw_lib::{ai_processing, focus_stacking, fog, image_processing};
 use serde_json::json;
 
@@ -41,6 +42,70 @@ static SAMPLE_PLANE: LazyLock<Plane> = LazyLock::new(|| {
 });
 
 static SAMPLE_PLANAR: LazyLock<PlanarRgb> = LazyLock::new(|| PlanarRgb::from_rgb32f(&SAMPLE.to_rgb32f()));
+
+static BUF32: LazyLock<Vec<f32>> =
+    LazyLock::new(|| (0..(W as usize * H as usize * 3)).map(|i| (i % 255) as f32 / 255.0).collect());
+
+fn simd_chunked(buf: &mut [f32], f: fn(&mut [f32])) {
+    buf.par_chunks_mut(32768).for_each(f);
+}
+
+fn with_buf(f: impl Fn(&mut [f32])) {
+    use std::sync::Mutex;
+    static BUF: LazyLock<Mutex<Vec<f32>>> =
+        LazyLock::new(|| Mutex::new(BUF32.clone()));
+    let mut buf = BUF.lock().unwrap();
+    buf.copy_from_slice(&BUF32);
+    f(&mut buf);
+}
+
+fn srgb_scalar_ref(buf: &mut [f32]) {
+    buf.par_iter_mut().for_each(|c| {
+        let x = c.max(0.0);
+        *c = if x <= 0.04045 { x / 12.92 } else { ((x + 0.055) / 1.055).powf(2.4) };
+    });
+}
+
+fn linear_srgb_scalar_ref(buf: &mut [f32]) {
+    buf.par_iter_mut().for_each(|c| {
+        let x = c.max(0.0);
+        *c = if x <= 0.0031308 { x * 12.92 } else { 1.055 * x.powf(1.0 / 2.4) - 0.055 };
+    });
+}
+
+fn scale_scalar_ref(buf: &mut [f32], gain: f32) {
+    buf.par_iter_mut().for_each(|c| *c *= gain);
+}
+
+#[divan::bench]
+fn srgb_to_linear_simd(b: Bencher) {
+    b.bench(|| with_buf(|buf| simd_chunked(buf, simd_kernels::colour::srgb_to_linear)));
+}
+
+#[divan::bench]
+fn srgb_to_linear_scalar(b: Bencher) {
+    b.bench(|| with_buf(|buf| srgb_scalar_ref(buf)));
+}
+
+#[divan::bench]
+fn linear_to_srgb_simd(b: Bencher) {
+    b.bench(|| with_buf(|buf| simd_chunked(buf, simd_kernels::colour::linear_to_srgb)));
+}
+
+#[divan::bench]
+fn linear_to_srgb_scalar(b: Bencher) {
+    b.bench(|| with_buf(|buf| linear_srgb_scalar_ref(buf)));
+}
+
+#[divan::bench]
+fn exposure_scale_simd(b: Bencher) {
+    b.bench(|| with_buf(|buf| buf.par_chunks_mut(32768).for_each(|c| simd_kernels::ops::scale(c, 2.19))));
+}
+
+#[divan::bench]
+fn exposure_scale_scalar(b: Bencher) {
+    b.bench(|| with_buf(|buf| scale_scalar_ref(buf, 2.19)));
+}
 
 fn fog_adjustments() -> serde_json::Value {
     let depth = image::RgbaImage::from_fn(160, 120, |x, _| {
@@ -86,17 +151,17 @@ fn geometry() -> image_processing::GeometryParams {
 }
 
 #[divan::bench]
-fn srgb_to_linear(b: Bencher) {
+fn srgb_to_linear_dynamic_image(b: Bencher) {
     b.bench(|| image_processing::apply_srgb_to_linear(black_box((*SAMPLE).clone())));
 }
 
 #[divan::bench]
-fn linear_to_srgb(b: Bencher) {
+fn linear_to_srgb_dynamic_image(b: Bencher) {
     b.bench(|| image_processing::apply_linear_to_srgb(black_box(DynamicImage::ImageRgb32F(SAMPLE.to_rgb32f()))));
 }
 
 #[divan::bench]
-fn apply_exposure_plus_2ev(b: Bencher) {
+fn apply_exposure_plus_2ev_dynamic_image(b: Bencher) {
     b.bench(|| image_processing::apply_exposure(black_box((*SAMPLE).clone()), 2.0));
 }
 
@@ -187,6 +252,39 @@ fn fast_guided_filter(b: Bencher) {
 #[divan::bench]
 fn gaussian_blur_sigma3(b: Bencher) {
     b.bench(|| focus_stacking::gaussian_blur(black_box(&*SAMPLE_PLANE), 3.0));
+}
+
+#[divan::bench]
+fn gaussian_blur_sigma3_scalar(b: Bencher) {
+    b.bench(|| {
+        let plane = black_box(&*SAMPLE_PLANE);
+        let kernel = focus_stacking::gaussian_kernel(3.0);
+        let (w, h) = (plane.w, plane.h);
+        let r = (kernel.len() / 2) as i64;
+        let mut tmp = vec![0.0f32; w * h];
+        let mut out = vec![0.0f32; w * h];
+        for (y, row) in tmp.chunks_mut(w).enumerate() {
+            for (x, o) in row.iter_mut().enumerate() {
+                let mut acc = 0.0f32;
+                for (i, &k) in kernel.iter().enumerate() {
+                    let sx = (x as i64 + i as i64 - r).clamp(0, w as i64 - 1) as usize;
+                    acc += k * plane.data[y * w + sx];
+                }
+                *o = acc;
+            }
+        }
+        for (y, row) in out.chunks_mut(w).enumerate() {
+            for (x, o) in row.iter_mut().enumerate() {
+                let mut acc = 0.0f32;
+                for (i, &k) in kernel.iter().enumerate() {
+                    let sy = (y as i64 + i as i64 - r).clamp(0, h as i64 - 1) as usize;
+                    acc += k * tmp[sy * w + x];
+                }
+                *o = acc;
+            }
+        }
+        focus_stacking::Plane { w, h, data: out }
+    });
 }
 
 #[divan::bench]

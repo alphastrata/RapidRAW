@@ -1311,7 +1311,11 @@ fn map_color_channels(
 ) -> DynamicImage {
     match &mut image {
         DynamicImage::ImageRgb32F(img) => {
-            img.as_mut().par_iter_mut().for_each(|c| *c = map(*c));
+            img.as_mut().par_chunks_mut(32768).for_each(|chunk| {
+                for c in chunk.iter_mut() {
+                    *c = map(*c);
+                }
+            });
         }
         DynamicImage::ImageRgba32F(img) => {
             img.par_chunks_mut(4).for_each(|p| {
@@ -1325,27 +1329,53 @@ fn map_color_channels(
     image
 }
 
+fn map_color_channels_simd(
+    mut image: DynamicImage,
+    simd_chunk: impl Fn(&mut [f32]) + Send + Sync,
+    fallback: impl Fn(f32) -> f32 + Send + Sync,
+) -> DynamicImage {
+    match &mut image {
+        DynamicImage::ImageRgb32F(img) => {
+            img.as_mut().par_chunks_mut(32768).for_each(simd_chunk);
+        }
+        _ => image = map_color_channels(image, fallback),
+    }
+    image
+}
+
 pub fn apply_exposure(image: DynamicImage, exposure: f32) -> DynamicImage {
     if exposure == 0.0 {
         return image;
     }
     let gain = exposure.exp2();
-    map_color_channels(image, |x| x * gain)
+    map_color_channels_simd(
+        image,
+        |chunk| simd_kernels::ops::scale(chunk, gain),
+        |x| x * gain,
+    )
 }
 
 pub fn apply_srgb_to_linear(image: DynamicImage) -> DynamicImage {
-    map_color_channels(image, |x| srgb_channel_to_linear(x.max(0.0)))
+    map_color_channels_simd(
+        image,
+        simd_kernels::colour::srgb_to_linear,
+        |x| srgb_channel_to_linear(x.max(0.0)),
+    )
 }
 
 pub fn apply_linear_to_srgb(image: DynamicImage) -> DynamicImage {
-    map_color_channels(image, |x| {
-        let x = x.max(0.0);
-        if x <= 0.0031308 {
-            x * 12.92
-        } else {
-            1.055 * x.powf(1.0 / 2.4) - 0.055
-        }
-    })
+    map_color_channels_simd(
+        image,
+        simd_kernels::colour::linear_to_srgb,
+        |x| {
+            let x = x.max(0.0);
+            if x <= 0.0031308 {
+                x * 12.92
+            } else {
+                1.055 * x.powf(1.0 / 2.4) - 0.055
+            }
+        },
+    )
 }
 
 pub fn apply_orientation(image: DynamicImage, orientation: Orientation) -> DynamicImage {

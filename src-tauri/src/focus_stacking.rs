@@ -161,31 +161,16 @@ pub fn convolve_separable(src: &Plane, kernel: &[f32]) -> Plane {
     if w == 0 || h == 0 {
         return src.clone();
     }
-    let r_kern = (kernel.len() / 2) as i64;
-
     let mut tmp = Plane::new(w, h);
-    tmp.data.par_chunks_mut(w).enumerate().for_each(|(y, row)| {
-        for (x, out_val) in row.iter_mut().enumerate() {
-            let mut acc = 0.0f32;
-            for (i, &k) in kernel.iter().enumerate() {
-                let sx = (x as i64 + i as i64 - r_kern).clamp(0, w as i64 - 1) as usize;
-                acc += k * src.data[y * w + sx];
-            }
-            *out_val = acc;
-        }
-    });
-
+    tmp.data
+        .par_chunks_mut(w)
+        .enumerate()
+        .for_each(|(y, row)| simd_kernels::conv::conv_row_horizontal(&src.data, w, kernel, y, row));
     let mut out = Plane::new(w, h);
-    out.data.par_chunks_mut(w).enumerate().for_each(|(y, row)| {
-        for (x, out_val) in row.iter_mut().enumerate() {
-            let mut acc = 0.0f32;
-            for (i, &k) in kernel.iter().enumerate() {
-                let sy = (y as i64 + i as i64 - r_kern).clamp(0, h as i64 - 1) as usize;
-                acc += k * tmp.data[sy * w + x];
-            }
-            *out_val = acc;
-        }
-    });
+    out.data
+        .par_chunks_mut(w)
+        .enumerate()
+        .for_each(|(y, row)| simd_kernels::conv::conv_row_vertical(&tmp.data, w, h, kernel, y, row));
     out
 }
 
