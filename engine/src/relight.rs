@@ -447,12 +447,12 @@ pub fn apply_relight<'a>(
     let (nw, nh) = (cache.nw, cache.nh);
     let shadow_scale = (2048.0 / long_side).min(1.0);
     let (wf, hf) = (w as f32, h as f32);
-    let sw = ((wf * shadow_scale).round() as usize).max(2);
-    let sh = ((hf * shadow_scale).round() as usize).max(2);
+    let swf = (wf * shadow_scale).round().max(2.0);
+    let shf = (hf * shadow_scale).round().max(2.0);
+    let (sw, sh) = (swf as usize, shf as usize);
 
     if shadows_enabled && !lights.is_empty() && cache.shadow_inputs.is_none() {
         let shadow_guide = build_relight_guide(out.as_raw(), wu, hu, sw, sh);
-        let (swf, shf) = (sw as f32, sh as f32);
         let depth: Vec<f32> = (0..sw * sh)
             .into_par_iter()
             .map(|i| {
