@@ -132,15 +132,16 @@ fn hash_orientation(adjustments: &serde_json::Value, hasher: &mut DefaultHasher)
 }
 
 fn hash_effect_keys(adjustments: &serde_json::Value, keys: &[&str], hasher: &mut DefaultHasher) {
-    keys.iter().for_each(|key| {
-        if let Some(val) = adjustments.get(*key) {
+    keys
+        .iter()
+        .filter_map(|key| adjustments.get(*key).map(|val| (*key, val)))
+        .for_each(|(key, val)| {
             key.hash(hasher);
             match val.as_str() {
                 Some(s) => s.hash(hasher),
                 None => val.to_string().hash(hasher),
             }
-        }
-    });
+        });
 }
 
 #[must_use]
@@ -168,12 +169,13 @@ pub fn calculate_patch_hash(adjustments: &serde_json::Value) -> u64 {
     if uses_generated_masks {
         hash_orientation(adjustments, &mut hasher);
 
-        GEOMETRY_KEYS.iter().for_each(|key| {
-            if let Some(val) = adjustments.get(key) {
+        GEOMETRY_KEYS
+            .iter()
+            .filter_map(|key| adjustments.get(*key).map(|val| (*key, val)))
+            .for_each(|(key, val)| {
                 key.hash(&mut hasher);
                 val.to_string().hash(&mut hasher);
-            }
-        });
+            });
     }
 
     hasher.finish()
@@ -185,12 +187,13 @@ pub fn calculate_geometry_hash(adjustments: &serde_json::Value) -> u64 {
 
     calculate_patch_hash(adjustments).hash(&mut hasher);
 
-    GEOMETRY_KEYS.iter().for_each(|key| {
-        if let Some(val) = adjustments.get(key) {
+    GEOMETRY_KEYS
+        .iter()
+        .filter_map(|key| adjustments.get(*key).map(|val| (*key, val)))
+        .for_each(|(key, val)| {
             key.hash(&mut hasher);
             val.to_string().hash(&mut hasher);
-        }
-    });
+        });
 
     hasher.finish()
 }
@@ -348,11 +351,8 @@ pub fn calculate_transform_hash(adjustments: &serde_json::Value) -> u64 {
             "relightShadowSoftness",
         ]
         .iter()
-        .for_each(|key| {
-            if let Some(val) = adjustments.get(key) {
-                val.to_string().hash(&mut hasher);
-            }
-        });
+        .filter_map(|key| adjustments.get(*key))
+        .for_each(|val| val.to_string().hash(&mut hasher));
         if let Some(val) = adjustments.get("relightNormalMap") {
             val.as_str().unwrap_or("").len().hash(&mut hasher);
         }
@@ -372,11 +372,8 @@ pub fn calculate_transform_hash(adjustments: &serde_json::Value) -> u64 {
             "fogTint",
         ]
         .iter()
-        .for_each(|key| {
-            if let Some(val) = adjustments.get(key) {
-                val.to_string().hash(&mut hasher);
-            }
-        });
+        .filter_map(|key| adjustments.get(*key))
+        .for_each(|val| val.to_string().hash(&mut hasher));
         if let Some(val) = adjustments.get("fogDepthMap") {
             val.as_str().unwrap_or("").len().hash(&mut hasher);
         }
@@ -388,12 +385,13 @@ pub fn calculate_transform_hash(adjustments: &serde_json::Value) -> u64 {
         crop_val.to_string().hash(&mut hasher);
     }
 
-    GEOMETRY_KEYS.iter().for_each(|key| {
-        if let Some(val) = adjustments.get(key) {
+    GEOMETRY_KEYS
+        .iter()
+        .filter_map(|key| adjustments.get(*key).map(|val| (*key, val)))
+        .for_each(|(key, val)| {
             key.hash(&mut hasher);
             val.to_string().hash(&mut hasher);
-        }
-    });
+        });
 
     hash_ai_patches(adjustments, &mut hasher);
     hash_ai_denoise(adjustments, &mut hasher);
