@@ -84,14 +84,14 @@ pub fn hydrate_adjustments(state: &AppState, adjustments: &mut serde_json::Value
     }
 
     if let Some(masks) = adjustments.get_mut("masks").and_then(|v| v.as_array_mut()) {
-        masks.iter_mut().for_each(|mask_container| {
-            if let Some(sub_masks) = mask_container
-                .get_mut("subMasks")
-                .and_then(|v| v.as_array_mut())
-            {
-                hydrate_sub_masks(sub_masks, &mut cache);
-            }
-        });
+        masks
+            .iter_mut()
+            .filter_map(|mask_container| {
+                mask_container
+                    .get_mut("subMasks")
+                    .and_then(|v| v.as_array_mut())
+            })
+            .for_each(|sub_masks| hydrate_sub_masks(sub_masks, &mut cache));
     }
 
     let effect_map_ids = adjustments
