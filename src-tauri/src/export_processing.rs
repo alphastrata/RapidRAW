@@ -1091,6 +1091,7 @@ fn process_image_for_export_pipeline(
         debug_tag,
         output_precision,
     )
+    .map_err(|e| e.to_string())
 }
 
 fn render_output_precision(
@@ -1149,7 +1150,7 @@ fn save_image_with_metadata(
         export_settings.strip_gps,
         export_xmp,
         export_settings.dpi,
-    )?;
+    ).map_err(|e| e.to_string())?;
 
     #[cfg(target_os = "android")]
     {
@@ -1474,7 +1475,7 @@ fn export_masks_for_image(
                 },
                 "export_mask_image",
                 render_output_precision(extension, export_settings),
-            )?;
+            ).map_err(|e| e.to_string())?;
             ensure_export_not_cancelled(cancellation_token)?;
 
             let (with_options, geometry) =
@@ -1586,7 +1587,7 @@ fn export_adjustments_as_lut(
             roi: None,
         },
         "export_lut",
-    )?;
+    ).map_err(|e| e.to_string())?;
     ensure_export_not_cancelled(cancellation_token)?;
 
     let cube_lut = convert_image_to_cube_lut(&processed_lut, lut_size)?;
@@ -1623,7 +1624,7 @@ pub(crate) async fn export_images_impl(
     let context = match get_or_init_gpu_context(&state, &*crate::host::TauriHost::host(app_handle.clone())) {
         Ok(context) => context,
         Err(_) if cancellation_token.load(Ordering::SeqCst) => return Ok(()),
-        Err(error) => return Err(error),
+        Err(error) => return Err(error.to_string()),
     };
 
     if cancellation_token.load(Ordering::SeqCst) {
@@ -2302,7 +2303,7 @@ pub async fn estimate_export_sizes(
     let (source_path, sidecar_path) = parse_virtual_path(first_path);
     let source_path_str = source_path.to_string_lossy().to_string();
 
-    let context = get_or_init_gpu_context(&state, &*crate::host::TauriHost::host(app_handle.clone()))?;
+    let context = get_or_init_gpu_context(&state, &*crate::host::TauriHost::host(app_handle.clone())).map_err(|e| e.to_string())?;
     let is_current_edit = Some(&source_path_str) == current_edit_path.as_ref();
     let is_raw = is_raw_file(&source_path_str);
     let settings = load_settings(app_handle.clone()).unwrap_or_default();
@@ -2343,7 +2344,7 @@ pub async fn estimate_export_sizes(
             }
         } else {
             drop(cached_preview_lock);
-            generate_transformed_preview(&state, &loaded_image, &adjustments_clone, preview_dim)?
+            generate_transformed_preview(&state, &loaded_image, &adjustments_clone, preview_dim).map_err(|e| e.to_string())?
         };
 
         let (img_w, img_h) = preview_image.dimensions();
@@ -2394,7 +2395,7 @@ pub async fn estimate_export_sizes(
             },
             "estimate_export_size",
             render_output_precision(&output_format, &export_settings),
-        )?;
+        ).map_err(|e| e.to_string())?;
 
         let preview_bytes =
             encode_image_to_bytes(&processed_preview, &output_format, &export_settings)?;
@@ -2531,7 +2532,7 @@ pub async fn estimate_export_sizes(
             },
             "estimate_batch_export_size",
             render_output_precision(&output_format, &export_settings),
-        )?;
+        ).map_err(|e| e.to_string())?;
 
         let preview_bytes =
             encode_image_to_bytes(&processed_preview, &output_format, &export_settings)?;
