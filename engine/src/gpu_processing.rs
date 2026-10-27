@@ -264,7 +264,7 @@ pub fn get_or_init_gpu_context(
         return Ok(context.clone());
     }
 
-    #[cfg_attr(any(target_os = "android", target_os = "linux"), allow(unused_mut))]
+    #[cfg_attr(target_os = "linux", allow(unused_mut))]
     let mut instance_desc = wgpu::InstanceDescriptor::new_without_display_handle_from_env();
 
     #[cfg(target_os = "windows")]
@@ -287,7 +287,7 @@ pub fn get_or_init_gpu_context(
     let instance = wgpu::Instance::new(instance_desc);
 
     #[cfg_attr(
-        any(target_os = "android", target_os = "linux"),
+        target_os = "linux",
         allow(unused_variables)
     )]
     let (surface_opt, inner_size) = match host.display_setup() {
@@ -360,7 +360,7 @@ pub fn get_or_init_gpu_context(
         best_effort(std::fs::remove_file(p));
     }
 
-    #[cfg(not(any(target_os = "android", target_os = "linux")))]
+    #[cfg(not(target_os = "linux"))]
     let display_opt = if let Some(surface) = surface_opt {
         let swapchain_caps = surface.get_capabilities(&adapter);
         let swapchain_format = swapchain_caps
@@ -532,7 +532,7 @@ pub fn get_or_init_gpu_context(
         None
     };
 
-    #[cfg(any(target_os = "android", target_os = "linux"))]
+    #[cfg(target_os = "linux")]
     let display_opt = None;
 
     let new_context = GpuContext {

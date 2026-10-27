@@ -45,12 +45,12 @@ impl Host for TauriHost {
             .unwrap_or_else(|_| std::env::current_dir().unwrap_or_default())
     }
 
-    #[cfg(any(target_os = "android", target_os = "linux"))]
+    #[cfg(target_os = "linux")]
     fn display_setup(&self) -> Option<engine::gpu_processing::DisplaySetup> {
         None
     }
 
-    #[cfg(not(any(target_os = "android", target_os = "linux")))]
+    #[cfg(not(target_os = "linux"))]
     fn display_setup(&self) -> Option<engine::gpu_processing::DisplaySetup> {
         if !self.load_settings().use_wgpu_renderer.unwrap_or(true) {
             return None;

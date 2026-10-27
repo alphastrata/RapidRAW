@@ -1,8 +1,3 @@
-use crate::android::is_android_content_uri;
-#[cfg(target_os = "android")]
-use crate::android::{
-    get_android_cached_lut_path, read_android_content_uri, resolve_android_content_uri_name,
-};
 use anyhow::anyhow;
 use image::{DynamicImage, GenericImageView, Rgb, Rgb32FImage};
 use serde::{Deserialize, Serialize};
@@ -123,14 +118,9 @@ fn unique_lut_destination(dir: &Path, stem: &str, extension: &str) -> PathBuf {
 }
 
 pub fn import_luts_to_dir(dir: &Path, source_paths: &[String]) -> anyhow::Result<Vec<LutEntry>> {
-    for source in source_paths {
+    source_paths.iter().for_each(|source| {
         if let Err(error) = parse_lut_file(source) {
             log::warn!("Skipping invalid LUT '{source}': {error}");
-        } else if cfg!(target_os = "android") && is_android_content_uri(source) {
-            #[cfg(target_os = "android")]
-            if let Err(error) = import_android_lut(source) {
-                log::error!("Failed to import LUT from '{}': {}", source, error);
-            }
         } else {
             let source_path = Path::new(source);
             let stem = source_path
@@ -147,35 +137,8 @@ pub fn import_luts_to_dir(dir: &Path, source_paths: &[String]) -> anyhow::Result
                 log::error!("Failed to copy LUT '{source}': {error}");
             }
         }
-    }
+    });
     list_luts_in_dir(dir, false)
-}
-
-#[cfg(target_os = "android")]
-fn import_android_lut(source: &str) -> anyhow::Result<()> {
-    let resolved_name = resolve_android_content_uri_name(source)
-        .map_err(|e| anyhow!("Failed to resolve content URI: {}", e))?;
-    let stem = Path::new(&resolved_name)
-        .file_stem()
-        .and_then(|s| s.to_str())
-        .unwrap_or("LUT")
-        .to_string();
-    let extension = Path::new(&resolved_name)
-        .extension()
-        .and_then(|s| s.to_str())
-        .unwrap_or("cube")
-        .to_lowercase();
-    let bytes = read_android_content_uri(source)
-        .map_err(|e| anyhow!("Failed to read content URI: {}", e))?;
-
-    let cache_path = get_android_cached_lut_path(source, &extension)?;
-    let cache_dir = cache_path
-        .parent()
-        .ok_or_else(|| anyhow!("Invalid cache path"))?
-        .to_path_buf();
-    let destination = unique_lut_destination(&cache_dir, &stem, &extension);
-    std::fs::write(&destination, &bytes)?;
-    Ok(())
 }
 
 fn parse_cube(reader: impl BufRead) -> anyhow::Result<Lut> {
@@ -347,32 +310,12 @@ pub fn parse_lut_file(path_str: &str) -> anyhow::Result<Lut> {
         }
     }
 
-    let (extension, bytes): (String, Option<Vec<u8>>) =
-        if cfg!(target_os = "android") && is_android_content_uri(path_str) {
-            #[cfg(target_os = "android")]
-            {
-                let resolved_name = resolve_android_content_uri_name(path_str)
-                    .unwrap_or_else(|_| path_str.to_string());
-                let ext = Path::new(&resolved_name)
-                    .extension()
-                    .and_then(|s| s.to_str())
-                    .unwrap_or("cube")
-                    .to_lowercase();
-                let uri_bytes = read_android_content_uri(path_str).map_err(|e| anyhow!("{}", e))?;
-                (ext, Some(uri_bytes))
-            }
-            #[cfg(not(target_os = "android"))]
-            {
-                (String::new(), None)
-            }
-        } else {
-            let ext = Path::new(path_str)
-                .extension()
-                .and_then(|s| s.to_str())
-                .unwrap_or("")
-                .to_lowercase();
-            (ext, None)
-        };
+    let ext = Path::new(path_str)
+        .extension()
+        .and_then(|s| s.to_str())
+        .unwrap_or("")
+        .to_lowercase();
+    let (extension, bytes): (String, Option<Vec<u8>>) = (ext, None);
 
     match extension.as_str() {
         "cube" => {
@@ -469,38 +412,11 @@ pub fn list_luts_impl(host: &dyn Host) -> Result<Vec<LutEntry>, String> {
     let data_dir = host.app_data_dir();
     let luts_dir = get_luts_dir(&data_dir).map_err(|e| e.to_string())?;
 
-    #[cfg(target_os = "android")]
-    {
-        if let Ok(user_luts) = list_luts_in_dir(&luts_dir, false) {
-            all_luts.extend(user_luts);
-        }
-        if let Ok(cached) = list_luts_in_cache() {
-            all_luts.extend(cached);
-        }
-    }
-    #[cfg(not(target_os = "android"))]
-    {
-        if let Ok(user_luts) = list_luts_in_dir(&luts_dir, false) {
-            all_luts.extend(user_luts);
-        }
+    if let Ok(user_luts) = list_luts_in_dir(&luts_dir, false) {
+        all_luts.extend(user_luts);
     }
 
     Ok(all_luts)
-}
-
-#[cfg(target_os = "android")]
-fn get_lut_cache_dir() -> anyhow::Result<PathBuf> {
-    let cache_path = get_android_cached_lut_path("_", "tmp")?;
-    cache_path
-        .parent()
-        .ok_or_else(|| anyhow!("Invalid cache path"))
-        .map(|p| p.to_path_buf())
-}
-
-#[cfg(target_os = "android")]
-fn list_luts_in_cache() -> anyhow::Result<Vec<LutEntry>> {
-    let cache_dir = get_lut_cache_dir()?;
-    list_luts_in_dir(&cache_dir, false)
 }
 
 pub fn import_luts_impl(
@@ -525,16 +441,6 @@ pub fn remove_lut_impl(host: &dyn Host, path: PathBuf) -> Result<Vec<LutEntry>, 
         return Err("Cannot delete built-in film emulations".to_string());
     }
 
-    #[cfg(target_os = "android")]
-    {
-        let cache_dir = strip_verbatim(&get_lut_cache_dir().map_err(|e| e.to_string())?);
-        if !target_path.starts_with(&luts_dir) && !target_path.starts_with(&cache_dir) {
-            return Err(
-                "Access denied: Cannot remove files outside the user LUT directory".to_string(),
-            );
-        }
-    }
-    #[cfg(not(target_os = "android"))]
     if !target_path.starts_with(&luts_dir) {
         return Err(
             "Access denied: Cannot remove files outside the user LUT directory".to_string(),

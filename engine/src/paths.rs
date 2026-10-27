@@ -122,12 +122,9 @@ pub fn parse_sidecar_name(file_name: &str) -> Option<(&str, Option<&str>)> {
 }
 
 #[cfg(target_os = "macos")]
+#[must_use]
 pub fn is_cloud_placeholder(path: &Path) -> bool {
     const SF_DATALESS: u32 = 0x4000_0000;
-
-    if crate::immich::registry::is_placeholder(path) {
-        return true;
-    }
 
     let c_path = match std::ffi::CString::new(path.as_os_str().as_bytes()) {
         Ok(p) => p,
@@ -140,6 +137,6 @@ pub fn is_cloud_placeholder(path: &Path) -> bool {
 
 #[cfg(not(target_os = "macos"))]
 #[must_use]
-pub fn is_cloud_placeholder(path: &Path) -> bool {
-    crate::immich::registry::is_placeholder(path)
+pub fn is_cloud_placeholder(_path: &Path) -> bool {
+    false
 }
