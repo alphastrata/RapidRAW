@@ -74,7 +74,7 @@ impl<'a> AiTaskGuard<'a> {
         let token = Arc::new(AiTaskToken::new());
         active_ai_tasks
             .lock()
-            .unwrap()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
             .insert(task_id.clone(), Arc::clone(&token));
         Self {
             active_ai_tasks,
@@ -86,7 +86,7 @@ impl<'a> AiTaskGuard<'a> {
 
 impl Drop for AiTaskGuard<'_> {
     fn drop(&mut self) {
-        let mut tasks = self.active_ai_tasks.lock().unwrap();
+        let mut tasks = self.active_ai_tasks.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
         if let Some(existing) = tasks.get(&self.task_id)
             && Arc::ptr_eq(existing, &self.token)
         {

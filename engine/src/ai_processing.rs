@@ -319,7 +319,7 @@ impl AiModels {
         filename: &str,
         use_gpu: bool,
     ) -> Result<SharedSession> {
-        let mut slot = slot.lock().unwrap();
+        let mut slot = slot.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
         if let Some(session) = slot.as_ref() {
             return Ok(Arc::clone(session));
         }
@@ -395,7 +395,7 @@ impl AiModels {
         slot: &Mutex<Option<Arc<Esam3Prompt>>>,
         filename: &str,
     ) -> Result<Arc<Esam3Prompt>> {
-        let mut slot = slot.lock().unwrap();
+        let mut slot = slot.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
         if let Some(prompt) = slot.as_ref() {
             return Ok(Arc::clone(prompt));
         }
@@ -426,7 +426,7 @@ impl AiModels {
 
     pub fn esam3_text_prompt(&self, text: &str) -> Result<Esam3Prompt> {
         let tokenizer = {
-            let mut slot = self.clip_tokenizer.lock().unwrap();
+            let mut slot = self.clip_tokenizer.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
             if let Some(tokenizer) = slot.as_ref() { Arc::clone(tokenizer) } else {
                 let tokenizer = Arc::new(
                     Tokenizer::from_file(self.models_dir.join(CLIP_TOKENIZER_FILENAME))
@@ -452,7 +452,7 @@ impl AiModels {
         }
 
         let session = self.session(&self.esam3_text_encoder, ESAM3_TEXT_ENCODER_FILENAME, false)?;
-        let mut session = session.lock().unwrap();
+        let mut session = session.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
         let outputs = session.run(ort::inputs!["tokens" => Tensor::from_array(tokens)?])?;
         Ok(Esam3Prompt {
             features: outputs["language_features"]
@@ -649,7 +649,7 @@ pub fn gpu_inference<T>(result: ort::Result<T>) -> Result<T> {
 }
 
 pub fn reset_ai_sessions(ai_state_mutex: &Mutex<Option<AiState>>) {
-    if let Some(ai_state) = ai_state_mutex.lock().unwrap().as_mut() {
+    if let Some(ai_state) = ai_state_mutex.lock().unwrap_or_else(std::sync::PoisonError::into_inner).as_mut() {
         ai_state.release_sessions();
     }
     GPU_STATUS.store(GPU_IDLE, Ordering::Release);
@@ -701,7 +701,7 @@ fn cached_ai_state<T>(
     ai_state_mutex: &Mutex<Option<AiState>>,
     get: impl Fn(&AiState) -> Option<T>,
 ) -> Option<T> {
-    let mut ai_state = ai_state_mutex.lock().unwrap();
+    let mut ai_state = ai_state_mutex.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
     if GPU_STATUS
         .compare_exchange(
             GPU_FAILED,
@@ -1176,7 +1176,7 @@ pub async fn get_or_init_ai_models(
     ai_init_lock: &TokioMutex<()>,
     model: AiMaskModel,
 ) -> Result<Arc<AiModels>> {
-    let is_downloaded = |models: &AiModels| models.downloaded.lock().unwrap().contains(&model);
+    let is_downloaded = |models: &AiModels| models.downloaded.lock().unwrap_or_else(std::sync::PoisonError::into_inner).contains(&model);
 
     if let Some(models) = cached_ai_state(ai_state_mutex, |state| state.models.clone())
         && is_downloaded(&models)
@@ -1209,7 +1209,7 @@ pub async fn get_or_init_ai_models(
         });
         ai_state_mutex
             .lock()
-            .unwrap()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
             .get_or_insert_with(AiState::default)
             .models = Some(models.clone());
         models
@@ -1220,7 +1220,7 @@ pub async fn get_or_init_ai_models(
             .then(|asset| download_and_verify_model(host, &models.models_dir, asset))
             .for_each(|_: Result<()>| async {})
             .await;
-        models.downloaded.lock().unwrap().insert(model);
+        models.downloaded.lock().unwrap_or_else(std::sync::PoisonError::into_inner).insert(model);
     }
 
     Ok(models)
@@ -1262,7 +1262,7 @@ pub async fn get_or_init_denoise_model(
 
     ai_state_mutex
         .lock()
-        .unwrap()
+        .unwrap_or_else(std::sync::PoisonError::into_inner)
         .get_or_insert_with(AiState::default)
         .denoise_model = Some(denoise_model.clone());
 
@@ -1307,7 +1307,7 @@ pub async fn get_or_init_clip_models(
 
     ai_state_mutex
         .lock()
-        .unwrap()
+        .unwrap_or_else(std::sync::PoisonError::into_inner)
         .get_or_insert_with(AiState::default)
         .clip_models = Some(clip_models.clone());
 
@@ -1341,7 +1341,7 @@ pub async fn get_or_init_lama_model(
 
     ai_state_mutex
         .lock()
-        .unwrap()
+        .unwrap_or_else(std::sync::PoisonError::into_inner)
         .get_or_insert_with(AiState::default)
         .lama_model = Some(lama_model.clone());
 
@@ -1382,7 +1382,7 @@ pub async fn get_or_init_normal_model(
 
     ai_state_mutex
         .lock()
-        .unwrap()
+        .unwrap_or_else(std::sync::PoisonError::into_inner)
         .get_or_insert_with(AiState::default)
         .normal_model = Some(normal_model.clone());
 
@@ -1482,7 +1482,7 @@ fn run_native_denoise(
         let t_input = Tensor::from_array(crop.as_standard_layout().to_owned())?;
 
         let tile = {
-            let mut sess = session.lock().unwrap();
+            let mut sess = session.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
             let outputs = gpu_inference(sess.run(ort::inputs![t_input]))?;
             outputs[0]
                 .try_extract_array::<f32>()?
@@ -1801,7 +1801,7 @@ pub fn run_lama_inpainting(
     let t_msk = Tensor::from_array(msk_tensor.into_dyn().as_standard_layout().into_owned())?;
 
     let output_tensor = {
-        let mut session = lama_session.lock().unwrap();
+        let mut session = lama_session.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
         let outputs = session.run(ort::inputs!["image" => t_img, "mask" => t_msk])?;
         outputs[0].try_extract_array::<f32>()?.to_owned()
     };
@@ -1955,7 +1955,7 @@ pub fn generate_image_embeddings(
     let input_tensor_dyn = input_tensor.into_dyn();
     let input_values = input_tensor_dyn.as_standard_layout();
     let input_tensor_ort = Tensor::from_array(input_values.into_owned())?;
-    let mut session = encoder.lock().unwrap();
+    let mut session = encoder.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
     let outputs = session.run(ort::inputs![input_tensor_ort])?;
 
     let embeddings = outputs[0].try_extract_array::<f32>()?.to_owned();
@@ -2041,7 +2041,7 @@ pub fn run_sam_decoder(
             Tensor::from_array(orig_im_size.clone().as_standard_layout().into_owned())?;
 
         let mask_tensor = {
-            let mut session = decoder.lock().unwrap();
+            let mut session = decoder.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
             let outputs = session.run(ort::inputs![
                 t_embeddings,
                 t_point_coords,
@@ -2260,7 +2260,7 @@ pub fn run_esam3_image_encoder(
         }
     }
 
-    let mut session = encoder_session.lock().unwrap();
+    let mut session = encoder_session.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
     let outputs =
         gpu_inference(session.run(ort::inputs!["image" => Tensor::from_array(input_tensor)?]))?;
     let extract = |name: &str| -> Result<Array<f32, IxDyn>> {
@@ -2284,7 +2284,7 @@ fn run_esam3_queries<T>(
     let exemplar_labels = Array::<i64, _>::zeros((ESAM3_EXEMPLAR_SLOTS, 1));
     let exemplar_mask = Array::<f32, _>::ones((1, ESAM3_EXEMPLAR_SLOTS));
 
-    let mut session = decoder_session.lock().unwrap();
+    let mut session = decoder_session.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
     let outputs = gpu_inference(session.run(ort::inputs![
         "fpn_0" => TensorRef::from_array_view(&features.fpn[0])?,
         "fpn_1" => TensorRef::from_array_view(&features.fpn[1])?,
@@ -2469,7 +2469,7 @@ pub fn run_birefnet_model(
     birefnet_session: &Mutex<Session>,
 ) -> Result<GrayImage> {
     let (width, height) = image.dimensions();
-    let mut session = birefnet_session.lock().unwrap();
+    let mut session = birefnet_session.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
     let coarse = run_birefnet_pass(image, &mut session)?;
     let mut mask = imageops::resize(&coarse, width, height, FilterType::Triangle);
 
@@ -2641,7 +2641,7 @@ pub fn run_depth_anything_model(
     let input_tensor_dyn = input_tensor.into_dyn();
     let t_input = Tensor::from_array(input_tensor_dyn.as_standard_layout().into_owned())?;
 
-    let mut session = depth_session.lock().unwrap();
+    let mut session = depth_session.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
     let outputs = gpu_inference(session.run(ort::inputs![t_input]))?;
     let output_tensor = outputs[0].try_extract_array::<f32>()?.to_owned();
     let out_slice = output_tensor.as_slice().unwrap();
@@ -2752,7 +2752,7 @@ pub fn run_normal_model(
     let t_image = Tensor::from_array(input_tensor.into_dyn())?;
     let t_num_tokens = Tensor::from_array(ndarray::arr0(NORMAL_NUM_TOKENS))?;
 
-    let mut session = normal_session.lock().unwrap();
+    let mut session = normal_session.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
     let outputs = gpu_inference(session.run(ort::inputs![
         "image" => t_image,
         "num_tokens" => t_num_tokens,

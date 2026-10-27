@@ -2048,7 +2048,7 @@ pub async fn stitch_focus_stack_impl(
             serde_json::json!({ "frames": report }),
         );
 
-        *focus_result_handle.lock().unwrap() = Some(DynamicImage::ImageRgb32F(final_image));
+        *focus_result_handle.lock().unwrap_or_else(std::sync::PoisonError::into_inner) = Some(DynamicImage::ImageRgb32F(final_image));
 
         host.emit_json(
             "focus-stack-complete",
@@ -2174,7 +2174,7 @@ pub fn save_focus_stack_impl(
     let focus_image = state
         .focus_stack_result
         .lock()
-        .unwrap()
+        .unwrap_or_else(std::sync::PoisonError::into_inner)
         .take()
         .ok_or_else(|| "No focus stack image found in memory.".to_string())?;
 

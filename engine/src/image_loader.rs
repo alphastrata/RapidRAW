@@ -860,7 +860,7 @@ pub fn get_or_decode_pristine(
     let fingerprint = DecodeFingerprint::for_file(source_path, settings);
     loop {
         if let Some(fp) = &fingerprint
-            && let Some(hit) = state.decoded_image_cache.lock().unwrap().get(&path_str, fp)
+            && let Some(hit) = state.decoded_image_cache.lock().unwrap_or_else(std::sync::PoisonError::into_inner).get(&path_str, fp)
         {
             return Ok(hit);
         }
@@ -905,7 +905,7 @@ pub fn get_or_decode_pristine(
 
                 let image = Arc::new(image);
                 if let Some(fp) = fingerprint {
-                    state.decoded_image_cache.lock().unwrap().insert(
+                    state.decoded_image_cache.lock().unwrap_or_else(std::sync::PoisonError::into_inner).insert(
                         path_str,
                         fp,
                         Arc::clone(&image),

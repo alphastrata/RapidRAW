@@ -266,7 +266,7 @@ pub fn get_or_init_gpu_context(
         instance_desc.backends = wgpu::Backends::PRIMARY;
     }
 
-    let flag_path = state.gpu_crash_flag_path.lock().unwrap().clone();
+    let flag_path = state.gpu_crash_flag_path.lock().unwrap_or_else(std::sync::PoisonError::into_inner).clone();
     if let Some(p) = &flag_path {
         if let Some(parent) = p.parent() {
             best_effort(std::fs::create_dir_all(parent));

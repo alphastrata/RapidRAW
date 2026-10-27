@@ -201,7 +201,7 @@ fn run_landmarks(
     frame: &FaceFrame,
 ) -> Result<(Vec<[f32; 2]>, f32)> {
     let tensor = frame_tensor(image, frame, LANDMARK_INPUT_SIZE, false, |v| v / 255.0);
-    let mut session = session.lock().unwrap();
+    let mut session = session.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
     let outputs = session.run(ort::inputs![Tensor::from_array(tensor)?])?;
     let points = outputs[0].try_extract_array::<f32>()?;
     let score = outputs[1]
@@ -285,7 +285,7 @@ fn run_segmenter(
     let tensor = frame_tensor(image, frame, SEGMENTER_INPUT_SIZE, true, |v| {
         v / 127.5 - 1.0
     });
-    let mut session = session.lock().unwrap();
+    let mut session = session.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
     let outputs = session.run(ort::inputs![Tensor::from_array(tensor)?])?;
     let logits = outputs[0].try_extract_array::<f32>()?;
     let logits = logits

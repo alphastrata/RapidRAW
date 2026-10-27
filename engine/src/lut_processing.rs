@@ -452,7 +452,7 @@ pub fn convert_image_to_cube_lut(image: &DynamicImage, size: u32) -> Result<Vec<
 }
 
 pub fn get_or_load_lut(state: &AppState, path: &str) -> Result<Arc<Lut>, String> {
-    let mut cache = state.lut_cache.lock().unwrap();
+    let mut cache = state.lut_cache.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
     if let Some(lut) = cache.get(path) {
         return Ok(lut.clone());
     }
@@ -637,7 +637,7 @@ pub async fn generate_lut_previews_impl(
         let loaded_image = state
             .original_image
             .lock()
-            .unwrap()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
             .clone()
             .ok_or("No original image loaded for LUT previews")?;
         let is_raw = loaded_image.is_raw;
@@ -691,7 +691,7 @@ pub fn load_and_parse_lut_impl(path: String, state: &AppState) -> Result<LutPars
     let lut = parse_lut_file(&path).map_err(|e| e.to_string())?;
     let lut_size = lut.size;
 
-    let mut cache = state.lut_cache.lock().unwrap();
+    let mut cache = state.lut_cache.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
     cache.insert(path, Arc::new(lut));
 
     Ok(LutParseResult { size: lut_size })

@@ -32,7 +32,7 @@ pub fn as_shot(path: &str) -> AsShot {
         return AsShot::reference();
     }
     let key = source_path.to_string_lossy().into_owned();
-    if let Some(cached) = as_shot_cache().lock().unwrap().get(&key) {
+    if let Some(cached) = as_shot_cache().lock().unwrap_or_else(std::sync::PoisonError::into_inner).get(&key) {
         return *cached;
     }
 
@@ -41,6 +41,6 @@ pub fn as_shot(path: &str) -> AsShot {
         .and_then(|mmap| crate::raw_processing::read_as_shot(&mmap))
         .unwrap_or_else(AsShot::reference);
 
-    as_shot_cache().lock().unwrap().insert(key, as_shot);
+    as_shot_cache().lock().unwrap_or_else(std::sync::PoisonError::into_inner).insert(key, as_shot);
     as_shot
 }

@@ -362,7 +362,7 @@ fn write_sidecar(
     metadata: &ImageMetadata,
 ) -> std::io::Result<()> {
     if is_default_sidecar(sidecar_path, source_path, metadata) {
-        let layout_guard = SIDECAR_LAYOUT_LOCK.lock().unwrap();
+        let layout_guard = SIDECAR_LAYOUT_LOCK.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
         drop(layout_guard);
         if !has_virtual_copy_sidecars(source_path) {
             return match fs::remove_file(sidecar_path) {

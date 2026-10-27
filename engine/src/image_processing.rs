@@ -4351,7 +4351,7 @@ pub fn calculate_auto_adjustments(
     let loaded_image = state
         .original_image
         .lock()
-        .unwrap()
+        .unwrap_or_else(std::sync::PoisonError::into_inner)
         .clone()
         .ok_or("No image loaded for auto adjustments")?;
 
@@ -4518,7 +4518,7 @@ pub fn sample_white_balance(
     let loaded_image = state
         .original_image
         .lock()
-        .unwrap()
+        .unwrap_or_else(std::sync::PoisonError::into_inner)
         .clone()
         .ok_or("No original image loaded")?;
     let adjustments = js_adjustments.unwrap_or_default();
