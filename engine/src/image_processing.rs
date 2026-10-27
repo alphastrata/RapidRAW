@@ -365,7 +365,9 @@ pub fn downscale_f32_image_if_needed(
 
     let width_f = width as f32;
     let height_f = height as f32;
-    let ratio = (nwidth as f32 / width_f).min(nheight as f32 / height_f);
+    let nwidth_f = nwidth as f32;
+    let nheight_f = nheight as f32;
+    let ratio = (nwidth_f / width_f).min(nheight_f / height_f);
     let new_w = (width_f * ratio).round() as u32;
     let new_h = (height_f * ratio).round() as u32;
 
@@ -376,6 +378,7 @@ pub fn downscale_f32_image_if_needed(
     let x_ratio = width_f / new_w as f32;
     let y_ratio = height_f / new_h as f32;
     let width_usize = width as usize;
+    let height_usize = height as usize;
 
     let mut x_bounds = Vec::with_capacity(new_w as usize);
     let mut x_weights = Vec::new();
@@ -419,7 +422,7 @@ pub fn downscale_f32_image_if_needed(
         let y_start = y_out as f32 * y_ratio;
         let y_end = (y_out + 1) as f32 * y_ratio;
         let y_in_start = y_start.floor() as usize;
-        let y_in_end = (y_end.ceil() as usize).min(height as usize);
+        let y_in_end = (y_end.ceil() as usize).min(height_usize);
 
         let weight_start_idx = y_weights.len();
         let mut w_sum = 0.0;
@@ -2028,8 +2031,10 @@ fn parse_hsl_adjustments(js_hsl: &serde_json::Value) -> [HslColor; 8] {
             ("purples", 6),
             ("magentas", 7),
         ];
-        color_map.iter().for_each(|&(name, index)| {
-            if let Some(color_data) = hsl_map.get(name) {
+        color_map
+            .iter()
+            .filter_map(|&(name, index)| hsl_map.get(name).map(|color_data| (index, color_data)))
+            .for_each(|(index, color_data)| {
                 hsl_array[index] = HslColor {
                     hue: color_data["hue"].as_f64().unwrap_or(0.0) as f32
                         * SCALES.hsl_hue_multiplier,
@@ -2039,8 +2044,7 @@ fn parse_hsl_adjustments(js_hsl: &serde_json::Value) -> [HslColor; 8] {
                         / SCALES.hsl_luminance,
                     _pad: 0.0,
                 };
-            }
-        });
+            });
     }
     hsl_array
 }
@@ -2098,15 +2102,14 @@ fn parse_curve_channel(curves_obj: &serde_json::Value, channel: &str, visible: b
         .iter()
         .zip(aligned.iter_mut())
         .take(16)
-        .for_each(|(p, slot)| {
-            if let (Some(x), Some(y)) = (p["x"].as_f64(), p["y"].as_f64()) {
-                *slot = Point {
-                    x: x as f32,
-                    y: y as f32,
-                    _pad1: 0.0,
-                    _pad2: 0.0,
-                };
-            }
+        .filter_map(|(p, slot)| Some((p["x"].as_f64()?, p["y"].as_f64()?, slot)))
+        .for_each(|(x, y, slot)| {
+            *slot = Point {
+                x: x as f32,
+                y: y as f32,
+                _pad1: 0.0,
+                _pad2: 0.0,
+            };
         });
     (aligned, points.len() as u32)
 }
@@ -3578,10 +3581,10 @@ fn apply_gentle_detail_enhance(buffer: &mut Rgb32FImage, q: &[f32], amount: f32)
         |(v, blur, lo, hi), (y, row)| {
             blur_row(y, v, blur);
             let r: [&[f32]; 3] = std::array::from_fn(|k| row_at(y as isize + k as isize - 1));
-            for x in 0..w {
+            (0..w).for_each(|x| {
                 lo[x + 1] = r[0][x].min(r[1][x]).min(r[2][x]);
                 hi[x + 1] = r[0][x].max(r[1][x]).max(r[2][x]);
-            }
+            });
             (lo[0], hi[0], lo[w + 1], hi[w + 1]) = (lo[1], hi[1], lo[w], hi[w]);
             let center = r[1];
             for (x, p) in row.as_chunks_mut::<3>().0.iter_mut().enumerate() {
@@ -3916,14 +3919,14 @@ pub fn calculate_waveform(
     let mut x_buckets_parade_g = vec![0usize; orig_w_usize];
     let mut x_buckets_parade_b = vec![0usize; orig_w_usize];
 
-    (0..orig_w).for_each(|x| {
+    (0..orig_w_usize).for_each(|x| {
         let x_f32 = x as f32;
-        x_buckets[x as usize] = ((x_f32 * x_scale) as usize).min(W - 1);
+        x_buckets[x] = ((x_f32 * x_scale) as usize).min(W - 1);
         if do_parade {
             let relative_x = x_f32 / orig_w_f;
-            x_buckets_parade_r[x as usize] = (relative_x * 82.0) as usize % 82;
-            x_buckets_parade_g[x as usize] = 87 + (relative_x * 82.0) as usize % 82;
-            x_buckets_parade_b[x as usize] = 174 + (relative_x * 82.0) as usize % 82;
+            x_buckets_parade_r[x] = (relative_x * 82.0) as usize % 82;
+            x_buckets_parade_g[x] = 87 + (relative_x * 82.0) as usize % 82;
+            x_buckets_parade_b[x] = 174 + (relative_x * 82.0) as usize % 82;
         }
     });
 
