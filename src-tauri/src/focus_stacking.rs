@@ -1564,6 +1564,9 @@ pub fn valid_bounds(masks: &[Plane], min_coverage: f32) -> (usize, usize, usize,
 
 pub trait FrameSource: Sync {
     fn len(&self) -> usize;
+    fn is_empty(&self) -> bool {
+        self.len() == 0
+    }
     fn dims(&self) -> (usize, usize);
     fn get(&self, index: usize) -> Result<PlanarRgb, String>;
 }
