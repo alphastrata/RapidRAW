@@ -55,6 +55,7 @@ pub async fn clear_ai_maps_cache() -> Result<(), String> {
     tauri::async_runtime::spawn_blocking(crate::effect_maps::clear_disk_cache)
         .await
         .map_err(|e| e.to_string())?
+        .map_err(|e| e.to_string())
 }
 
 #[tauri::command]
@@ -62,6 +63,7 @@ pub async fn clear_metadata_cache() -> Result<(), String> {
     tauri::async_runtime::spawn_blocking(crate::exif_processing::clear_disk_cache)
         .await
         .map_err(|e| e.to_string())?
+        .map_err(|e| e.to_string())
 }
 
 #[tauri::command]
