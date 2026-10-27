@@ -1,3 +1,5 @@
+#![recursion_limit = "256"]
+
 pub mod adjustment_utils;
 pub mod ai_connector;
 pub mod ai_denoise;

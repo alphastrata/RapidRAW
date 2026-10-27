@@ -1,12 +1,11 @@
-use engine::guided_perspective::calculate_guided_perspective as engine_calculate;
 pub use engine::guided_perspective::*;
-use engine::guided_perspective::{GuideLine, GuidedResultJson};
+use engine::guided_perspective::calculate_guided_perspective as engine_calculate;
 
 #[tauri::command]
 pub fn calculate_guided_perspective(
-    lines: Vec<GuideLine>,
+    lines: Vec<engine::guided_perspective::GuideLine>,
     width: f64,
     height: f64,
-) -> GuidedResultJson {
+) -> engine::guided_perspective::GuidedResultJson {
     engine_calculate(lines, width, height)
 }

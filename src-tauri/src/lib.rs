@@ -1,3 +1,5 @@
+#![recursion_limit = "256"]
+
 #[cfg(not(all(target_os = "windows", target_arch = "aarch64")))]
 use crate::host::TauriHost;
 use mimalloc::MiMalloc;
