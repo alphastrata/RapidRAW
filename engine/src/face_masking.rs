@@ -1,3 +1,4 @@
+use std::cell::Cell;
 use std::f32::consts::FRAC_PI_2;
 use std::sync::Mutex;
 
@@ -147,11 +148,13 @@ fn inside(x: f32, y: f32, width: usize, height: usize) -> bool {
 }
 
 fn bilinear(x: f32, y: f32, width: usize, height: usize) -> [(usize, f32); 4] {
-    let x = x.clamp(0.0, (width - 1) as f32);
-    let y = y.clamp(0.0, (height - 1) as f32);
-    let (x0, y0) = (x.floor() as usize, y.floor() as usize);
+    let (wf, hf) = (width as f32, height as f32);
+    let x = x.clamp(0.0, wf - 1.0);
+    let y = y.clamp(0.0, hf - 1.0);
+    let (xf, yf) = (x.floor(), y.floor());
+    let (x0, y0) = (xf as usize, yf as usize);
     let (x1, y1) = ((x0 + 1).min(width - 1), (y0 + 1).min(height - 1));
-    let (fx, fy) = (x - x0 as f32, y - y0 as f32);
+    let (fx, fy) = (x - xf, y - yf);
     [
         (y0 * width + x0, (1.0 - fx) * (1.0 - fy)),
         (y0 * width + x1, fx * (1.0 - fy)),
@@ -178,19 +181,20 @@ fn frame_tensor(
     normalize: impl Fn(f32) -> f32 + Sync,
 ) -> Array4<f32> {
     let mut tensor = Array4::<f32>::zeros((1, size, size, 3));
-    tensor
-        .as_slice_mut()
-        .unwrap()
+    let Some(slice) = tensor.as_slice_mut() else {
+        unreachable!("invariant: zeros Array4 is contiguous");
+    };
+    slice
         .par_chunks_mut(size * 3)
         .enumerate()
         .for_each(|(y, row)| {
-            for x in 0..size {
+            (0..size).for_each(|x| {
                 let [sx, sy] = frame.to_image(size, x as f32, y as f32);
                 let rgb = sample_rgb(image, sx, sy, replicate);
-                for c in 0..3 {
-                    row[x * 3 + c] = normalize(rgb[c]);
-                }
-            }
+                rgb.iter()
+                    .enumerate()
+                    .for_each(|(c, &v)| row[x * 3 + c] = normalize(v));
+            });
         });
     tensor
 }
@@ -256,24 +260,28 @@ fn fit_landmarks(
     let (landmarks, score) = run_landmarks(session, image, &frame)?;
     let mut best = (landmarks, score, angle);
     let mut current = best.0.clone();
-    for _ in 1..LANDMARK_PASSES {
-        let (right, left) = (current[RIGHT_EYE_CORNER], current[LEFT_EYE_CORNER]);
-        let angle = (left[1] - right[1]).atan2(left[0] - right[0]);
-        let (center, extent) = upright_extent(&current, angle);
-        frame = FaceFrame {
-            center,
-            side: extent * LANDMARK_MARGIN,
-            angle,
-        };
-        let (landmarks, score) = run_landmarks(session, image, &frame)?;
-        current = landmarks;
-        if score > best.1 {
-            best = (current.clone(), score, angle);
-        }
-        if score > LANDMARK_CONVERGED_SCORE {
-            break;
-        }
-    }
+    let converged = Cell::new(false);
+    (1..LANDMARK_PASSES)
+        .take_while(|_| !converged.get())
+        .try_for_each(|_| -> Result<()> {
+            let (right, left) = (current[RIGHT_EYE_CORNER], current[LEFT_EYE_CORNER]);
+            let angle = (left[1] - right[1]).atan2(left[0] - right[0]);
+            let (center, extent) = upright_extent(&current, angle);
+            frame = FaceFrame {
+                center,
+                side: extent * LANDMARK_MARGIN,
+                angle,
+            };
+            let (landmarks, score) = run_landmarks(session, image, &frame)?;
+            current = landmarks;
+            if score > best.1 {
+                best = (current.clone(), score, angle);
+            }
+            if score > LANDMARK_CONVERGED_SCORE {
+                converged.set(true);
+            }
+            Ok(())
+        })?;
     Ok(best)
 }
 
@@ -292,13 +300,18 @@ fn run_segmenter(
         .as_slice()
         .ok_or_else(|| anyhow::anyhow!("Unexpected face segmentation output layout"))?;
     let mut probabilities: [Vec<f32>; 3] = Default::default();
-    for classes in logits.as_chunks::<SEGMENTER_CLASSES>().0 {
-        let max = classes.iter().fold(f32::MIN, |m, &v| m.max(v));
-        let sum: f32 = classes.iter().map(|&v| (v - max).exp()).sum();
-        for (out, &class) in probabilities.iter_mut().zip(&SEGMENTER_OUTPUTS) {
-            out.push((classes[class] - max).exp() / sum);
-        }
-    }
+    logits
+        .as_chunks::<SEGMENTER_CLASSES>()
+        .0
+        .iter()
+        .for_each(|classes| {
+            let max = classes.iter().fold(f32::MIN, |m, &v| m.max(v));
+            let sum: f32 = classes.iter().map(|&v| (v - max).exp()).sum();
+            probabilities
+                .iter_mut()
+                .zip(&SEGMENTER_OUTPUTS)
+                .for_each(|(out, class)| out.push((classes[*class] - max).exp() / sum));
+        });
     Ok(probabilities)
 }
 
@@ -344,18 +357,21 @@ pub fn analyze_faces(
 
     let rgb = image.to_rgb8();
     let faces = &mut analysis.faces;
-    for face_box in boxes {
-        let mut fitted = None;
-        for quarter in 0..4 {
-            let angle = base_angle + quarter as f32 * FRAC_PI_2;
-            let (landmarks, score, angle) = fit_landmarks(landmark_session, &rgb, face_box, angle)?;
-            if score >= FACE_PRESENCE_THRESHOLD {
-                fitted = Some((landmarks, angle));
-                break;
-            }
-        }
-        let Some((landmarks, angle)) = fitted else {
-            continue;
+    boxes.into_iter().try_for_each(|face_box| -> Result<()> {
+        let fitted = (0..4)
+            .map(|quarter| {
+                let angle = base_angle + quarter as f32 * FRAC_PI_2;
+                fit_landmarks(landmark_session, &rgb, face_box, angle)
+            })
+            .find_map(|item| match item {
+                Ok((landmarks, score, angle)) if score >= FACE_PRESENCE_THRESHOLD => {
+                    Some(Ok((landmarks, angle)))
+                }
+                Ok(_) => None,
+                Err(err) => Some(Err(err)),
+            });
+        let Some((landmarks, angle)) = fitted.transpose()? else {
+            return Ok(());
         };
 
         let (center, size) = upright_extent(&landmarks, angle);
@@ -363,7 +379,7 @@ pub fn analyze_faces(
             (face.center[0] - center[0]).hypot(face.center[1] - center[1])
                 < DUPLICATE_FACE_DISTANCE * size.max(face.size)
         }) {
-            continue;
+            return Ok(());
         }
 
         let [dx, dy] = rotate([0.0, SEGMENTER_OFFSET * size], angle);
@@ -390,11 +406,13 @@ pub fn analyze_faces(
             hair,
             skin,
         });
-    }
+        Ok(())
+    })?;
     if !analysis.faces.is_empty() {
+        let (wf, hf) = (width as f32, height as f32);
         let frame = FaceFrame {
-            center: [width as f32 / 2.0, height as f32 / 2.0],
-            side: width.max(height) as f32,
+            center: [wf / 2.0, hf / 2.0],
+            side: wf.max(hf),
             angle: base_angle,
         };
         let [_, _, body] = run_segmenter(segmenter_session, &rgb, &frame)?;
@@ -419,15 +437,17 @@ fn rasterize(
         .skip(y0)
         .take(y1.saturating_sub(y0))
         .for_each(|(y, row)| {
-            for sy in 0..SUPERSAMPLING {
-                for [a, b] in spans(y as f32 + (sy as f32 + 0.5) / scale - 0.5) {
-                    let start = ((a + 0.5) * scale - 0.5).ceil().clamp(0.0, samples) as usize;
-                    let end = ((b + 0.5) * scale - 0.5).ceil().clamp(0.0, samples) as usize;
-                    for n in start..end {
-                        row[n / SUPERSAMPLING] += 1.0 / (scale * scale);
-                    }
-                }
-            }
+            let yf = y as f32;
+            (0..SUPERSAMPLING).for_each(|sy| {
+                spans(yf + (sy as f32 + 0.5) / scale - 0.5)
+                    .into_iter()
+                    .for_each(|[a, b]| {
+                        let start = ((a + 0.5) * scale - 0.5).ceil().clamp(0.0, samples) as usize;
+                        let end = ((b + 0.5) * scale - 0.5).ceil().clamp(0.0, samples) as usize;
+                        (start..end)
+                            .for_each(|n| row[n / SUPERSAMPLING] += 1.0 / (scale * scale));
+                    });
+            });
         });
     mask
 }
@@ -460,14 +480,14 @@ fn convex_hull(points: &[[f32; 2]]) -> Vec<[f32; 2]> {
         } else {
             Box::new(points.iter().rev())
         };
-        for &p in ordered {
+        ordered.for_each(|&p| {
             while hull.len() >= start + 2
                 && cross(hull[hull.len() - 2], hull[hull.len() - 1], p) <= 0.0
             {
                 hull.pop();
             }
             hull.push(p);
-        }
+        });
         hull.pop();
     }
     hull
@@ -497,15 +517,17 @@ fn disc_mask(width: usize, height: usize, landmarks: &[[f32; 2]], iris: &[usize]
 }
 
 fn to_gray(values: &[f32], width: usize, height: usize) -> GrayImage {
-    GrayImage::from_raw(
+    let Some(image) = GrayImage::from_raw(
         width as u32,
         height as u32,
         values
             .iter()
             .map(|&v| (v.clamp(0.0, 1.0) * 255.0).round() as u8)
             .collect(),
-    )
-    .unwrap()
+    ) else {
+        unreachable!("invariant: buffer length equals width * height");
+    };
+    image
 }
 
 fn from_gray(image: &GrayImage) -> Vec<f32> {
@@ -585,12 +607,13 @@ fn face_region(face: &DetectedFace, width: u32, height: u32) -> (u32, u32, u32, 
             [face.center[0] + dx, face.center[1] + dy]
         })
         .collect();
+    let (wf, hf) = (width as f32, height as f32);
     let (min, max) = bounds(&corners);
     (
-        min[0].floor().clamp(0.0, width as f32) as u32,
-        min[1].floor().clamp(0.0, height as f32) as u32,
-        max[0].ceil().clamp(0.0, width as f32) as u32,
-        max[1].ceil().clamp(0.0, height as f32) as u32,
+        min[0].floor().clamp(0.0, wf) as u32,
+        min[1].floor().clamp(0.0, hf) as u32,
+        max[0].ceil().clamp(0.0, wf) as u32,
+        max[1].ceil().clamp(0.0, hf) as u32,
     )
 }
 
@@ -602,9 +625,10 @@ fn face_parts_mask(
 ) -> GrayImage {
     let (x0, y0, x1, y1) = region;
     let (crop_w, crop_h) = (x1 - x0, y1 - y0);
-    let scale = (WORK_SIZE / crop_w.max(crop_h) as f32).min(1.0);
-    let w = ((crop_w as f32 * scale).round() as usize).max(1);
-    let h = ((crop_h as f32 * scale).round() as usize).max(1);
+    let (fw, fh) = (crop_w as f32, crop_h as f32);
+    let scale = (WORK_SIZE / fw.max(fh)).min(1.0);
+    let w = ((fw * scale).round() as usize).max(1);
+    let h = ((fh * scale).round() as usize).max(1);
 
     let crop = image.crop_imm(x0, y0, crop_w, crop_h);
     let guide_full = crop.to_rgb8();
@@ -648,83 +672,93 @@ fn face_parts_mask(
         .collect();
 
     let mut combined = vec![0.0; w * h];
-    for &part in parts {
-        let mask = match part {
-            FacePart::EyeWhites => {
-                let refined = refine(&work_rgb, &eyes, fine_radius);
-                let iris = refine(&work_rgb, &iris, fine_radius);
-                refined
-                    .iter()
-                    .zip(&iris)
-                    .map(|(&e, &i)| (e - i).max(0.0))
-                    .collect()
-            }
-            FacePart::Iris => refine(&work_rgb, &iris, fine_radius),
-            FacePart::Eyebrows => refine(&work_rgb, &brows, radius),
-            FacePart::Lips => refine(&work_rgb, &lips, radius),
-            FacePart::Teeth => {
-                let inner = polygon_mask(w, h, &scaled_polygon(&select(&LIPS_INNER), 0.95));
-                let teeth = teeth_mask(&work_rgb, &luma, &lips, &inner);
-                refine(&work_rgb, &teeth, fine_radius)
-                    .iter()
-                    .zip(&inner)
-                    .map(|(&t, &m)| t * m)
-                    .collect()
-            }
-            FacePart::Nose => refine(
-                &work_rgb,
-                &polygon_mask(w, h, &convex_hull(&select(&NOSE))),
-                radius * 2,
-            ),
-            FacePart::BodySkin => continue,
-            FacePart::Hair => refine(
-                &work_rgb,
-                &sharpen(&segment_probabilities(
-                    &face.segment_frame,
-                    &face.hair,
-                    w,
-                    h,
-                    x0,
-                    y0,
-                    scale,
-                )),
-                radius * 2,
-            ),
-            FacePart::FaceSkin => {
-                let oval = scaled_polygon(&select(&FACE_OVAL), OVAL_EXPANSION);
-                let oval = ImageBuffer::<Luma<f32>, Vec<f32>>::from_raw(
-                    w as u32,
-                    h as u32,
-                    polygon_mask(w, h, &oval),
-                )
-                .unwrap();
-                let oval = imageops::blur(&oval, (size * OVAL_SOFTNESS).max(0.5)).into_raw();
-                let skin: Vec<f32> =
-                    segment_probabilities(&face.segment_frame, &face.skin, w, h, x0, y0, scale)
+    parts
+        .iter()
+        .filter(|&&part| part != FacePart::BodySkin)
+        .for_each(|&part| {
+            let mask = match part {
+                FacePart::EyeWhites => {
+                    let refined = refine(&work_rgb, &eyes, fine_radius);
+                    let iris = refine(&work_rgb, &iris, fine_radius);
+                    refined
                         .iter()
-                        .zip(&oval)
-                        .map(|(&s, &o)| s * o)
-                        .collect();
-                let features = refine(
+                        .zip(&iris)
+                        .map(|(&e, &i)| (e - i).max(0.0))
+                        .collect()
+                }
+                FacePart::Iris => refine(&work_rgb, &iris, fine_radius),
+                FacePart::Eyebrows => refine(&work_rgb, &brows, radius),
+                FacePart::Lips => refine(&work_rgb, &lips, radius),
+                FacePart::Teeth => {
+                    let inner = polygon_mask(w, h, &scaled_polygon(&select(&LIPS_INNER), 0.95));
+                    let teeth = teeth_mask(&work_rgb, &luma, &lips, &inner);
+                    refine(&work_rgb, &teeth, fine_radius)
+                        .iter()
+                        .zip(&inner)
+                        .map(|(&t, &m)| t * m)
+                        .collect()
+                }
+                FacePart::Nose => refine(
                     &work_rgb,
-                    &pair(pair(brows.clone(), &eyes), &lips_outer),
-                    fine_radius,
-                );
-                refine(&work_rgb, &sharpen(&skin), radius * 2)
-                    .iter()
-                    .zip(&features)
-                    .map(|(&s, &f)| s * (1.0 - f))
-                    .collect()
-            }
-        };
-        maximum(&mut combined, &mask);
-    }
+                    &polygon_mask(w, h, &convex_hull(&select(&NOSE))),
+                    radius * 2,
+                ),
+                FacePart::BodySkin => return,
+                FacePart::Hair => refine(
+                    &work_rgb,
+                    &sharpen(&segment_probabilities(
+                        &face.segment_frame,
+                        &face.hair,
+                        w,
+                        h,
+                        x0,
+                        y0,
+                        scale,
+                    )),
+                    radius * 2,
+                ),
+                FacePart::FaceSkin => {
+                    let oval = scaled_polygon(&select(&FACE_OVAL), OVAL_EXPANSION);
+                    let Some(oval_image) = ImageBuffer::<Luma<f32>, Vec<f32>>::from_raw(
+                        w as u32,
+                        h as u32,
+                        polygon_mask(w, h, &oval),
+                    ) else {
+                        unreachable!("invariant: mask length equals width * height");
+                    };
+                    let oval =
+                        imageops::blur(&oval_image, (size * OVAL_SOFTNESS).max(0.5)).into_raw();
+                    let skin: Vec<f32> =
+                        segment_probabilities(&face.segment_frame, &face.skin, w, h, x0, y0, scale)
+                            .iter()
+                            .zip(&oval)
+                            .map(|(&s, &o)| s * o)
+                            .collect();
+                    let features = refine(
+                        &work_rgb,
+                        &pair(pair(brows.clone(), &eyes), &lips_outer),
+                        fine_radius,
+                    );
+                    refine(&work_rgb, &sharpen(&skin), radius * 2)
+                        .iter()
+                        .zip(&features)
+                        .map(|(&s, &f)| s * (1.0 - f))
+                        .collect()
+                }
+            };
+            maximum(&mut combined, &mask);
+        });
 
     let fade = EDGE_FADE * size;
     let fades = [x0 > 0, y0 > 0, x1 < image.width(), y1 < image.height()];
     combined.par_chunks_mut(w).enumerate().for_each(|(y, row)| {
         for (x, v) in row.iter_mut().enumerate() {
-            let distances = [x as f32, y as f32, (w - 1 - x) as f32, (h - 1 - y) as f32];
+            let distances = [
+                x as f32,
+                y as f32,
+                (w - 1 - x) as f32,
+                (h - 1 - y) as f32,
+            ];
             let edge = distances
                 .iter()
                 .zip(fades)
@@ -751,13 +785,16 @@ fn segment_probabilities(
     y0: u32,
     scale: f32,
 ) -> Vec<f32> {
+    let xf = x0 as f32;
+    let yf = y0 as f32;
     let mut values = vec![0.0; width * height];
     values
         .par_chunks_mut(width)
         .enumerate()
         .for_each(|(y, row)| {
-            for (x, out) in row.iter_mut().enumerate() {
-                let p = [x0 as f32 + x as f32 / scale, y0 as f32 + y as f32 / scale];
+            let py = yf + y as f32 / scale;
+            row.iter_mut().enumerate().for_each(|(x, out)| {
+                let p = [xf + x as f32 / scale, py];
                 let [u, v] = frame.to_frame(SEGMENTER_INPUT_SIZE, p);
                 if inside(u, v, SEGMENTER_INPUT_SIZE, SEGMENTER_INPUT_SIZE) {
                     *out = bilinear(u, v, SEGMENTER_INPUT_SIZE, SEGMENTER_INPUT_SIZE)
@@ -765,7 +802,7 @@ fn segment_probabilities(
                         .map(|&(i, k)| grid[i] * k)
                         .sum();
                 }
-            }
+            });
         });
     values
 }
@@ -778,16 +815,17 @@ pub fn compose_face_mask(
     let (width, height) = image.dimensions();
     let mut mask = GrayImage::new(width, height);
     if parts.contains(&FacePart::BodySkin) {
-        let scale = (BODY_WORK_SIZE / width.max(height) as f32).min(1.0);
-        let w = ((width as f32 * scale).round() as usize).max(1);
-        let h = ((height as f32 * scale).round() as usize).max(1);
+        let (wf, hf) = (width as f32, height as f32);
+        let scale = (BODY_WORK_SIZE / wf.max(hf)).min(1.0);
+        let w = ((wf * scale).round() as usize).max(1);
+        let h = ((hf * scale).round() as usize).max(1);
         let mut body = vec![0.0; w * h];
-        for (frame, grid) in &analysis.body {
+        analysis.body.iter().for_each(|(frame, grid)| {
             maximum(
                 &mut body,
                 &segment_probabilities(frame, grid, w, h, 0, 0, scale),
             );
-        }
+        });
         let smallest_face = analysis
             .faces
             .iter()
@@ -816,11 +854,14 @@ pub fn compose_face_mask(
         .zip(&regions)
         .map(|(face, &region)| face_parts_mask(image, face, parts, region))
         .collect();
-    for (face_mask, &(x0, y0, _, _)) in face_masks.iter().zip(&regions) {
-        for (x, y, pixel) in face_mask.enumerate_pixels() {
-            let out = mask.get_pixel_mut(x0 + x, y0 + y);
-            out[0] = out[0].max(pixel[0]);
-        }
-    }
+    face_masks
+        .iter()
+        .zip(&regions)
+        .for_each(|(face_mask, &(x0, y0, _, _))| {
+            face_mask.enumerate_pixels().for_each(|(x, y, pixel)| {
+                let out = mask.get_pixel_mut(x0 + x, y0 + y);
+                out[0] = out[0].max(pixel[0]);
+            });
+        });
     mask
 }
