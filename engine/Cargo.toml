@@ -56,3 +56,7 @@ tokenizers = "0.23.2"
 tokio = { version = "1.54.1", features = ["full"] }
 walkdir = "2.5.0"
 wgpu = "30"
+
+[[bench]]
+name = "pure_ops"
+harness = false

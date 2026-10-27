@@ -10,3 +10,7 @@ perf = "deny"
 
 [dev-dependencies]
 divan = "0.1"
+
+[[bench]]
+name = "kernels"
+harness = false
