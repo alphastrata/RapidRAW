@@ -10,7 +10,6 @@ crate-type = ["staticlib", "cdylib", "rlib"]
 
 [features]
 default = []
-tethering = ["dep:gphoto2", "engine/tethering"]
 
 [dependencies]
 tauri = { version = "2.12", features = [ "macos-private-api", "rustls-tls", "protocol-asset" ] }
@@ -77,19 +76,13 @@ engine = { path = "../engine" }
 
 [target.'cfg(any(target_os = "windows", target_os = "macos", target_os = "linux"))'.dependencies]
 trash = "5.2.9"
-keyring-core = "1"
 tauri-plugin-single-instance = "2.5.4"
-reqwest = { version = "0.13", default-features = false, features = ["json", "multipart", "rustls"] }
+reqwest = { version = "0.13", default-features = false, features = ["json", "rustls"] }
 
 [target.'cfg(target_os = "windows")'.dependencies]
 windows = { version = "0.62", features = ["Win32_Graphics_Dxgi"] }
-windows-native-keyring-store = "1"
-
-[target.'cfg(any(target_os = "macos", target_os = "linux"))'.dependencies]
-gphoto2 = { git = "https://github.com/CyberTimon/libgphoto2-rs", optional = true }
 
 [target.'cfg(target_os = "macos")'.dependencies]
-apple-native-keyring-store = { version = "1", features = ["keychain"] }
 objc = "0.2"
 objc2 = "0.6"
 objc2-foundation = { version = "0.3.2", features = [
@@ -109,18 +102,7 @@ objc2-core-image = { version = "0.3.2", features = [
     "CIRAWFilter",
 ] }
 
-[target.'cfg(target_os = "android")'.dependencies]
-android-native-keyring-store = "1"
-keyring-core = "1"
-ndk-context = "0.1"
-jni = "0.22"
-jni22 = { package = "jni", version = "0.22" }
-rustls-platform-verifier = "0.7"
-reqwest = { version = "0.13", default-features = false, features = ["json", "multipart", "rustls"] }
-include_dir = "0.7.4"
-
 [target.'cfg(target_os = "linux")'.dependencies]
-zbus-secret-service-keyring-store = { version = "1", features = ["rt-tokio-crypto-rust"] }
 gtk = "0.18.2"
 webkit2gtk = "=2.0.2"
 tauri-plugin-wayland-nvidia-quirk = "0.1.0"

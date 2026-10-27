@@ -3,8 +3,6 @@ use std::collections::{BTreeMap, HashMap, HashSet};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
-use crate::immich::ImmichSettings;
-
 #[derive(Serialize, Deserialize, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct SortCriteria {
@@ -426,15 +424,11 @@ pub struct WorkspaceState {
 impl Default for WorkspaceState {
     fn default() -> Self {
         let mut panel_layout = HashMap::new();
-        let mut left_top = vec![
+        let left_top = vec![
             "metadata".to_string(),
             "folderTree".to_string(),
             "export".to_string(),
         ];
-
-        if cfg!(feature = "tethering") {
-            left_top.push("tethering".to_string());
-        }
 
         panel_layout.insert("leftTop".to_string(), left_top);
         panel_layout.insert("leftBottom".to_string(), vec![]);
@@ -692,8 +686,6 @@ pub struct AppSettings {
     pub adjustment_layout: AdjustmentLayout,
     #[serde(default)]
     pub workspace: WorkspaceState,
-    #[serde(default)]
-    pub immich: ImmichSettings,
 }
 
 impl Default for AppSettings {
@@ -704,9 +696,6 @@ impl Default for AppSettings {
             pinned_folders: Vec::new(),
             small_thumbnail_resolution: Some(480),
             medium_thumbnail_resolution: Some(1280),
-            #[cfg(target_os = "android")]
-            editor_preview_resolution: Some(1280),
-            #[cfg(not(target_os = "android"))]
             editor_preview_resolution: Some(1920),
             enable_zoom_hifi: Some(true),
             use_full_dpi_rendering: Some(false),
@@ -725,9 +714,6 @@ impl Default for AppSettings {
             tagging_shortcuts: default_tagging_shortcuts_option(),
             custom_ai_tags: Some(Vec::new()),
             ai_tag_count: Some(10),
-            #[cfg(target_os = "android")]
-            thumbnail_size: Some("small".to_string()),
-            #[cfg(not(target_os = "android"))]
             thumbnail_size: Some("medium".to_string()),
             thumbnail_aspect_ratio: Some("contain".to_string()),
             ai_provider: Some("cpu".to_string()),
@@ -741,9 +727,6 @@ impl Default for AppSettings {
             library_view_mode: Some("flat".to_string()),
             export_presets: default_export_presets(),
             my_lenses: Some(Vec::new()),
-            #[cfg(target_os = "android")]
-            high_res_zoom_multiplier: Some(0.75),
-            #[cfg(not(target_os = "android"))]
             high_res_zoom_multiplier: Some(1.0),
             enable_folder_image_counts: Some(false),
             display_edit_icon: Some(true),
@@ -753,9 +736,9 @@ impl Default for AppSettings {
             is_waveform_visible: Some(false),
             waveform_height: Some(220),
             active_waveform_channel: Some("luma".to_string()),
-            #[cfg(any(target_os = "linux", target_os = "android"))]
+            #[cfg(target_os = "linux")]
             use_wgpu_renderer: Some(false),
-            #[cfg(not(any(target_os = "linux", target_os = "android")))]
+            #[cfg(not(target_os = "linux"))]
             use_wgpu_renderer: Some(true),
             editor_neutral_grey_bg: Some(false),
             canvas_input_mode: Some("mouse".to_string()),
@@ -764,13 +747,7 @@ impl Default for AppSettings {
             zoom_speed_multiplier: Some(1.0),
             zoom_photo_to_pixel_click: Some(false),
             keybinds: HashMap::new(),
-            #[cfg(target_os = "android")]
-            thumbnail_worker_threads: Some(2),
-            #[cfg(not(target_os = "android"))]
             thumbnail_worker_threads: Some(4),
-            #[cfg(target_os = "android")]
-            image_cache_size: Some(2),
-            #[cfg(not(target_os = "android"))]
             image_cache_size: Some(5),
             ai_cache_limit_gb: Some(default_ai_cache_limit_gb()),
             thumbnail_cache_limit_gb: Some(default_thumbnail_cache_limit_gb()),
@@ -803,7 +780,6 @@ impl Default for AppSettings {
             custom_aspect_ratios: Vec::new(),
             adjustment_layout: AdjustmentLayout::default(),
             workspace: WorkspaceState::default(),
-            immich: ImmichSettings::default(),
         }
     }
 }

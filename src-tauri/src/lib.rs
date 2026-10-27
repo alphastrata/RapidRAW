@@ -31,7 +31,6 @@ pub mod lens_correction;
 pub mod lut_processing;
 pub mod mask_generation;
 pub use engine::ai_connector;
-mod android_integration;
 mod app_settings;
 pub use engine::apple_raw;
 pub mod auto_straighten;
@@ -46,11 +45,9 @@ mod ai_jobs;
 mod panorama_stitching;
 mod preset_converter;
 pub use engine::bm3d;
-mod camera_tethering;
 mod culling;
 pub mod export_processing;
 pub use engine::highlight_reconstruction;
-mod immich;
 pub mod tagging;
 mod window_customizer;
 
@@ -103,7 +100,6 @@ use crate::mask_generation::{
 };
 use crate::window_customizer::PinchZoomDisablePlugin;
 pub use adjustment_utils::*;
-pub use android_integration::*;
 pub use app_settings::*;
 pub use app_state::*;
 use engine::paths::parse_virtual_path;
@@ -2121,23 +2117,6 @@ pub fn run() {
                     }
         })
         .setup(move |app| {
-            #[cfg(feature = "tethering")]
-            {
-                std::thread::spawn(|| {
-                    match gphoto2::Context::new() {
-                        Ok(context) => {
-                            log::info!("gphoto2 context initialized successfully.");
-                            match gphoto2::Camera::autodetect(&context) {
-                                Ok(cameras) => {
-                                    log::info!("Found {} attached camera(s)", cameras.len());
-                                }
-                                Err(e) => log::warn!("Failed to autodetect cameras: {}", e),
-                            }
-                        }
-                        Err(e) => log::error!("Failed to initialize gphoto2 context: {}", e),
-                    }
-                });
-            }
 
             let state = app.state::<AppState>();
 
@@ -2159,8 +2138,7 @@ pub fn run() {
             let app_handle = app.handle().clone();
 
             if !is_headless {
-                crate::immich::start(&app_handle);
-            }
+                }
 
             if let Ok(cache_dir) = app_handle.path().app_cache_dir() {
                 crate::ai_denoise::initialize_cache_dir(cache_dir.clone());
@@ -2321,7 +2299,6 @@ pub fn run() {
             let window = window_builder.build().expect("Failed to build window");
 
             #[cfg(target_os = "android")]
-            android_integration::initialize_android(&window);
 
             #[cfg(not(target_os = "android"))]
             {
@@ -2518,12 +2495,10 @@ pub fn run() {
             cancel_thumbnail_generation,
             update_wgpu_transform,
             release_original_preview,
-            android_integration::resolve_android_content_uri_name,
             cache_utils::clear_session_caches,
             cache_utils::clear_image_caches,
             app_settings::load_settings,
             app_settings::save_settings,
-            app_settings::is_tethering_supported,
             ai_commands::generate_ai_subject_mask,
             ai_commands::precompute_ai_subject_mask,
             ai_commands::generate_ai_foreground_mask,
@@ -2600,7 +2575,6 @@ pub fn run() {
             storage::get_storage_usage,
             storage::clear_ai_maps_cache,
             storage::clear_metadata_cache,
-            storage::clear_immich_cache,
             storage::clear_ai_models,
             file_management::set_color_label_for_paths,
             file_management::set_rating_for_paths,
@@ -2621,24 +2595,7 @@ pub fn run() {
             lens_correction::get_lensfun_lenses_for_maker,
             lens_correction::autodetect_lens,
             lens_correction::get_lens_distortion_params,
-            camera_tethering::tether_list_cameras,
-            camera_tethering::tether_connect,
-            camera_tethering::tether_get_settings,
-            camera_tethering::tether_set_setting,
-            camera_tethering::tether_capture,
-            camera_tethering::tether_get_preview,
-            camera_tethering::tether_autofocus,
             guided_perspective::calculate_guided_perspective,
-            immich::commands::immich_get_api_key,
-            immich::commands::immich_set_api_key,
-            immich::commands::immich_test_connection,
-            immich::commands::immich_list_albums,
-            immich::commands::immich_get_images,
-            immich::commands::immich_sync_status,
-            immich::commands::immich_flush,
-            immich::commands::immich_prepare_export,
-            immich::commands::immich_remove_from_album,
-            immich::commands::immich_timeline,
         ])
         .build(tauri::generate_context!())
         .expect("error while building tauri application")

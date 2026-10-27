@@ -208,7 +208,6 @@ pub struct StorageUsage {
     pub ai_denoise: u64,
     pub ai_maps: u64,
     pub metadata: u64,
-    pub immich: u64,
     pub models: u64,
     pub logs: u64,
 }

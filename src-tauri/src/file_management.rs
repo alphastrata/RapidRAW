@@ -31,8 +31,6 @@ use walkdir::WalkDir;
 
 use crate::AppState;
 use crate::PendingMetadata;
-#[cfg(target_os = "android")]
-use crate::android_integration::*;
 use crate::app_settings::*;
 use crate::as_shot::as_shot;
 use crate::baseline_exposure::BaselineOptions;
@@ -1790,12 +1788,6 @@ fn generate_single_thumbnail_and_cache(
         (0, false, Vec::new())
     };
 
-    if let Some(remote) =
-        crate::immich::placeholder_thumbnail(app_handle, path_str, thumb_cache_dir)
-    {
-        return remote.map(|(small, medium)| (small, medium, rating, is_edited));
-    }
-
     let cache_hash = compute_thumbnail_cache_hash(path_str, &adjustments_bytes, settings)?;
 
     let small_path = thumb_cache_dir.join(format!("{}_small.jpg", cache_hash));
@@ -2385,10 +2377,6 @@ pub async fn copy_files(
         .map(|p| parse_virtual_path(p).0)
         .collect();
 
-    for source_image_path in &unique_source_images {
-        crate::immich::ensure_local(&app_handle, source_image_path).await?;
-    }
-
     let mut operations_to_perform = Vec::new();
 
     for source_image_path in &unique_source_images {
@@ -2477,10 +2465,6 @@ pub async fn move_files(
         .map(|p| parse_virtual_path(p).0)
         .collect();
 
-    for source_image_path in &unique_source_images {
-        crate::immich::ensure_local(&app_handle, source_image_path).await?;
-    }
-
     let mut operations_to_perform = Vec::new();
     let mut renames = HashMap::new();
 
@@ -2494,7 +2478,6 @@ pub async fn move_files(
         }
 
         let all_files_to_move = find_all_associated_files(source_image_path)?;
-        let is_remote = crate::immich::is_remote(source_image_path);
 
         for file_to_move in &all_files_to_move {
             if let Some(file_name) = file_to_move.file_name() {
@@ -2511,13 +2494,10 @@ pub async fn move_files(
                     ));
                 }
 
-                operations_to_perform.push((file_to_move.clone(), dest_file_path, is_remote));
+                operations_to_perform.push((file_to_move.clone(), dest_file_path, false));
             }
         }
 
-        if is_remote {
-            continue;
-        }
         let dest_image_path = dest_path.join(source_image_path.file_name().unwrap());
         renames.insert(
             source_image_path.to_string_lossy().into_owned(),
@@ -2526,10 +2506,7 @@ pub async fn move_files(
     }
 
     for (source, dest, is_remote) in operations_to_perform {
-        if is_remote {
-            fs::copy(&source, &dest)
-                .map_err(|e| format!("Copy failed for {}: {}", source.display(), e))?;
-        } else if fs::rename(&source, &dest).is_err() {
+        if fs::rename(&source, &dest).is_err() {
             fs::copy(&source, &dest)
                 .map_err(|e| format!("Move failed during copy for {}: {}", source.display(), e))?;
 
@@ -3183,7 +3160,6 @@ pub fn set_flag_for_paths(
 #[tauri::command]
 pub async fn load_metadata(path: String, app_handle: AppHandle) -> Result<ImageMetadata, String> {
     let (source_path, _) = parse_virtual_path(&path);
-    crate::immich::fetch_edits(&app_handle, &source_path).await;
 
     tauri::async_runtime::spawn_blocking(move || {
         let settings = load_settings(app_handle).unwrap_or_default();
@@ -3248,23 +3224,16 @@ pub fn save_presets(presets: Vec<PresetItem>, app_handle: AppHandle) -> Result<(
 }
 
 fn get_internal_library_root_path(app_handle: &AppHandle) -> Result<std::path::PathBuf, String> {
-    #[cfg(not(target_os = "android"))]
-    {
-        let library_dir = app_handle
-            .path()
-            .app_data_dir()
-            .map_err(|e| e.to_string())?
-            .join("library");
+    let library_dir = app_handle
+        .path()
+        .app_data_dir()
+        .map_err(|e| e.to_string())?
+        .join("library");
 
-        if !library_dir.exists() {
-            fs::create_dir_all(&library_dir).map_err(|e| e.to_string())?;
-        }
-        Ok(library_dir)
+    if !library_dir.exists() {
+        fs::create_dir_all(&library_dir).map_err(|e| e.to_string())?;
     }
-    #[cfg(target_os = "android")]
-    {
-        crate::android_integration::get_android_internal_library_root()
-    }
+    Ok(library_dir)
 }
 
 #[tauri::command]
@@ -3573,11 +3542,6 @@ pub fn show_in_finder(path: String) -> Result<(), String> {
         }
     }
 
-    #[cfg(target_os = "android")]
-    {
-        return Err("Show in File Manager is not natively supported via CLI on Android.".into());
-    }
-
     #[cfg(target_os = "ios")]
     {
         return Err("Show in File Manager is not supported on iOS.".into());
@@ -3588,7 +3552,6 @@ pub fn show_in_finder(path: String) -> Result<(), String> {
 
 #[tauri::command]
 pub fn delete_files_from_disk(paths: Vec<String>, app_handle: AppHandle) -> Result<(), String> {
-    let paths = crate::immich::trash_remote(&app_handle, paths, false)?;
     let mut files_to_trash = HashSet::new();
     let mut deletions = HashSet::new();
 
@@ -3693,7 +3656,6 @@ pub fn delete_files_with_associated(
     paths: Vec<String>,
     app_handle: AppHandle,
 ) -> Result<(), String> {
-    let paths = crate::immich::trash_remote(&app_handle, paths, true)?;
     if paths.is_empty() {
         return Ok(());
     }
@@ -3868,63 +3830,6 @@ pub async fn import_files(
             );
 
             let import_result: Result<(), String> = (|| {
-                #[cfg(target_os = "android")]
-                if is_android_content_uri(source_path_str) {
-                    let resolved_name = resolve_android_content_uri_name(source_path_str)?;
-                    let source_bytes = read_android_content_uri(source_path_str)?;
-                    let source_name_path = Path::new(&resolved_name);
-                    let file_date = exif_processing::get_creation_date_from_bytes(
-                        &resolved_name,
-                        &source_bytes,
-                    );
-
-                    let mut final_dest_folder = PathBuf::from(&destination_folder);
-                    if settings.organize_by_date {
-                        let date_format_str = settings
-                            .date_folder_format
-                            .replace("YYYY", "%Y")
-                            .replace("MM", "%m")
-                            .replace("DD", "%d");
-                        let subfolder = file_date.format(&date_format_str).to_string();
-                        final_dest_folder.push(subfolder);
-                    }
-
-                    fs::create_dir_all(&final_dest_folder)
-                        .map_err(|e| format!("Failed to create destination folder: {}", e))?;
-
-                    let new_stem = generate_filename_from_template(
-                        &settings.filename_template,
-                        source_name_path,
-                        i + 1,
-                        total_files,
-                        &file_date,
-                    );
-                    let extension = source_name_path
-                        .extension()
-                        .and_then(|s| s.to_str())
-                        .unwrap_or("");
-                    let new_filename = format!("{}.{}", new_stem, extension);
-                    let dest_file_path = final_dest_folder.join(new_filename);
-
-                    if dest_file_path.exists() {
-                        return Err(format!(
-                            "File already exists at destination: {}",
-                            dest_file_path.display()
-                        ));
-                    }
-
-                    fs::write(&dest_file_path, source_bytes).map_err(|e| e.to_string())?;
-
-                    if settings.delete_after_import {
-                        log::info!(
-                            "Skipping delete_after_import for Android content URI source: {}",
-                            source_path_str
-                        );
-                    }
-
-                    return Ok(());
-                }
-
                 let (source_path, source_sidecar) = parse_virtual_path(source_path_str);
                 if !source_path.exists() {
                     return Err(format!("Source file not found: {}", source_path_str));

@@ -22,10 +22,6 @@ pub fn get_settings_path(app_handle: &AppHandle) -> Result<PathBuf, String> {
     Ok(settings_dir.join("settings.json"))
 }
 
-#[tauri::command]
-pub fn is_tethering_supported() -> bool {
-    cfg!(feature = "tethering")
-}
 
 static SETTINGS_CACHE: LazyLock<Mutex<Option<AppSettings>>> = LazyLock::new(|| Mutex::new(None));
 
@@ -119,7 +115,6 @@ pub fn save_settings(settings: AppSettings, app_handle: AppHandle) -> Result<(),
     let json_string = serde_json::to_string_pretty(&settings).map_err(|e| e.to_string())?;
     fs::write(path, json_string).map_err(|e| e.to_string())?;
     *settings_cache() = None;
-    crate::immich::apply_settings(&settings.immich);
 
     let state = app_handle.state::<AppState>();
     let cache_size = settings.image_cache_size.unwrap_or(5) as usize;

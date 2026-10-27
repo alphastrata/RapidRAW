@@ -5,7 +5,6 @@ pub mod ai_connector;
 pub mod ai_denoise;
 pub mod ai_jobs;
 pub mod ai_processing;
-pub mod android;
 pub mod app_state;
 pub mod apple_raw;
 pub mod as_shot;
@@ -29,7 +28,6 @@ pub mod highlight_reconstruction;
 pub mod host;
 pub mod image_loader;
 pub mod image_processing;
-pub mod immich;
 pub mod inpainting;
 pub mod launch_request;
 pub mod lens_blur;
@@ -48,7 +46,6 @@ pub mod relight;
 pub mod settings;
 pub mod storage;
 pub mod tagging;
-pub mod tethering;
 pub mod white_balance;
 pub use app_state::{
     AnalyticsConfig, AnalyticsJob, AppState, CachedPreview, GpuImageCache, GpuImageEntry,

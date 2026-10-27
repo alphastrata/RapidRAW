@@ -20,7 +20,7 @@ use crate::image_processing::GpuContext;
 use crate::launch_request::ExternalEditSession;
 use crate::lens_correction::LensDatabase;
 use crate::lut_processing::Lut;
-use crate::tethering::CameraSession;
+
 
 pub struct AiTaskToken {
     cancelled: AtomicBool,
@@ -241,7 +241,7 @@ impl AppState {
             metadata_manager: MetadataManager::new(),
             disks_cache: Mutex::new(None),
             disks_cache_refreshing: AtomicBool::new(false),
-            camera_session: Mutex::new(crate::tethering::CameraSession::new()),
+
         }
     }
 }
@@ -339,5 +339,4 @@ pub struct AppState {
     pub metadata_manager: Arc<MetadataManager>,
     pub disks_cache: Mutex<Option<Disks>>,
     pub disks_cache_refreshing: AtomicBool,
-    pub camera_session: Mutex<CameraSession>,
 }

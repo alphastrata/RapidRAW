@@ -42,7 +42,6 @@ pub async fn get_storage_usage(app_handle: AppHandle) -> Result<StorageUsage, St
         ai_denoise: dir_size(&dirs.cache.join("ai_denoise")),
         ai_maps: dir_size(&dirs.cache.join("ai_maps")),
         metadata: dir_size(&dirs.cache.join("exif")),
-        immich: dir_size(&dirs.cache.join("immich")),
         models: dir_size(&dirs.data.join("models")),
         logs: dir_size(&dirs.logs),
     })
@@ -64,13 +63,6 @@ pub async fn clear_metadata_cache() -> Result<(), String> {
         .await
         .map_err(|e| e.to_string())?
         .map_err(|e| e.to_string())
-}
-
-#[tauri::command]
-pub async fn clear_immich_cache(app_handle: AppHandle) -> Result<(), String> {
-    tauri::async_runtime::spawn_blocking(move || crate::immich::clear_cache(&app_handle))
-        .await
-        .map_err(|e| e.to_string())?
 }
 
 #[tauri::command]
