@@ -42,7 +42,6 @@ pub use engine::multi_exposure;
 mod ai_denoise;
 mod ai_jobs;
 mod panorama_stitching;
-mod panorama_utils;
 mod preset_converter;
 pub use engine::bm3d;
 mod camera_tethering;
