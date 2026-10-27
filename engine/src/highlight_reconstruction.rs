@@ -95,25 +95,23 @@ pub fn detect_clip_levels(data: &[[f32; 3]], region: Region, scale: f32) -> [f32
         .fold(
             || vec![[0u32; 3]; LEVEL_BINS],
             |mut histogram, y| {
-                for p in region.row(data, y) {
-                    for c in 0..3 {
+                region.row(data, y).iter().for_each(|p| {
+                    (0..3).for_each(|c| {
                         let bin = (p[c] * scale - LEVEL_LOW) * bins_per_unit;
                         if bin >= 0.0 && bin < LEVEL_BINS as f32 {
                             histogram[bin as usize][c] += 1;
                         }
-                    }
-                }
+                    });
+                });
                 histogram
             },
         )
         .reduce(
             || vec![[0u32; 3]; LEVEL_BINS],
             |mut a, b| {
-                for (x, y) in a.iter_mut().zip(&b) {
-                    for c in 0..3 {
-                        x[c] += y[c];
-                    }
-                }
+                a.iter_mut().zip(&b).for_each(|(x, y)| {
+                    (0..3).for_each(|c| x[c] += y[c]);
+                });
                 a
             },
         );
@@ -158,11 +156,14 @@ pub fn reconstruct_highlights(data: &mut [[f32; 3]], region: Region, clips: [f32
     mask.par_chunks_exact_mut(width)
         .enumerate()
         .for_each(|(y, mask_row)| {
-            for (m, p) in mask_row.iter_mut().zip(region.row(data, y)) {
-                *m = u8::from(p[0] >= thresholds[0])
-                    | (u8::from(p[1] >= thresholds[1]) << 1)
-                    | (u8::from(p[2] >= thresholds[2]) << 2);
-            }
+            mask_row
+                .iter_mut()
+                .zip(region.row(data, y))
+                .for_each(|(m, p)| {
+                    *m = u8::from(p[0] >= thresholds[0])
+                        | (u8::from(p[1] >= thresholds[1]) << 1)
+                        | (u8::from(p[2] >= thresholds[2]) << 2);
+                });
         });
     if !mask.par_iter().any(|&m| m != 0) {
         return;
@@ -179,54 +180,58 @@ pub fn reconstruct_highlights(data: &mut [[f32; 3]], region: Region, clips: [f32
         .zip(mask.par_chunks_exact(width))
         .enumerate()
         .map(|(y, (row, mask_row))| {
-            let mut blown = Vec::new();
+            let mut blown = Vec::with_capacity(width);
             let row = &mut row[region.x..region.x + width];
             let gy = (y as f32 + 0.5) * inv_cell - 0.5;
-            for (x, (pixel, &bits)) in row.iter_mut().zip(mask_row).enumerate() {
-                let observed = *pixel;
-                let blend: [f32; 3] =
-                    std::array::from_fn(|c| smoothstep(soft_starts[c], thresholds[c], observed[c]));
-                if blend.iter().all(|&b| b == 0.0) {
-                    continue;
-                }
-                let full = blend[0].min(blend[1]).min(blend[2]);
-                if full > 0.0 {
-                    blown.push((x, observed, full));
-                }
-
-                let gx = (x as f32 + 0.5) * inv_cell - 0.5;
-                let offset = offsets.sample(gx, gy);
-                let mut roots = observed.map(cube_root);
-                for iteration in 0..ITERATIONS {
-                    for c in 0..3 {
-                        if blend[c] > 0.0 {
-                            let rebuilt = observed[c].max(opposed(&roots, c) + offset[c]);
-                            pixel[c] = observed[c] + (rebuilt - observed[c]) * blend[c];
-                        }
+            row.iter_mut()
+                .zip(mask_row)
+                .enumerate()
+                .for_each(|(x, (pixel, &bits))| {
+                    let observed = *pixel;
+                    let blend: [f32; 3] = std::array::from_fn(|c| {
+                        smoothstep(soft_starts[c], thresholds[c], observed[c])
+                    });
+                    if blend.iter().all(|&b| b == 0.0) {
+                        return;
                     }
-                    if iteration + 1 < ITERATIONS {
-                        for c in 0..3 {
+                    let full = blend[0].min(blend[1]).min(blend[2]);
+                    if full > 0.0 {
+                        blown.push((x, observed, full));
+                    }
+
+                    let gx = (x as f32 + 0.5) * inv_cell - 0.5;
+                    let offset = offsets.sample(gx, gy);
+                    let mut roots = observed.map(cube_root);
+                    (0..ITERATIONS).for_each(|iteration| {
+                        (0..3).for_each(|c| {
                             if blend[c] > 0.0 {
-                                roots[c] = cube_root(pixel[c]);
+                                let rebuilt = observed[c].max(opposed(&roots, c) + offset[c]);
+                                pixel[c] = observed[c] + (rebuilt - observed[c]) * blend[c];
                             }
+                        });
+                        if iteration + 1 < ITERATIONS {
+                            (0..3).for_each(|c| {
+                                if blend[c] > 0.0 {
+                                    roots[c] = cube_root(pixel[c]);
+                                }
+                            });
                         }
-                    }
-                }
+                    });
 
-                let headroom = (0..3)
-                    .filter(|&c| bits & (1 << c) == 0)
-                    .map(|c| 1.0 - observed[c] / clips[c])
-                    .fold(0.0f32, f32::max);
-                let keep = FULL_CLIP_CHROMA
-                    + (1.0 - FULL_CLIP_CHROMA) * smoothstep(0.0, HEADROOM_FADE, headroom);
-                let mean = (pixel[0] + pixel[1] + pixel[2]) / 3.0;
-                for c in 0..3 {
-                    if blend[c] > 0.0 {
-                        let faded = observed[c].max(mean + (pixel[c] - mean) * keep);
-                        pixel[c] = observed[c] + (faded - observed[c]) * blend[c];
-                    }
-                }
-            }
+                    let headroom = (0..3)
+                        .filter(|&c| bits & (1 << c) == 0)
+                        .map(|c| 1.0 - observed[c] / clips[c])
+                        .fold(0.0f32, f32::max);
+                    let keep = FULL_CLIP_CHROMA
+                        + (1.0 - FULL_CLIP_CHROMA) * smoothstep(0.0, HEADROOM_FADE, headroom);
+                    let mean = (pixel[0] + pixel[1] + pixel[2]) / 3.0;
+                    (0..3).for_each(|c| {
+                        if blend[c] > 0.0 {
+                            let faded = observed[c].max(mean + (pixel[c] - mean) * keep);
+                            pixel[c] = observed[c] + (faded - observed[c]) * blend[c];
+                        }
+                    });
+                });
             blown
         })
         .collect();
@@ -249,9 +254,9 @@ fn fill_blown(
         .par_chunks_exact_mut(width)
         .zip(blown.par_iter())
         .for_each(|(row, pixels)| {
-            for &(x, _, _) in pixels {
+            pixels.iter().for_each(|&(x, _, _)| {
                 row[x] = 1;
-            }
+            });
         });
     let near_blown = dilate(&blown_mask, width, height, BORDER_EXCLUSION);
 
@@ -262,11 +267,14 @@ fn fill_blown(
         .par_chunks_exact_mut(gw)
         .enumerate()
         .for_each(|(gy, cells)| {
-            for y in gy * cell..((gy + 1) * cell).min(height) {
-                for (x, &m) in blown_mask[y * width..(y + 1) * width].iter().enumerate() {
-                    cells[x / cell] |= m;
-                }
-            }
+            (gy * cell..((gy + 1) * cell).min(height)).for_each(|y| {
+                blown_mask[y * width..(y + 1) * width]
+                    .iter()
+                    .enumerate()
+                    .for_each(|(x, &m)| {
+                        cells[x / cell] |= m;
+                    });
+            });
         });
     let band = dilate(&blown_cells, gw, gh, SAMPLE_BAND_PX.div_ceil(cell));
 
@@ -279,10 +287,10 @@ fn fill_blown(
             if band_row.iter().all(|&b| b == 0) {
                 return;
             }
-            for y in gy * cell..((gy + 1) * cell).min(height) {
+            (gy * cell..((gy + 1) * cell).min(height)).for_each(|y| {
                 let start = y * width;
                 let pixels = region.row(samples, y);
-                for x in 0..width {
+                (0..width).for_each(|x| {
                     let i = start + x;
                     let p = &pixels[x];
                     if band_row[x / cell] == 0
@@ -292,7 +300,7 @@ fn fill_blown(
                         || p[1] <= 0.0
                         || p[2] <= 0.0
                     {
-                        continue;
+                        return;
                     }
                     let rg = (p[0] / p[1]).ln();
                     let bg = (p[2] / p[1]).ln();
@@ -303,8 +311,8 @@ fn fill_blown(
                     target.weight[1] += w;
                     target.offset[0] += w * rg;
                     target.offset[1] += w * bg;
-                }
-            }
+                });
+            });
         });
     let support = width.max(height) as f32 / FILL_SUPPORT_DIVISOR;
     let chroma = push_pull(base, gw, gh, 0.5 * support * support);
@@ -318,7 +326,7 @@ fn fill_blown(
         .for_each(|(y, (row, pixels))| {
             let row = &mut row[region.x..region.x + width];
             let gy = (y as f32 + 0.5) * inv_cell - 0.5;
-            for &(x, observed, full) in pixels {
+            pixels.iter().for_each(|&(x, observed, full)| {
                 let gx = (x as f32 + 0.5) * inv_cell - 0.5;
                 let [rg, bg, _] = chroma.sample(gx, gy);
                 let spread = rg.max(bg).max(0.0) - rg.min(bg).min(0.0);
@@ -330,10 +338,10 @@ fn fill_blown(
                 let scale = (0..3)
                     .map(|c| observed[c] / tint[c])
                     .fold(brightness, f32::max);
-                for c in 0..3 {
+                (0..3).for_each(|c| {
                     pixel[c] += (scale * tint[c] - pixel[c]) * full;
-                }
-            }
+                });
+            });
         });
 }
 
@@ -348,11 +356,11 @@ fn dilate(mask: &[u8], width: usize, height: usize, radius: usize) -> Vec<u8> {
                     *v |= m;
                 }
             }
-            for (x, o) in row.iter_mut().enumerate() {
+            row.iter_mut().enumerate().for_each(|(x, o)| {
                 let x0 = x.saturating_sub(radius);
                 let x1 = (x + radius).min(width - 1);
                 *o = vertical[x0..=x1].iter().fold(0, |acc, &m| acc | m);
-            }
+            });
         },
     );
     out
@@ -379,11 +387,14 @@ fn inpaint_offsets(
         .par_chunks_exact_mut(gw)
         .enumerate()
         .for_each(|(gy, clipped)| {
-            for y in gy * cell..((gy + 1) * cell).min(height) {
-                for (x, &m) in mask[y * width..(y + 1) * width].iter().enumerate() {
-                    clipped[x / cell] |= m;
-                }
-            }
+            (gy * cell..((gy + 1) * cell).min(height)).for_each(|y| {
+                mask[y * width..(y + 1) * width]
+                    .iter()
+                    .enumerate()
+                    .for_each(|(x, &m)| {
+                        clipped[x / cell] |= m;
+                    });
+            });
         });
 
     let band = dilate(&clipped_cells, gw, gh, SAMPLE_BAND_PX.div_ceil(cell));
@@ -396,30 +407,37 @@ fn inpaint_offsets(
             if band_row.iter().all(|&b| b == 0) {
                 return;
             }
-            for y in gy * cell..((gy + 1) * cell).min(height) {
+            (gy * cell..((gy + 1) * cell).min(height)).for_each(|y| {
                 let start = y * width;
                 let pixels = region.row(data, y);
-                for (gx, (target, &channels)) in cells.iter_mut().zip(band_row).enumerate() {
-                    if channels == 0 {
-                        continue;
-                    }
-                    for x in gx * cell..((gx + 1) * cell).min(width) {
-                        let p = &pixels[x];
-                        let usable = channels & !near_clip[start + x];
-                        let mut roots = None;
-                        for c in 0..3 {
-                            if usable & (1 << c) == 0 || p[c] <= lo[c] || p[c] >= thresholds[c] {
-                                continue;
-                            }
-                            let roots = roots.get_or_insert_with(|| p.map(cube_root));
-                            let level = p[c] * inv_clips[c];
-                            let w = level * level;
-                            target.weight[c] += w;
-                            target.offset[c] += w * (p[c] - opposed(roots, c));
+                cells
+                    .iter_mut()
+                    .zip(band_row)
+                    .enumerate()
+                    .for_each(|(gx, (target, &channels))| {
+                        if channels == 0 {
+                            return;
                         }
-                    }
-                }
-            }
+                        (gx * cell..((gx + 1) * cell).min(width)).for_each(|x| {
+                            let p = &pixels[x];
+                            let usable = channels & !near_clip[start + x];
+                            let mut roots = None;
+                            (0..3).for_each(|c| {
+                                if usable & (1 << c) == 0
+                                    || p[c] <= lo[c]
+                                    || p[c] >= thresholds[c]
+                                {
+                                    return;
+                                }
+                                let roots = roots.get_or_insert_with(|| p.map(cube_root));
+                                let level = p[c] * inv_clips[c];
+                                let w = level * level;
+                                target.weight[c] += w;
+                                target.offset[c] += w * (p[c] - opposed(roots, c));
+                            });
+                        });
+                    });
+            });
         });
 
     push_pull(base, gw, gh, 0.25 * (cell * cell) as f32)
@@ -428,7 +446,9 @@ fn inpaint_offsets(
 fn push_pull(base: Vec<Cell>, width: usize, height: usize, full_weight: f32) -> Grid {
     let mut levels = vec![(base, width, height)];
     loop {
-        let (prev, pw, ph) = levels.last().unwrap();
+        let Some((prev, pw, ph)) = levels.last() else {
+            unreachable!("push_pull invariant: levels seeded non-empty and only appended");
+        };
         let (pw, ph) = (*pw, *ph);
         if pw == 1 && ph == 1 {
             break;
@@ -439,23 +459,28 @@ fn push_pull(base: Vec<Cell>, width: usize, height: usize, full_weight: f32) -> 
         next.par_chunks_exact_mut(nw)
             .enumerate()
             .for_each(|(y, row)| {
-                for (x, out) in row.iter_mut().enumerate() {
-                    for yy in (2 * y)..(2 * y + 2).min(ph) {
-                        for xx in (2 * x)..(2 * x + 2).min(pw) {
+                row.iter_mut().enumerate().for_each(|(x, out)| {
+                    ((2 * y)..(2 * y + 2).min(ph)).for_each(|yy| {
+                        ((2 * x)..(2 * x + 2).min(pw)).for_each(|xx| {
                             let c = &prev[yy * pw + xx];
-                            for i in 0..3 {
+                            (0..3).for_each(|i| {
                                 out.weight[i] += c.weight[i];
                                 out.offset[i] += c.offset[i];
-                            }
-                        }
-                    }
-                }
+                            });
+                        });
+                    });
+                });
             });
         levels.push((next, nw, nh));
     }
 
-    let top = &levels.last().unwrap().0[0];
-    let mut filled = Grid {
+    let Some(top) = levels
+        .last()
+        .and_then(|(cells, _, _)| cells.first())
+    else {
+        unreachable!("push_pull invariant: levels seeded non-empty and only appended");
+    };
+    let filled = Grid {
         width: 1,
         height: 1,
         data: vec![std::array::from_fn(|i| {
@@ -467,34 +492,42 @@ fn push_pull(base: Vec<Cell>, width: usize, height: usize, full_weight: f32) -> 
         })],
     };
 
-    for (cells, w, h) in levels.iter().rev().skip(1) {
-        let (w, h) = (*w, *h);
-        let scale_x = filled.width as f32 / w as f32;
-        let scale_y = filled.height as f32 / h as f32;
-        let mut next = vec![[0.0f32; 3]; w * h];
-        next.par_chunks_exact_mut(w)
-            .enumerate()
-            .for_each(|(y, row)| {
-                let sy = (y as f32 + 0.5) * scale_y - 0.5;
-                for (x, out) in row.iter_mut().enumerate() {
-                    let sx = (x as f32 + 0.5) * scale_x - 0.5;
-                    let coarse = filled.sample(sx, sy);
-                    let c = &cells[y * w + x];
-                    for i in 0..3 {
-                        out[i] = if c.weight[i] > 0.0 {
-                            let alpha = (c.weight[i] / full_weight).min(1.0);
-                            coarse[i] + (c.offset[i] / c.weight[i] - coarse[i]) * alpha
-                        } else {
-                            coarse[i]
-                        };
-                    }
-                }
-            });
-        filled = Grid {
-            width: w,
-            height: h,
-            data: next,
-        };
-    }
+    let filled = levels
+        .iter()
+        .rev()
+        .skip(1)
+        .fold(filled, |filled, (cells, w, h)| {
+            let (w, h) = (*w, *h);
+            let filled_w = filled.width as f32;
+            let filled_h = filled.height as f32;
+            let level_w = w as f32;
+            let level_h = h as f32;
+            let scale_x = filled_w / level_w;
+            let scale_y = filled_h / level_h;
+            let mut next = vec![[0.0f32; 3]; w * h];
+            next.par_chunks_exact_mut(w)
+                .enumerate()
+                .for_each(|(y, row)| {
+                    let sy = (y as f32 + 0.5) * scale_y - 0.5;
+                    row.iter_mut().enumerate().for_each(|(x, out)| {
+                        let sx = (x as f32 + 0.5) * scale_x - 0.5;
+                        let coarse = filled.sample(sx, sy);
+                        let c = &cells[y * w + x];
+                        (0..3).for_each(|i| {
+                            out[i] = if c.weight[i] > 0.0 {
+                                let alpha = (c.weight[i] / full_weight).min(1.0);
+                                coarse[i] + (c.offset[i] / c.weight[i] - coarse[i]) * alpha
+                            } else {
+                                coarse[i]
+                            };
+                        });
+                    });
+                });
+            Grid {
+                width: w,
+                height: h,
+                data: next,
+            }
+        });
     filled
 }
