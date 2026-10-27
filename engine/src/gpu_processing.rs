@@ -2468,7 +2468,8 @@ impl GpuProcessor {
         let end_tile_y = (bounds.y + bounds.height).div_ceil(TILE_SIZE);
 
         (start_tile_y..end_tile_y).try_for_each(|tile_y| {
-            (start_tile_x..end_tile_x).try_for_each(|tile_x| -> Result<(), String> {
+            (start_tile_x..end_tile_x)
+                .try_for_each(|tile_x| -> anyhow::Result<()> {
                 let x_start_unclamped = tile_x * TILE_SIZE;
                 let y_start_unclamped = tile_y * TILE_SIZE;
 
@@ -2794,7 +2795,8 @@ impl GpuProcessor {
                             depth_or_array_layers: 1,
                         },
                         bytes_per_pixel,
-                    )?;
+                    )
+                    .map_err(|e| anyhow::anyhow!("{e}"))?;
 
                     match &mut final_pixels {
                         RenderedPixels::U8(final_pixels) => {
@@ -2833,7 +2835,8 @@ impl GpuProcessor {
 
                 Ok(())
             })
-        })?;
+        })
+        .map_err(|e| e.to_string())?;
 
         Ok((final_pixels, out_width, out_height, bounds.x, bounds.y))
     }
