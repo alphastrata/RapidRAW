@@ -6,7 +6,7 @@ use engine::app_state::AppState;
 
 #[tauri::command]
 pub fn load_and_parse_lut(path: String, state: tauri::State<'_, AppState>) -> Result<LutParseResult, String> {
-    engine::lut_processing::load_and_parse_lut_impl(path, &state)
+    engine::lut_processing::load_and_parse_lut_impl(path, &state).map_err(|e| e.to_string())
 }
 
 #[tauri::command]
