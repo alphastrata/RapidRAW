@@ -35,8 +35,8 @@ uuid = { version = "1.29", features = ["v4", "serde"] }
 walkdir = "2.5.0"
 imageproc = "0.27.0"
 lsdetect = "0.4.0"
-ort = { version = "=2.0.0-rc.15", features = ["ndarray", "load-dynamic"] }
-ndarray = "0.17"
+ort = { version = "=2.0.0-rc.10", features = ["ndarray", "load-dynamic"] }
+ndarray = "0.16"
 tauri-plugin-process = "2.4.0"
 tauri-plugin-os = "2.4.0"
 log = "0.4"
@@ -123,6 +123,10 @@ hex = "0.4"
 
 [[bench]]
 name = "image_ops"
+harness = false
+
+[[bench]]
+name = "ai_ops"
 harness = false
 
 

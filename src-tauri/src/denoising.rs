@@ -330,7 +330,7 @@ fn denoise_image(
             &rgb_img_for_denoiser,
             intensity,
             &session_arc,
-            &app_handle,
+            Some(&app_handle),
         )
         .map_err(|e| e.to_string())?
     } else if method == "raw9" {

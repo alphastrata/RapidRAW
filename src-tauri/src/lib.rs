@@ -59,7 +59,7 @@ mod panorama_utils;
 mod preset_converter;
 mod raw_processing;
 mod relight;
-mod tagging;
+pub mod tagging;
 mod tagging_utils;
 mod white_balance;
 mod window_customizer;

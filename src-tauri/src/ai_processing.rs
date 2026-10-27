@@ -524,7 +524,7 @@ pub async fn get_or_init_ai_models(
     )
     .await?;
 
-    let env = ort::init().with_name("AI").build()?;
+    let _ = ort::init().with_name("AI").commit();
 
     let encoder_path = models_dir.join(ENCODER_FILENAME);
     let decoder_path = models_dir.join(DECODER_FILENAME);
@@ -532,11 +532,11 @@ pub async fn get_or_init_ai_models(
     let sky_seg_path = models_dir.join(SKYSEG_FILENAME);
     let depth_path = models_dir.join(DEPTH_FILENAME);
 
-    let sam_encoder = Session::builder(&env)?.commit_from_file(encoder_path)?;
-    let sam_decoder = Session::builder(&env)?.commit_from_file(decoder_path)?;
-    let u2netp = Session::builder(&env)?.commit_from_file(u2netp_path)?;
-    let sky_seg = Session::builder(&env)?.commit_from_file(sky_seg_path)?;
-    let depth_anything = Session::builder(&env)?.commit_from_file(depth_path)?;
+    let sam_encoder = Session::builder()?.commit_from_file(encoder_path)?;
+    let sam_decoder = Session::builder()?.commit_from_file(decoder_path)?;
+    let u2netp = Session::builder()?.commit_from_file(u2netp_path)?;
+    let sky_seg = Session::builder()?.commit_from_file(sky_seg_path)?;
+    let depth_anything = Session::builder()?.commit_from_file(depth_path)?;
 
     crate::register_exit_handler();
 
@@ -602,9 +602,9 @@ pub async fn get_or_init_denoise_model(
     )
     .await?;
 
-    let env = ort::init().with_name("AI-Denoise").build()?;
+    let _ = ort::init().with_name("AI-Denoise").commit();
     let model_path = models_dir.join(DENOISE_FILENAME);
-    let session = Session::builder(&env)?.commit_from_file(model_path)?;
+    let session = Session::builder()?.commit_from_file(model_path)?;
     let denoise_model = Arc::new(Mutex::new(session));
 
     crate::register_exit_handler();
@@ -672,9 +672,9 @@ pub async fn get_or_init_clip_models(
         download_result?;
     }
 
-    let env = ort::init().with_name("AI-Tagging").build()?;
+    let _ = ort::init().with_name("AI-Tagging").commit();
     let clip_model_path = models_dir.join(CLIP_MODEL_FILENAME);
-    let model = Mutex::new(Session::builder(&env)?.commit_from_file(clip_model_path)?);
+    let model = Mutex::new(Session::builder()?.commit_from_file(clip_model_path)?);
     let tokenizer =
         Tokenizer::from_file(clip_tokenizer_path).map_err(|e| anyhow::anyhow!(e.to_string()))?;
 
@@ -736,9 +736,9 @@ pub async fn get_or_init_lama_model(
     )
     .await?;
 
-    let env = ort::init().with_name("AI-Inpainting").build()?;
+    let _ = ort::init().with_name("AI-Inpainting").commit();
     let model_path = models_dir.join(LAMA_FILENAME);
-    let session = Session::builder(&env)?.commit_from_file(model_path)?;
+    let session = Session::builder()?.commit_from_file(model_path)?;
     let lama_model = Arc::new(Mutex::new(session));
 
     crate::register_exit_handler();
@@ -797,9 +797,9 @@ pub async fn get_or_init_normal_model(
     )
     .await?;
 
-    let env = ort::init().with_name("AI-Normal").build()?;
+    let _ = ort::init().with_name("AI-Normal").commit();
     let model_path = models_dir.join(NORMAL_FILENAME);
-    let session = Session::builder(&env)?.commit_from_file(model_path)?;
+    let session = Session::builder()?.commit_from_file(model_path)?;
     let normal_model = Arc::new(Mutex::new(session));
 
     crate::register_exit_handler();
@@ -954,7 +954,7 @@ fn run_native_denoise(
     accumulator: &mut [f32],
     width: usize,
     height: usize,
-    app_handle: &tauri::AppHandle,
+    app_handle: Option<&tauri::AppHandle>,
     params: TileParams,
 ) -> Result<()> {
     let w = width as i32;
@@ -974,7 +974,9 @@ fn run_native_denoise(
 
         if i % 10 == 0 {
             let pct = (i as f32 / total as f32) * 100.0;
-            let _ = app_handle.emit("denoise-progress", format!("Denoising… {:.0}%", pct));
+            if let Some(app_handle) = app_handle {
+                let _ = app_handle.emit("denoise-progress", format!("Denoising… {:.0}%", pct));
+            }
         }
 
         let crop = extract_tile_mirror(img, x0, y0, params.cs);
@@ -1047,12 +1049,14 @@ pub fn run_ai_denoise(
     rgb_img: &Rgb32FImage,
     intensity: f32,
     session: &Mutex<Session>,
-    app_handle: &tauri::AppHandle,
+    app_handle: Option<&tauri::AppHandle>,
 ) -> Result<DynamicImage> {
     let (width, height) = rgb_img.dimensions();
     let params = select_tile_params(intensity);
 
-    let _ = app_handle.emit("denoise-progress", "Denoising (AI NIND)...");
+    if let Some(app_handle) = app_handle {
+        let _ = app_handle.emit("denoise-progress", "Denoising (AI NIND)...");
+    }
     let mut accumulator = vec![0.0f32; width as usize * height as usize * 3];
     run_native_denoise(
         rgb_img,
