@@ -16,7 +16,7 @@ use crate::image_processing::ImageMetadata;
 use crate::{AppState, exif_processing};
 use engine::paths::parse_virtual_path;
 
-pub use engine::tagging::{COLOR_TAG_PREFIX, USER_TAG_PREFIX};
+pub use engine::tagging::{COLOR_TAG_PREFIX, USER_TAG_PREFIX, generate_tags_with_clip};
 use engine::tagging::generate_tags_with_clip;
 
 fn needs_ai_tags(path: &Path) -> bool {
