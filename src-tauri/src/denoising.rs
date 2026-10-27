@@ -5,47 +5,31 @@ use crate::formats::is_raw_file;
 use crate::image_loader::load_base_image_from_bytes;
 use crate::image_processing::apply_cpu_default_raw_processing;
 use base64::{Engine as _, engine::general_purpose};
-use image::{DynamicImage, GenericImageView, ImageFormat, Rgb, Rgb32FImage};
-use rayon::prelude::*;
-use std::cmp::Ordering;
+use image::{DynamicImage, GenericImageView, ImageFormat};
 use std::fs;
 use std::io::Cursor;
 use std::path::Path;
-use std::sync::atomic::{AtomicI64, AtomicUsize, Ordering as AtomicOrdering};
-use std::sync::{Arc, Mutex};
+use std::sync::Mutex;
 use tauri::{AppHandle, Emitter};
 
-struct ProgressReporter<'a> {
-    counter: &'a Arc<AtomicUsize>,
-    total_work: usize,
-    app_handle: &'a AppHandle,
-}
-
-const BLOCK_SIZE: usize = 8;
-const BLOCK_AREA: usize = 64;
-const MAX_GROUP_SIZE: usize = 16;
-const STRIDE: usize = 6;
-const SEARCH_WINDOW: usize = 19;
-const FIXED_POINT_SCALE: f32 = 100_000.0;
-
-#[derive(Clone, Copy)]
-struct Bm3dParams {
-    sigma: f32,
-    hard_th_lambda: f32,
-    max_dist_hard: f32,
-    chroma_sigma_scale: f32,
-}
-
-impl Bm3dParams {
-    fn from_intensity(i: f32) -> Self {
-        let val = i.clamp(0.001, 1.0);
-        Self {
-            sigma: val * 80.0,
-            hard_th_lambda: 2.0 + (val * 2.5),
-            max_dist_hard: 3000.0 + (val * 20000.0),
-            chroma_sigma_scale: 1.8,
-        }
-    }
+fn run_bm3d(
+    rgb_img: &Rgb32FImage,
+    intensity: f32,
+    app_handle: &AppHandle,
+) -> Result<DynamicImage, String> {
+    let progress = |fraction: f32| {
+        let step = if fraction < 0.5 {
+            "Processing (Step 1/2)..."
+        } else {
+            "Processing (Step 2/2)..."
+        };
+        let _ = app_handle.emit(
+            "denoise-progress",
+            format!("{} ({:.0}%)", step, fraction * 100.0),
+        );
+    };
+    let denoised = engine::bm3d::denoise(rgb_img, intensity, &progress);
+    Ok(DynamicImage::ImageRgb32F(denoised))
 }
 
 #[tauri::command]
@@ -242,56 +226,6 @@ pub async fn save_denoised_image(
     }
 
     Ok(output_path.to_string_lossy().to_string())
-}
-
-fn run_bm3d(
-    rgb_img: &Rgb32FImage,
-    intensity: f32,
-    app_handle: &AppHandle,
-) -> Result<DynamicImage, String> {
-    let (width, height) = rgb_img.dimensions();
-    let params = Bm3dParams::from_intensity(intensity);
-    let dct_tables = Arc::new(DctTables::new());
-
-    let rgb_channels = split_channels(rgb_img);
-    let (y, cb, cr) = rgb_to_ycbcr(&rgb_channels[0], &rgb_channels[1], &rgb_channels[2]);
-    let original_y = y.clone();
-    let channels = vec![y, cb, cr];
-
-    let patches_x = (width as usize).saturating_sub(BLOCK_SIZE) / STRIDE + 1;
-    let patches_y = (height as usize).saturating_sub(BLOCK_SIZE) / STRIDE + 1;
-    let total_work_units = (patches_x * patches_y) * 2;
-    let progress_counter = Arc::new(AtomicUsize::new(0));
-
-    let _ = app_handle.emit("denoise-progress", "Processing (Step 1/2)...");
-
-    let progress = ProgressReporter {
-        counter: &progress_counter,
-        total_work: total_work_units,
-        app_handle,
-    };
-    let mut denoised_channels =
-        bm3d_process_joint(&channels, width, height, &params, &dct_tables, &progress);
-
-    {
-        let _ = app_handle.emit("denoise-progress", "Blending detail...");
-        let blurred_y = gaussian_blur_1ch(&original_y, width as usize, height as usize, 3.0);
-        let detail_strength = (intensity * 0.5_f32).clamp(0.0_f32, 0.5_f32);
-        let y_ch = &mut denoised_channels[0];
-        for i in 0..y_ch.len() {
-            let hf = original_y[i] - blurred_y[i];
-            y_ch[i] = (y_ch[i] + detail_strength * hf).clamp(0.0, 255.0);
-        }
-    }
-
-    let (r, g, b) = ycbcr_to_rgb(
-        &denoised_channels[0],
-        &denoised_channels[1],
-        &denoised_channels[2],
-    );
-
-    let out_img_buffer = merge_channels(&[r, g, b], width, height);
-    Ok(DynamicImage::ImageRgb32F(out_img_buffer))
 }
 
 fn denoise_image(
