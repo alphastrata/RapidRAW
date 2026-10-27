@@ -1280,11 +1280,10 @@ pub fn decide_labels(
                     .iter()
                     .enumerate()
                     .take(n)
-                    .for_each(|(i, mask_i)| {
-                        if mask_i.data[p] > 0.5 {
-                            buf[cnt] = base[i].data[p];
-                            cnt += 1;
-                        }
+                    .filter(|(_, mask_i)| mask_i.data[p] > 0.5)
+                    .for_each(|(i, _)| {
+                        buf[cnt] = base[i].data[p];
+                        cnt += 1;
                     });
                 if cnt == 0 {
                     return;
@@ -2193,9 +2192,10 @@ fn decode_frame(
 
 fn make_preview(img: &image::Rgb32FImage, max_dim: u32) -> anyhow::Result<String> {
     let (w, h) = (img.width(), img.height());
-    let scale = (max_dim as f32 / w.max(h) as f32).min(1.0);
     let wf = w as f32;
     let hf = h as f32;
+    let max_dim_f = max_dim as f32;
+    let scale = (max_dim_f / wf.max(hf)).min(1.0);
     let (nw, nh) = (
         ((wf * scale).round() as u32).max(1),
         ((hf * scale).round() as u32).max(1),
