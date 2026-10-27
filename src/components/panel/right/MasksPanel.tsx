@@ -157,8 +157,6 @@ const SUB_MASK_CONFIG: Record<Mask, any> = {
   [Mask.QuickEraser]: { parameters: [] },
 };
 
-
-
 const FlowBrushTool = ({
   flow,
   onFlowChange,

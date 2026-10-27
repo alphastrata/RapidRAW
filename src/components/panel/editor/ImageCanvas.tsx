@@ -100,8 +100,14 @@ interface ImageCanvasProps {
   hasRenderedFirstFrame: boolean;
 }
 
-
-import { IDENTITY_3X3, multiply3x3, invert3x3, project3x3, orientPoint, unorientPoint } from '../../../utils/geometryUtils';
+import {
+  IDENTITY_3X3,
+  multiply3x3,
+  invert3x3,
+  project3x3,
+  orientPoint,
+  unorientPoint,
+} from '../../../utils/geometryUtils';
 
 const WB_SAMPLE_SCREEN_SIZE = 16;
 const WB_DRAG_THRESHOLD = 4;
@@ -160,8 +166,6 @@ const WbSampleOutline = ({ x, y, width, height, zoomScale, dashed = false }: WbS
     />
   </>
 );
-
-
 
 const getEdgeFadeStyle = (fadeDistancePx: number = 128): React.CSSProperties => ({
   WebkitMaskImage: `

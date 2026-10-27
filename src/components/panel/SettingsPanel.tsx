@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useReducer, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
   ArrowLeft,
   Cpu,
@@ -24,7 +24,6 @@ import { getCurrentWindow } from '@tauri-apps/api/window';
 import { relaunch } from '@tauri-apps/plugin-process';
 import { motion, AnimatePresence, LayoutGroup } from 'framer-motion';
 import clsx from 'clsx';
-import { useShallow } from 'zustand/react/shallow';
 import Button from '../ui/Button';
 import ConfirmModal from '../modals/ConfirmModal';
 import Dropdown, { OptionItem } from '../ui/Dropdown';
@@ -45,7 +44,6 @@ import {
 import Text from '../ui/Text';
 import { TextColors, TextVariants, TextWeights } from '../../types/typography';
 import { useOsPlatform } from '../../hooks/useOsPlatform';
-import { open } from '@tauri-apps/plugin-shell';
 import { RotateCcw } from 'lucide-react';
 import { useUIStore } from '../../store/useUIStore';
 
@@ -321,7 +319,14 @@ const AiProviderSwitch = ({ selectedProvider, onProviderChange }: AiProviderSwit
     ],
     [t],
   );
-  return <SegmentedSwitch items={aiProviders} selected={selectedProvider} onChange={onProviderChange} layoutId="ai-provider-switch-bubble" />;
+  return (
+    <SegmentedSwitch
+      items={aiProviders}
+      selected={selectedProvider}
+      onChange={onProviderChange}
+      layoutId="ai-provider-switch-bubble"
+    />
+  );
 };
 
 interface CanvasInputModeSwitchProps {
@@ -338,7 +343,14 @@ const CanvasInputModeSwitch = ({ mode, onModeChange }: CanvasInputModeSwitchProp
     ],
     [t],
   );
-  return <SegmentedSwitch items={canvasInputModes} selected={mode} onChange={onModeChange} layoutId="canvas-input-mode-switch-bubble" />;
+  return (
+    <SegmentedSwitch
+      items={canvasInputModes}
+      selected={mode}
+      onChange={onModeChange}
+      layoutId="canvas-input-mode-switch-bubble"
+    />
+  );
 };
 
 interface PreviewModeSwitchProps {
@@ -355,7 +367,14 @@ const PreviewModeSwitch = ({ mode, onModeChange }: PreviewModeSwitchProps) => {
     ],
     [t],
   );
-  return <SegmentedSwitch items={previewModes} selected={mode} onChange={onModeChange} layoutId="preview-mode-switch-bubble" />;
+  return (
+    <SegmentedSwitch
+      items={previewModes}
+      selected={mode}
+      onChange={onModeChange}
+      layoutId="preview-mode-switch-bubble"
+    />
+  );
 };
 
 export default function SettingsPanel({

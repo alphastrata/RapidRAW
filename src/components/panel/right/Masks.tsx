@@ -334,7 +334,9 @@ export const BrushTools = ({
       <div className="grid grid-cols-2 gap-2 pt-2">
         <button
           className={`p-2 rounded-md text-sm font-medium transition-colors flex items-center justify-center gap-2 ${
-            settings.tool === ToolType.Brush ? 'text-primary bg-surface' : 'bg-surface text-text-secondary hover:bg-card-active'
+            settings.tool === ToolType.Brush
+              ? 'text-primary bg-surface'
+              : 'bg-surface text-text-secondary hover:bg-card-active'
           }`}
           onClick={() => onSettingsChange((s: any) => ({ ...s, tool: ToolType.Brush }))}
         >
@@ -342,7 +344,9 @@ export const BrushTools = ({
         </button>
         <button
           className={`p-2 rounded-md text-sm font-medium transition-colors flex items-center justify-center gap-2 ${
-            settings.tool === ToolType.Eraser ? 'text-primary bg-surface' : 'bg-surface text-text-secondary hover:bg-card-active'
+            settings.tool === ToolType.Eraser
+              ? 'text-primary bg-surface'
+              : 'bg-surface text-text-secondary hover:bg-card-active'
           }`}
           onClick={() => onSettingsChange((s: any) => ({ ...s, tool: ToolType.Eraser }))}
         >
@@ -361,9 +365,7 @@ export const cloneSubMaskData = (
   clonedSubMask.id = crypto.randomUUID();
   clonedSubMask.invert = options.invert ? !clonedSubMask.invert : clonedSubMask.invert;
   clonedSubMask.name =
-    options.rename === false
-      ? clonedSubMask.name
-      : (options.copyName ?? `${getSubMaskName(subMask)} Copy`);
+    options.rename === false ? clonedSubMask.name : (options.copyName ?? `${getSubMaskName(subMask)} Copy`);
   return clonedSubMask;
 };
 
@@ -438,8 +440,7 @@ export function SharedSubMaskRow({
 
   const isDraggingContainer = activeDragItem?.type === 'Container';
   const isSubMaskTaskRunning = Boolean(activeAiTasks?.[subMask.id]);
-  const isAnalyzing =
-    isSubMaskTaskRunning || (Boolean(isParentLoading) && subMask.type === Mask.QuickEraser);
+  const isAnalyzing = isSubMaskTaskRunning || (Boolean(isParentLoading) && subMask.type === Mask.QuickEraser);
 
   const handleMouseEnter = () => {
     if (hoverTimeoutRef.current) {

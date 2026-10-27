@@ -685,7 +685,10 @@ export const normalizeLoadedAdjustments = (loadedAdjustments: Adjustments): any 
     ...loadedAdjustments,
     guidedPerspective: {
       enabled: loadedAdjustments.guidedPerspective?.enabled ?? false,
-      lines: [...rawLines.filter((l) => l.type === 'vertical').slice(0, 2), ...rawLines.filter((l) => l.type === 'horizontal').slice(0, 2)],
+      lines: [
+        ...rawLines.filter((l) => l.type === 'vertical').slice(0, 2),
+        ...rawLines.filter((l) => l.type === 'horizontal').slice(0, 2),
+      ],
       autoCrop: loadedAdjustments.guidedPerspective?.autoCrop ?? true,
     },
     baselineExposure: loadedAdjustments.baselineExposure ?? false,

@@ -262,10 +262,14 @@ export function MobilePanelSwitcher({
   const isVertical = placement === 'right';
 
   return (
-    <div className={clsx(
-      'flex items-center p-1.5 gap-1 shrink-0 custom-scrollbar',
-      isVertical ? 'flex-col overflow-y-auto h-full border-l border-surface' : 'flex-row overflow-x-auto w-full border-t border-surface',
-    )}>
+    <div
+      className={clsx(
+        'flex items-center p-1.5 gap-1 shrink-0 custom-scrollbar',
+        isVertical
+          ? 'flex-col overflow-y-auto h-full border-l border-surface'
+          : 'flex-row overflow-x-auto w-full border-t border-surface',
+      )}
+    >
       {MOBILE_PANELS.map((id) => {
         const Icon = PANEL_ICONS[id];
         const isActive = activePanel === id;

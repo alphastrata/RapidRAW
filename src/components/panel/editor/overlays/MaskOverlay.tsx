@@ -24,7 +24,6 @@ interface MaskOverlayProps {
   stageScale: number;
 }
 
-
 export const MaskOverlay = memo(
   ({
     adjustments,
@@ -978,6 +977,5 @@ export const MaskOverlay = memo(
     return null;
   },
 );
-
 
 export default MaskOverlay;

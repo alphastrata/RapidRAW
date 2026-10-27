@@ -14,7 +14,6 @@ import {
   pointerWithin,
 } from '@dnd-kit/core';
 import {
-  Ban,
   Circle,
   ClipboardPaste,
   Copy,
@@ -141,8 +140,6 @@ const SUB_MASK_CONFIG: any = {
   },
 };
 
-
-
 interface ConnectionStatusProps {
   aiProvider: string;
   isAIConnectorConnected: boolean;
@@ -152,12 +149,12 @@ const ConnectionStatus = ({ aiProvider, isAIConnectorConnected }: ConnectionStat
   const { t } = useTranslation();
   const [isHovered, setIsHovered] = useState(false);
 
-  let statusColor = 'bg-green-500';
-  let statusText = t('editor.ai.connection.ready');
-  let titleText = t('editor.ai.connection.backendLabel');
-  let hoverContent: React.ReactNode = null;
+  let statusColor: string;
+  let statusText: string;
+  let titleText: string;
+  let hoverContent: React.ReactNode;
 
- if (aiProvider === 'ai-connector') {
+  if (aiProvider === 'ai-connector') {
     titleText = t('editor.ai.connection.connectorLabel');
     if (isAIConnectorConnected) {
       statusColor = 'bg-green-500';
@@ -664,8 +661,6 @@ export default function AIPanel() {
 
     return clonedContainer;
   };
-
-
 
   const copyPatchToClipboard = (container: AiPatch) => {
     setCopiedPatch(JSON.parse(JSON.stringify(container)));
@@ -1253,9 +1248,7 @@ export default function AIPanel() {
 function DraggableGridItem({ maskType, isGenerating, onClick }: any) {
   const { t } = useTranslation();
   const label = formatMaskTypeName(maskType.type);
-  const tooltip = maskType.disabled
-    ? t('editor.ai.comingSoon')
-    : t('editor.ai.createNewTooltip', { name: label });
+  const tooltip = maskType.disabled ? t('editor.ai.comingSoon') : t('editor.ai.createNewTooltip', { name: label });
 
   return (
     <SharedDraggableGridItem
@@ -1882,7 +1875,11 @@ function SettingsPanel({
               )}
 
               {subMaskConfig.showBrushTools && brushSettings && (
-                <BrushTools settings={brushSettings} onSettingsChange={setBrushSettings} labelPrefix="editor.ai.brush" />
+                <BrushTools
+                  settings={brushSettings}
+                  onSettingsChange={setBrushSettings}
+                  labelPrefix="editor.ai.brush"
+                />
               )}
             </>
           )}
