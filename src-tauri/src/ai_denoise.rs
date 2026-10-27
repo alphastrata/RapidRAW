@@ -2,5 +2,5 @@ pub use engine::ai_denoise::*;
 
 #[tauri::command]
 pub fn clear_ai_denoise_cache() -> Result<(), String> {
-    engine::ai_denoise::clear_cache_files()
+    engine::ai_denoise::clear_cache_files().map_err(|e| e.to_string())
 }
