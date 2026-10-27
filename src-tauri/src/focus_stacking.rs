@@ -13,7 +13,7 @@ pub async fn stitch_focus_stack(
         &state,
         crate::host::TauriHost::host(app_handle),
     )
-    .await
+    .await.map_err(|e| e.to_string())
 }
 
 #[tauri::command]
@@ -21,5 +21,5 @@ pub fn save_focus_stack(
     first_path_str: String,
     state: tauri::State<'_, AppState>,
 ) -> Result<String, String> {
-    engine::focus_stacking::save_focus_stack_impl(first_path_str, &state)
+    engine::focus_stacking::save_focus_stack_impl(first_path_str, &state).map_err(|e| e.to_string())
 }
