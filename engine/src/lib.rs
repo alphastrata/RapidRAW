@@ -34,7 +34,7 @@ pub mod negative_conversion;
 pub mod preview_cache;
 pub mod raw_processing;
 pub mod relight;
-pub mod shell_events;
+pub mod host;
 pub mod storage;
 pub mod tagging;
 pub mod tethering;

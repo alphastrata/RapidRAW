@@ -1,4 +1,5 @@
-use crate::app_state::{AppState, LoadedImage};
+use crate::app_state::LoadedImage;
+use crate::host::Host;
 use crate::paths::parse_virtual_path;
 use crate::relight::RelightTap;
 use half::f16;
@@ -13,7 +14,6 @@ use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Arc, LazyLock, Mutex};
 use std::time::{SystemTime, UNIX_EPOCH};
-use tauri::{Emitter, Manager};
 
 const MODEL_TAG: &str = "nind-v3";
 const BM3D_TAG: &str = "bm3d-v1";
@@ -468,17 +468,13 @@ fn denoise_into_cache(
     cache.epoch += 1;
     Ok(())
 }
-
-async fn load_session(
-    app_handle: &tauri::AppHandle,
-    method: DenoiseMethod,
-) -> Result<Option<Session>, String> {
+async fn load_session(host: &dyn Host, method: DenoiseMethod) -> Result<Option<Session>, String> {
     if method != DenoiseMethod::Nind {
         return Ok(None);
     }
-    let state = app_handle.state::<AppState>();
+    let state = host.app_state();
     crate::ai_processing::get_or_init_denoise_model(
-        app_handle,
+        host,
         &state.ai_state,
         &state.ai_init_lock,
     )
@@ -487,65 +483,46 @@ async fn load_session(
     .map_err(|e| e.to_string())
 }
 
-async fn generate(
-    app_handle: &tauri::AppHandle,
+fn generate_blocking(
+    host: &Arc<dyn Host>,
     loaded_image: LoadedImage,
     method: DenoiseMethod,
     key: String,
     source: String,
     fingerprint: u64,
 ) -> Result<(), String> {
-    let state = app_handle.state::<AppState>();
-    let session = load_session(app_handle, method).await?;
+    let session = pollster::block_on(load_session(Arc::as_ref(host), method))?;
 
-    let progress_handle = app_handle.clone();
-    let loaded_path = loaded_image.path.clone();
-    tokio::task::spawn_blocking(move || {
-        denoise_into_cache(
-            &loaded_image.image,
-            session.as_ref(),
-            key,
-            source,
-            fingerprint,
-            &|progress| {
-                let _ = progress_handle.emit(
-                    "ai-denoise-progress",
-                    serde_json::json!({ "path": loaded_image.path, "progress": progress }),
-                );
-            },
-        )
-    })
-    .await
-    .map_err(|e| format!("AI denoise task failed: {}", e))??;
+    denoise_into_cache(
+        &loaded_image.image,
+        session.as_ref(),
+        key,
+        source,
+        fingerprint,
+        &|progress| {
+            host.emit_json(
+                "ai-denoise-progress",
+                serde_json::json!({ "path": loaded_image.path, "progress": progress }),
+            );
+        },
+    )?;
 
+    let state = host.app_state();
     let is_open = state
         .original_image
         .lock()
         .unwrap_or_else(|e| e.into_inner())
         .as_ref()
-        .is_some_and(|loaded| loaded.path == loaded_path);
+        .is_some_and(|loaded| loaded.path == loaded_image.path);
     if !is_open {
-        let thumbnail_handle = app_handle.clone();
-        crate::shell_events::add_to_thumbnail_queue(&state, 1, app_handle);
-        tauri::async_runtime::spawn_blocking(move || {
-            let settings = crate::shell_events::load_settings(&thumbnail_handle);
-            crate::shell_events::regenerate_thumbnails(
-                vec![loaded_path],
-                &thumbnail_handle,
-                &settings,
-                true,
-            );
-        });
+        host.add_to_thumbnail_queue(&state, 1);
+        host.regenerate_thumbnails(vec![loaded_image.path.clone()], true);
     }
 
     Ok(())
 }
 
-pub fn ensure_generated(
-    app_handle: &tauri::AppHandle,
-    loaded_image: &LoadedImage,
-    adjustments: &serde_json::Value,
-) {
+pub fn ensure_generated(host: Arc<dyn Host>, loaded_image: &LoadedImage, adjustments: &serde_json::Value) {
     if !is_enabled(adjustments) {
         return;
     }
@@ -560,36 +537,23 @@ pub fn ensure_generated(
         return;
     }
 
-    let app_handle = app_handle.clone();
     let loaded_image = loaded_image.clone();
     let path = loaded_image.path.clone();
     let [fingerprint, _] = base_fingerprints(&loaded_image.image);
-    let _ = app_handle.emit(
-        "ai-denoise-progress",
-        serde_json::json!({ "path": path, "progress": 0.0 }),
+    host.emit_json("ai-denoise-progress", serde_json::json!({ "path": path, "progress": 0.0 }),
     );
 
-    tauri::async_runtime::spawn(async move {
-        let result = generate(
-            &app_handle,
-            loaded_image,
-            method,
-            key.clone(),
-            source,
-            fingerprint,
-        )
-        .await;
+    std::thread::spawn(move || {
+        let result = generate_blocking(&host, loaded_image, method, key.clone(), source, fingerprint);
         cache().pending.remove(&key);
-        crate::shell_events::release_deferred(&path);
+        host.release_deferred(&path);
         match result {
             Ok(()) => {
-                let _ = app_handle.emit("ai-denoise-ready", &path);
+                host.emit_json("ai-denoise-ready", path.into());
             }
             Err(error) => {
                 log::error!("AI denoise failed for {}: {}", path, error);
-                let _ = app_handle.emit(
-                    "ai-denoise-error",
-                    serde_json::json!({ "path": path, "error": error }),
+                host.emit_json("ai-denoise-error", serde_json::json!({ "path": path, "error": error }),
                 );
             }
         }
@@ -611,7 +575,7 @@ pub fn is_generating(path: &str) -> bool {
 }
 
 pub fn generate_for_base(
-    app_handle: &tauri::AppHandle,
+    host: &dyn Host,
     path: &str,
     base: &DynamicImage,
     method: DenoiseMethod,
@@ -628,36 +592,29 @@ pub fn generate_for_base(
         return Ok(true);
     }
 
-    let _ = app_handle.emit(
-        "ai-denoise-progress",
-        serde_json::json!({ "path": path, "progress": 0.0 }),
+    host.emit_json("ai-denoise-progress", serde_json::json!({ "path": path, "progress": 0.0 }),
     );
-    let result =
-        tauri::async_runtime::block_on(load_session(app_handle, method)).and_then(|session| {
-            denoise_into_cache(
-                base,
-                session.as_ref(),
-                key.clone(),
-                source,
-                fingerprints[0],
-                &|progress| {
-                    let _ = app_handle.emit(
-                        "ai-denoise-progress",
-                        serde_json::json!({ "path": path, "progress": progress }),
-                    );
-                },
-            )
-        });
+    let result = pollster::block_on(load_session(host, method)).and_then(|session| {
+        denoise_into_cache(
+            base,
+            session.as_ref(),
+            key.clone(),
+            source,
+            fingerprints[0],
+            &|progress| {
+                host.emit_json("ai-denoise-progress", serde_json::json!({ "path": path, "progress": progress }),
+                );
+            },
+        )
+    });
 
     cache().pending.remove(&key);
     match &result {
         Ok(()) => {
-            let _ = app_handle.emit("ai-denoise-ready", path);
+            host.emit_json("ai-denoise-ready", path.into());
         }
         Err(error) => {
-            let _ = app_handle.emit(
-                "ai-denoise-error",
-                serde_json::json!({ "path": path, "error": error }),
+            host.emit_json("ai-denoise-error", serde_json::json!({ "path": path, "error": error }),
             );
         }
     }
@@ -679,8 +636,7 @@ fn cache_files() -> Vec<(PathBuf, u64)> {
         .collect()
 }
 
-#[tauri::command]
-pub fn clear_ai_denoise_cache() -> Result<(), String> {
+pub fn clear_cache_files() -> Result<(), String> {
     for (path, _) in cache_files() {
         fs::remove_file(&path)
             .map_err(|e| format!("Failed to remove {}: {}", path.display(), e))?;

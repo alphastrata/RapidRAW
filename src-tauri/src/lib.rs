@@ -1,4 +1,5 @@
 #[cfg(not(all(target_os = "windows", target_arch = "aarch64")))]
+use crate::host::TauriHost;
 use mimalloc::MiMalloc;
 
 #[cfg(not(all(target_os = "windows", target_arch = "aarch64")))]
@@ -20,6 +21,7 @@ macro_rules! cli_eprintln {
 }
 
 mod ai_commands;
+mod host;
 pub use engine::ai_connector;
 mod android_integration;
 mod app_settings;
@@ -46,13 +48,13 @@ pub mod tagging;
 mod tagging_utils;
 mod window_customizer;
 
-use std::collections::{HashMap, hash_map::DefaultHasher};
+use std::collections::hash_map::DefaultHasher;
 use std::fs;
 use std::hash::{Hash, Hasher};
 use std::io::Cursor;
 use std::io::Write;
 use std::panic;
-use std::sync::atomic::{AtomicBool, AtomicU64, AtomicUsize, Ordering};
+use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::mpsc::{self, Receiver, Sender};
 
 use std::borrow::Cow;
@@ -75,10 +77,9 @@ use tauri::{
     ipc::{Channel, InvokeResponseBody, Response},
 };
 use tempfile::NamedTempFile;
-use tokio::sync::Mutex as TokioMutex;
 
 use crate::cache_utils::{
-    DecodedImageCache, calculate_full_job_hash, calculate_geometry_hash, calculate_transform_hash,
+    calculate_full_job_hash, calculate_geometry_hash, calculate_transform_hash,
 };
 use engine::paths::parse_virtual_path;
 use crate::formats::is_raw_file;
@@ -622,7 +623,7 @@ fn process_preview_job(
         .clone();
     drop(loaded_image_guard);
 
-    crate::ai_denoise::ensure_generated(app_handle, &loaded_image, &adjustments_clone);
+    crate::ai_denoise::ensure_generated(TauriHost::host(app_handle.clone()), &loaded_image, &adjustments_clone);
 
     let new_transform_hash = calculate_transform_hash(&adjustments_clone);
     let settings = load_settings(app_handle.clone()).unwrap_or_default();
@@ -2454,53 +2455,7 @@ pub fn run() {
 
             Ok(())
         })
-        .manage(AppState {
-            window_setup_complete: AtomicBool::new(false),
-            gpu_crash_flag_path: Mutex::new(None),
-            original_image: Mutex::new(None),
-            cached_preview: Mutex::new(None),
-            gpu_context: Mutex::new(None),
-            gpu_image_cache: Mutex::new(None),
-            gpu_processor: Mutex::new(None),
-            ai_state: Mutex::new(None),
-            ai_init_lock: TokioMutex::new(()),
-            active_ai_tasks: Mutex::new(HashMap::new()),
-            export_task_token: Arc::new(Mutex::new(None)),
-            hdr_result: Arc::new(Mutex::new(None)),
-            panorama_result: Arc::new(Mutex::new(None)),
-            focus_stack_result: Arc::new(Mutex::new(None)),
-            indexing_task_handle: Mutex::new(None),
-            lut_cache: Mutex::new(HashMap::new()),
-            initial_file_path: Mutex::new(None),
-            pending_edit_session: Mutex::new(None),
-            thumbnail_cancellation_token: Arc::new(AtomicBool::new(false)),
-            thumbnail_progress: Mutex::new(ThumbnailProgressTracker { total: 0, completed: 0 }),
-            preview_worker_tx: Mutex::new(None),
-            analytics_worker_tx: Mutex::new(None),
-            analytics_channel: Mutex::new(None),
-            mask_cache: Mutex::new(HashMap::new()),
-            patch_cache: Mutex::new(HashMap::new()),
-            geometry_cache: Mutex::new(HashMap::new()),
-            thumbnail_geometry_cache: Mutex::new(HashMap::new()),
-            lens_db: Mutex::new(None),
-            load_image_generation: Arc::new(AtomicUsize::new(0)),
-            full_warped_cache: Mutex::new(None),
-            full_warped_build_lock: Mutex::new(()),
-            wgpu_presented_generation: AtomicUsize::new(usize::MAX),
-            patched_cache: Mutex::new(None),
-            warped_cache: Mutex::new(None),
-            working_cache: Mutex::new(None),
-            effects_cache: Mutex::new(None),
-            full_transformed_cache: Mutex::new(None),
-            decoded_image_cache: Mutex::new(DecodedImageCache::new(5)),
-            decode_flights: Default::default(),
-            thumbnail_manager: ThumbnailManager::new(),
-            memory_budget: crate::memory_budget::MemoryBudget::from_total_ram(0.6),
-            metadata_manager: MetadataManager::new(),
-            disks_cache: Mutex::new(None),
-            disks_cache_refreshing: AtomicBool::new(false),
-            camera_session: Mutex::new(camera_tethering::CameraSession::new()),
-        })
+        .manage(Arc::new(AppState::new()))
         .invoke_handler(tauri::generate_handler![
             apply_adjustments,
             subscribe_analytics,

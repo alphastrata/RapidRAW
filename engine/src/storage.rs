@@ -5,8 +5,6 @@ use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::{LazyLock, Mutex};
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
-use tauri::{AppHandle, Manager};
-use walkdir::WalkDir;
 
 use crate::settings::{
     AppSettings, default_ai_cache_limit_gb, default_ai_maps_cache_limit_gb,
@@ -212,12 +210,3 @@ pub struct StorageUsage {
 
 
 
-fn dir_size(path: &Path) -> u64 {
-    WalkDir::new(path)
-        .into_iter()
-        .filter_map(|e| e.ok())
-        .filter_map(|e| e.metadata().ok())
-        .filter(|meta| meta.is_file())
-        .map(|meta| meta.len())
-        .sum()
-}

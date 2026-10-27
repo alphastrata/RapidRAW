@@ -1839,7 +1839,6 @@ dependencies = [
  "half",
  "hex",
  "image",
- "image_hasher",
  "imageproc",
  "imgref",
  "kamadak-exif",

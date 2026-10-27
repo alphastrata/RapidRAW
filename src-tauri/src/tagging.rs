@@ -1,3 +1,4 @@
+use crate::host::TauriHost;
 use anyhow::Result;
 use futures::stream::{self, StreamExt};
 use image::{DynamicImage, imageops::FilterType};
@@ -294,7 +295,7 @@ pub async fn start_background_indexing(
     let ai_tag_count = settings.ai_tag_count.unwrap_or(10) as usize;
 
     let clip_models = crate::ai_processing::get_or_init_clip_models(
-        &app_handle,
+        &*TauriHost::host(app_handle.clone()),
         &state.ai_state,
         &state.ai_init_lock,
     )

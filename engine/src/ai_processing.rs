@@ -21,8 +21,7 @@ use ort::value::{Tensor, TensorRef, ValueType};
 use rayon::prelude::*;
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
-use tauri::Emitter;
-use tauri::Manager;
+use crate::host::Host;
 use tokenizers::Tokenizer;
 use tokio::sync::Mutex as TokioMutex;
 
@@ -632,11 +631,8 @@ fn build_session(
     create_session(model_path, kind, None, None)
 }
 
-pub fn gpu_acceleration_enabled(_app_handle: &tauri::AppHandle) -> bool {
-    GPU_STATUS.load(Ordering::Acquire) < GPU_FAILED
-        && Ok::<_, String>(crate::settings::AppSettings::default()).ok()
-            .map(|settings| settings.ai_gpu_acceleration)
-            .unwrap_or(true)
+pub fn gpu_acceleration_enabled(settings: &crate::settings::AppSettings) -> bool {
+    GPU_STATUS.load(Ordering::Acquire) < GPU_FAILED && settings.ai_gpu_acceleration
 }
 
 pub fn gpu_inference<T>(result: ort::Result<T>) -> Result<T> {
@@ -1045,8 +1041,8 @@ pub fn fast_color_guided_filter(
     GrayImage::from_raw(hr_w as u32, hr_h as u32, final_mask_raw).unwrap()
 }
 
-fn get_models_dir(app_handle: &tauri::AppHandle) -> Result<PathBuf> {
-    let models_dir = app_handle.path().app_data_dir()?.join("models");
+fn get_models_dir(host: &dyn Host) -> Result<PathBuf> {
+    let models_dir = host.models_dir();
     if !models_dir.exists() {
         fs::create_dir_all(&models_dir)?;
     }
@@ -1094,7 +1090,7 @@ fn persist_downloaded_asset(dest: &Path, bytes: &[u8]) -> Result<()> {
 }
 
 async fn download_model(
-    app_handle: &tauri::AppHandle,
+    host: &dyn Host,
     asset: &ModelAsset,
     dest: &Path,
 ) -> Result<()> {
@@ -1106,7 +1102,7 @@ async fn download_model(
         bytes.extend_from_slice(&chunk);
         if total > 0 && last_progress.elapsed() >= Duration::from_millis(200) {
             last_progress = Instant::now();
-            let _ = app_handle.emit(
+            host.emit_json(
                 "ai-model-download-progress",
                 serde_json::json!({ "name": asset.name, "current": bytes.len(), "total": total }),
             );
@@ -1135,7 +1131,7 @@ fn verify_sha256(path: &Path, expected_hash: &str) -> Result<bool> {
 }
 
 async fn download_and_verify_model(
-    app_handle: &tauri::AppHandle,
+    host: &dyn Host,
     models_dir: &Path,
     asset: &ModelAsset,
 ) -> Result<()> {
@@ -1150,9 +1146,9 @@ async fn download_and_verify_model(
             println!("Model {} has incorrect hash. Re-downloading.", asset.name);
             fs::remove_file(&dest_path)?;
         }
-        let _ = app_handle.emit("ai-model-download-start", asset.name);
+        host.emit_str("ai-model-download-start", asset.name);
         let download_result = async {
-            download_model(app_handle, asset, &dest_path).await?;
+            download_model(host, asset, &dest_path).await?;
             if let Some(expected_hash) = asset.sha256
                 && !verify_sha256(&dest_path, expected_hash)?
             {
@@ -1164,9 +1160,7 @@ async fn download_and_verify_model(
             Ok(())
         }
         .await;
-        let _ = app_handle.emit(
-            "ai-model-download-finish",
-            serde_json::json!({
+        host.emit_json("ai-model-download-finish", serde_json::json!({
                 "name": asset.name,
                 "error": download_result.as_ref().err().map(|e| e.to_string()),
             }),
@@ -1177,7 +1171,7 @@ async fn download_and_verify_model(
 }
 
 pub async fn get_or_init_ai_models(
-    app_handle: &tauri::AppHandle,
+    host: &dyn Host,
     ai_state_mutex: &Mutex<Option<AiState>>,
     ai_init_lock: &TokioMutex<()>,
     model: AiMaskModel,
@@ -1196,11 +1190,11 @@ pub async fn get_or_init_ai_models(
         Some(models) => models,
         None => {
             let _ = ort::init().with_name("AI").commit();
-            crate::shell_events::register_exit_handler();
+            crate::host::register_exit_once(host);
 
             let models = Arc::new(AiModels {
-                models_dir: get_models_dir(app_handle)?,
-                use_gpu: gpu_acceleration_enabled(app_handle),
+                models_dir: get_models_dir(host)?,
+                use_gpu: gpu_acceleration_enabled(&host.load_settings()),
                 downloaded: Mutex::new(HashSet::new()),
                 sam_encoder: Mutex::new(None),
                 sam_decoder: Mutex::new(None),
@@ -1226,7 +1220,7 @@ pub async fn get_or_init_ai_models(
 
     if !is_downloaded(&models) {
         for asset in model.assets(models.gpu_inference()) {
-            download_and_verify_model(app_handle, &models.models_dir, asset).await?;
+            download_and_verify_model(host, &models.models_dir, asset).await?;
         }
         models.downloaded.lock().unwrap().insert(model);
     }
@@ -1235,7 +1229,7 @@ pub async fn get_or_init_ai_models(
 }
 
 pub async fn get_or_init_denoise_model(
-    app_handle: &tauri::AppHandle,
+    host: &dyn Host,
     ai_state_mutex: &Mutex<Option<AiState>>,
     ai_init_lock: &TokioMutex<()>,
 ) -> Result<Arc<Mutex<Session>>> {
@@ -1253,20 +1247,20 @@ pub async fn get_or_init_denoise_model(
         return Ok(denoise_model);
     }
 
-    let models_dir = get_models_dir(app_handle)?;
-    download_and_verify_model(app_handle, &models_dir, &DENOISE_ASSET).await?;
+    let models_dir = get_models_dir(host)?;
+    download_and_verify_model(host, &models_dir, &DENOISE_ASSET).await?;
 
     let _ = ort::init().with_name("AI-Denoise").commit();
     let model_path = models_dir.join(DENOISE_FILENAME);
     let session = build_session(
         &model_path,
         SessionKind::Persistent,
-        gpu_acceleration_enabled(app_handle),
+        gpu_acceleration_enabled(&host.load_settings()),
         Some(denoise_crop_as_slice),
     )?;
     let denoise_model = Arc::new(Mutex::new(session));
 
-    crate::shell_events::register_exit_handler();
+    crate::host::register_exit_once(host);
 
     ai_state_mutex
         .lock()
@@ -1278,7 +1272,7 @@ pub async fn get_or_init_denoise_model(
 }
 
 pub async fn get_or_init_clip_models(
-    app_handle: &tauri::AppHandle,
+    host: &dyn Host,
     ai_state_mutex: &Mutex<Option<AiState>>,
     ai_init_lock: &TokioMutex<()>,
 ) -> Result<Arc<ClipModels>> {
@@ -1292,10 +1286,10 @@ pub async fn get_or_init_clip_models(
         return Ok(clip_models);
     }
 
-    let models_dir = get_models_dir(app_handle)?;
+    let models_dir = get_models_dir(host)?;
 
-    download_and_verify_model(app_handle, &models_dir, &CLIP_MODEL_ASSET).await?;
-    download_and_verify_model(app_handle, &models_dir, &CLIP_TOKENIZER_ASSET).await?;
+    download_and_verify_model(host, &models_dir, &CLIP_MODEL_ASSET).await?;
+    download_and_verify_model(host, &models_dir, &CLIP_TOKENIZER_ASSET).await?;
     let clip_tokenizer_path = models_dir.join(CLIP_TOKENIZER_FILENAME);
 
     let _ = ort::init().with_name("AI-Tagging").commit();
@@ -1303,13 +1297,13 @@ pub async fn get_or_init_clip_models(
     let model = Mutex::new(build_session(
         &clip_model_path,
         SessionKind::Persistent,
-        gpu_allowed_on_platform() && gpu_acceleration_enabled(app_handle),
+        gpu_allowed_on_platform() && gpu_acceleration_enabled(&host.load_settings()),
         None,
     )?);
     let tokenizer =
         Tokenizer::from_file(clip_tokenizer_path).map_err(|e| anyhow::anyhow!(e.to_string()))?;
 
-    crate::shell_events::register_exit_handler();
+    crate::host::register_exit_once(host);
 
     let clip_models = Arc::new(ClipModels { model, tokenizer });
 
@@ -1323,7 +1317,7 @@ pub async fn get_or_init_clip_models(
 }
 
 pub async fn get_or_init_lama_model(
-    app_handle: &tauri::AppHandle,
+    host: &dyn Host,
     ai_state_mutex: &Mutex<Option<AiState>>,
     ai_init_lock: &TokioMutex<()>,
 ) -> Result<Arc<Mutex<Session>>> {
@@ -1337,15 +1331,15 @@ pub async fn get_or_init_lama_model(
         return Ok(lama_model);
     }
 
-    let models_dir = get_models_dir(app_handle)?;
-    download_and_verify_model(app_handle, &models_dir, &LAMA_ASSET).await?;
+    let models_dir = get_models_dir(host)?;
+    download_and_verify_model(host, &models_dir, &LAMA_ASSET).await?;
 
     let _ = ort::init().with_name("AI-Inpainting").commit();
     let model_path = models_dir.join(LAMA_FILENAME);
     let session = build_session(&model_path, SessionKind::OneShot, false, None)?;
     let lama_model = Arc::new(Mutex::new(session));
 
-    crate::shell_events::register_exit_handler();
+    crate::host::register_exit_once(host);
 
     ai_state_mutex
         .lock()
@@ -1357,7 +1351,7 @@ pub async fn get_or_init_lama_model(
 }
 
 pub async fn get_or_init_normal_model(
-    app_handle: &tauri::AppHandle,
+    host: &dyn Host,
     ai_state_mutex: &Mutex<Option<AiState>>,
     ai_init_lock: &TokioMutex<()>,
 ) -> Result<Arc<Mutex<Session>>> {
@@ -1373,20 +1367,20 @@ pub async fn get_or_init_normal_model(
         return Ok(normal_model);
     }
 
-    let models_dir = get_models_dir(app_handle)?;
-    download_and_verify_model(app_handle, &models_dir, &NORMAL_ASSET).await?;
+    let models_dir = get_models_dir(host)?;
+    download_and_verify_model(host, &models_dir, &NORMAL_ASSET).await?;
 
     let _ = ort::init().with_name("AI-Normal").commit();
     let model_path = models_dir.join(NORMAL_FILENAME);
     let session = build_session(
         &model_path,
         SessionKind::OneShot,
-        gpu_allowed_on_platform() && gpu_acceleration_enabled(app_handle),
+        gpu_allowed_on_platform() && gpu_acceleration_enabled(&host.load_settings()),
         None,
     )?;
     let normal_model = Arc::new(Mutex::new(session));
 
-    crate::shell_events::register_exit_handler();
+    crate::host::register_exit_once(host);
 
     ai_state_mutex
         .lock()

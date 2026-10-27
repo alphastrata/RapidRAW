@@ -1,3 +1,4 @@
+use crate::host::TauriHost;
 use std::collections::{HashMap, HashSet, VecDeque};
 use std::fs;
 use std::io::{Read, Seek, SeekFrom};
@@ -880,7 +881,7 @@ fn process_path(
 
         let job_result = match &job {
             Job::Denoise(method) => {
-                match crate::ai_denoise::generate_for_base(app_handle, path, &base, *method) {
+                match crate::ai_denoise::generate_for_base(&*TauriHost::host(app_handle.clone()), path, &base, *method) {
                     Ok(false) => {
                         outcome = Outcome::Deferred;
                         continue;
@@ -981,7 +982,7 @@ fn generate_mask(
         MaskKind::Subject => AiMaskModel::Subject,
     };
     let models = tauri::async_runtime::block_on(get_or_init_ai_models(
-        app_handle,
+        &*TauriHost::host(app_handle.clone()),
         &state.ai_state,
         &state.ai_init_lock,
         model,

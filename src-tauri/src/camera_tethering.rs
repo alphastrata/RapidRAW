@@ -1,4 +1,4 @@
-pub use engine::tethering::{CameraConfigChoice, CameraSession};
+pub use engine::tethering::CameraConfigChoice;
 
 
 use std::collections::HashMap;

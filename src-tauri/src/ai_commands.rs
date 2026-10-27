@@ -1,3 +1,4 @@
+use crate::host::TauriHost;
 use std::collections::hash_map::DefaultHasher;
 use std::hash::{Hash, Hasher};
 use std::io::Cursor;
@@ -562,7 +563,7 @@ pub async fn generate_ai_foreground_mask(
     check_cancelled(&guard)?;
 
     let models = get_or_init_ai_models(
-        &app_handle,
+        &*TauriHost::host(app_handle.clone()),
         &state.ai_state,
         &state.ai_init_lock,
         AiMaskModel::Foreground,
@@ -608,7 +609,7 @@ pub async fn generate_ai_sky_mask(
     check_cancelled(&guard)?;
 
     let models = get_or_init_ai_models(
-        &app_handle,
+        &*TauriHost::host(app_handle.clone()),
         &state.ai_state,
         &state.ai_init_lock,
         AiMaskModel::Sky,
@@ -662,7 +663,7 @@ pub async fn generate_ai_text_mask(
     check_cancelled(&guard)?;
 
     let models = get_or_init_ai_models(
-        &app_handle,
+        &*TauriHost::host(app_handle.clone()),
         &state.ai_state,
         &state.ai_init_lock,
         AiMaskModel::Text,
@@ -717,7 +718,7 @@ pub async fn generate_ai_face_mask(
     check_cancelled(&guard)?;
 
     let models = get_or_init_ai_models(
-        &app_handle,
+        &*TauriHost::host(app_handle.clone()),
         &state.ai_state,
         &state.ai_init_lock,
         AiMaskModel::Face,
@@ -776,7 +777,7 @@ pub async fn generate_ai_depth_mask(
     check_cancelled(&guard)?;
 
     let models = get_or_init_ai_models(
-        &app_handle,
+        &*TauriHost::host(app_handle.clone()),
         &state.ai_state,
         &state.ai_init_lock,
         AiMaskModel::Depth,
@@ -835,7 +836,7 @@ pub async fn generate_ai_subject_mask(
     check_cancelled(&guard)?;
 
     let models = get_or_init_ai_models(
-        &app_handle,
+        &*TauriHost::host(app_handle.clone()),
         &state.ai_state,
         &state.ai_init_lock,
         AiMaskModel::Subject,
@@ -876,7 +877,7 @@ pub async fn precompute_ai_subject_mask(
     app_handle: tauri::AppHandle,
 ) -> Result<(), String> {
     let models = get_or_init_ai_models(
-        &app_handle,
+        &*TauriHost::host(app_handle.clone()),
         &state.ai_state,
         &state.ai_init_lock,
         AiMaskModel::Subject,
@@ -911,7 +912,7 @@ pub async fn generate_effect_map(
     let map = match kind {
         EffectMapKind::Depth => {
             let models = get_or_init_ai_models(
-                app_handle,
+                &*TauriHost::host(app_handle.clone()),
                 &state.ai_state,
                 &state.ai_init_lock,
                 AiMaskModel::Depth,
@@ -925,7 +926,7 @@ pub async fn generate_effect_map(
         }
         EffectMapKind::Normal => {
             let session = crate::ai_processing::get_or_init_normal_model(
-                app_handle,
+                &*TauriHost::host(app_handle.clone()),
                 &state.ai_state,
                 &state.ai_init_lock,
             )

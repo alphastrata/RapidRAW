@@ -1,3 +1,4 @@
+use crate::host::TauriHost;
 use std::io::Cursor;
 
 use base64::{Engine as _, engine::general_purpose};
@@ -450,7 +451,7 @@ pub async fn invoke_generative_replace_with_mask_def(
 
     let (final_patch, patch_x, patch_y) = if use_fast_inpaint {
         let lama_model = ai_processing::get_or_init_lama_model(
-            &app_handle,
+            &*TauriHost::host(app_handle.clone()),
             &state.ai_state,
             &state.ai_init_lock,
         )
