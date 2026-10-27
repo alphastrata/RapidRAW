@@ -22,7 +22,8 @@ macro_rules! cli_eprintln {
 
 mod ai_commands;
 pub mod cache_utils;
-mod host;
+pub mod host;
+pub mod image_processing;
 pub mod lut_processing;
 pub mod mask_generation;
 pub use engine::ai_connector;
@@ -93,7 +94,7 @@ use crate::image_processing::{
     Crop, RenderRequest, apply_coarse_rotation, apply_flip, apply_geometry_warp,
     apply_linear_to_srgb, downscale_f32_image, get_all_adjustments_from_json,
     get_geometry_params_from_json, get_or_init_gpu_context, is_geometry_identity,
-    process_and_get_dynamic_image, resolve_render_options, resolve_render_options_from_handle,
+    process_and_get_dynamic_image, resolve_render_options,
     warp_image_geometry,
 };
 use crate::mask_generation::{
@@ -764,7 +765,10 @@ fn process_preview_job(
     );
 
     let is_raw = loaded_image.is_raw;
-    let render = resolve_render_options_from_handle(app_handle, is_raw);
+    let render = resolve_render_options(
+        &crate::app_settings::load_settings(app_handle.clone()).unwrap_or_default(),
+        is_raw,
+    );
     let final_adjustments =
         get_all_adjustments_from_json(&adjustments_clone, is_raw, loaded_image.as_shot, render);
     let lut_path = adjustments_clone["lutPath"].as_str();
@@ -1160,7 +1164,10 @@ async fn generate_uncropped_preview(
         )
         .bitmaps;
 
-        let render = resolve_render_options_from_handle(&app_handle, is_raw);
+        let render = resolve_render_options(
+            &crate::app_settings::load_settings(app_handle.clone()).unwrap_or_default(),
+            is_raw,
+        );
         let mut uncropped_adjustments =
             get_all_adjustments_from_json(&adjustments_clone, is_raw, loaded_image.as_shot, render);
         uncropped_adjustments.global.show_clipping = 0;
@@ -1275,7 +1282,10 @@ async fn generate_preset_preview(
         )
         .bitmaps;
 
-        let render = resolve_render_options_from_handle(&app_handle, is_raw);
+        let render = resolve_render_options(
+            &crate::app_settings::load_settings(app_handle.clone()).unwrap_or_default(),
+            is_raw,
+        );
         let mut all_adjustments =
             get_all_adjustments_from_json(&js_adjustments, is_raw, loaded_image.as_shot, render);
         all_adjustments.global.show_clipping = 0;
@@ -1458,7 +1468,10 @@ async fn generate_all_community_previews(
                     })
                     .collect();
 
-                let render = resolve_render_options_from_handle(&app_handle, *is_raw);
+                let render = resolve_render_options(
+                &crate::app_settings::load_settings(app_handle.clone()).unwrap_or_default(),
+                *is_raw,
+            );
                 let all_adjustments =
                     get_all_adjustments_from_json(&scaled_adjustments, *is_raw, *as_shot, render);
                 let lut_path = js_adjustments["lutPath"].as_str();
@@ -2680,7 +2693,6 @@ pub use engine::focus_stacking;
 pub use engine::fog;
 pub use engine::gpu_processing;
 pub mod image_loader;
-pub use engine::image_processing;
 pub use engine::lens_blur;
 pub use engine::lens_correction;
 

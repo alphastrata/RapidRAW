@@ -2216,12 +2216,8 @@ pub fn resolve_render_options(settings: &crate::settings::AppSettings, is_raw: b
     }
 }
 
-pub fn resolve_render_options_from_handle(
-    _app_handle: &tauri::AppHandle,
-    is_raw: bool,
-) -> RenderOptions {
-    let settings = crate::settings::AppSettings::default();
-    resolve_render_options(&settings, is_raw)
+pub fn resolve_render_options_from_settings(settings: &crate::settings::AppSettings, is_raw: bool) -> RenderOptions {
+    resolve_render_options(settings, is_raw)
 }
 
 pub fn apply_cpu_agx_tonemap(image: &mut DynamicImage) {
@@ -4347,12 +4343,11 @@ pub fn auto_results_to_json(
     })
 }
 
-#[tauri::command]
 pub fn calculate_auto_adjustments(
     js_adjustments: serde_json::Value,
     mode: Option<AutoAdjustMode>,
-    state: tauri::State<AppState>,
-    app_handle: tauri::AppHandle,
+    state: &AppState,
+    settings: &crate::settings::AppSettings,
 ) -> Result<serde_json::Value, String> {
     let loaded_image = state
         .original_image
@@ -4361,7 +4356,7 @@ pub fn calculate_auto_adjustments(
         .clone()
         .ok_or("No image loaded for auto adjustments")?;
 
-    let render = resolve_render_options_from_handle(&app_handle, loaded_image.is_raw);
+    let render = resolve_render_options(settings, loaded_image.is_raw);
     let exposure =
         effective_baseline_exposure(&js_adjustments, loaded_image.as_shot, render.baseline);
     let results = perform_auto_analysis(&loaded_image.image, exposure);
@@ -4516,11 +4511,10 @@ fn compute_white_balance_sample(
     })
 }
 
-#[tauri::command]
-pub async fn sample_white_balance(
+pub fn sample_white_balance(
     corners: Vec<UvPoint>,
     js_adjustments: Option<Value>,
-    state: tauri::State<'_, AppState>,
+    state: &AppState,
 ) -> Result<WhiteBalanceSample, String> {
     let loaded_image = state
         .original_image
@@ -4533,21 +4527,17 @@ pub async fn sample_white_balance(
         .then(|| crate::cached_patched_image(&state, &loaded_image.image, &adjustments))
         .flatten();
 
-    tokio::task::spawn_blocking(move || {
-        let image = match &converted {
-            Some(image) => Cow::Borrowed(image.as_ref()),
-            None => crate::negative_conversion::apply_negative_conversion(
-                Cow::Borrowed(loaded_image.image.as_ref()),
-                &adjustments,
-            ),
-        };
-        compute_white_balance_sample(
-            &image,
-            crate::negative_conversion::effective_is_raw(loaded_image.is_raw, &adjustments),
-            loaded_image.as_shot.white_balance,
-            &corners,
-        )
-    })
-    .await
-    .map_err(|e| format!("Task execution failed: {}", e))?
+    let image = match &converted {
+        Some(image) => Cow::Borrowed(image.as_ref()),
+        None => crate::negative_conversion::apply_negative_conversion(
+            Cow::Borrowed(loaded_image.image.as_ref()),
+            &adjustments,
+        ),
+    };
+    compute_white_balance_sample(
+        &image,
+        crate::negative_conversion::effective_is_raw(loaded_image.is_raw, &adjustments),
+        loaded_image.as_shot.white_balance,
+        &corners,
+    )
 }

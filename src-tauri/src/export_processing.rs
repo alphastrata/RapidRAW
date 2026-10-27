@@ -35,7 +35,7 @@ use crate::image_processing::{
     AllAdjustments, Crop, GpuContext, RenderOptions, RenderOutputPrecision, RenderRequest,
     downscale_f32_image, get_all_adjustments_from_json, get_or_init_gpu_context,
     process_and_get_dynamic_image, process_and_get_dynamic_image_with_precision,
-    resolve_render_options_from_handle,
+    resolve_render_options,
 };
 use crate::lut_processing::{
     convert_image_to_cube_lut, generate_identity_lut_image, get_or_load_lut,
@@ -1066,7 +1066,7 @@ fn process_image_for_export_pipeline(
         })
         .collect();
 
-    let render = resolve_render_options_from_handle(app_handle, is_raw);
+    let render = resolve_render_options(&crate::app_settings::load_settings(app_handle.clone()).unwrap_or_default(), is_raw);
     let mut all_adjustments =
         get_all_adjustments_from_json(js_adjustments, is_raw, as_shot(path), render);
     all_adjustments.global.show_clipping = 0;
@@ -1438,7 +1438,7 @@ fn export_masks_for_image(
     }
 
     if !mask_bitmaps.is_empty() {
-        let render = resolve_render_options_from_handle(app_handle, is_raw);
+        let render = resolve_render_options(&crate::app_settings::load_settings(app_handle.clone()).unwrap_or_default(), is_raw);
         let all_adjustments =
             get_all_adjustments_from_json(js_adjustments, is_raw, as_shot(source_path_str), render);
         let lut_path = js_adjustments["lutPath"].as_str();
@@ -1548,7 +1548,7 @@ fn export_adjustments_as_lut(
 
     let render = RenderOptions {
         baseline: BaselineOptions::default(),
-        ..resolve_render_options_from_handle(app_handle, false)
+        ..resolve_render_options(&crate::app_settings::load_settings(app_handle.clone()).unwrap_or_default(), false)
     };
     let mut all_adjustments =
         get_all_adjustments_from_json(js_adjustments, false, as_shot(source_path_str), render);
@@ -2369,7 +2369,7 @@ pub async fn estimate_export_sizes(
         )
         .bitmaps;
 
-        let render = resolve_render_options_from_handle(&app_handle, is_raw);
+        let render = resolve_render_options(&crate::app_settings::load_settings(app_handle.clone()).unwrap_or_default(), is_raw);
         let mut all_adjustments =
             get_all_adjustments_from_json(&adjustments_clone, is_raw, loaded_image.as_shot, render);
         all_adjustments.global.show_clipping = 0;
@@ -2502,7 +2502,7 @@ pub async fn estimate_export_sizes(
         )
         .bitmaps;
 
-        let render = resolve_render_options_from_handle(&app_handle, is_raw);
+        let render = resolve_render_options(&crate::app_settings::load_settings(app_handle.clone()).unwrap_or_default(), is_raw);
         let mut all_adjustments = get_all_adjustments_from_json(
             &js_adjustments,
             is_raw,
