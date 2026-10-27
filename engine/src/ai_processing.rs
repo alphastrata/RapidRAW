@@ -1,5 +1,6 @@
 use crate::best_effort::best_effort;
 use std::collections::HashSet;
+use std::ops::ControlFlow;
 use std::fs;
 use std::io::{Read, Write};
 use std::path::{Path, PathBuf};
@@ -442,9 +443,9 @@ impl AiModels {
         let ids = encoding.get_ids();
         let mut tokens = Array::<i64, _>::zeros((1, ESAM3_PROMPT_TOKENS));
         let kept = ids.len().min(ESAM3_PROMPT_TOKENS);
-        for (i, &id) in ids[..kept].iter().enumerate() {
+        ids[..kept].iter().enumerate().for_each(|(i, &id)| {
             tokens[[0, i]] = i64::from(id);
-        }
+        });
         if let Some(&end) = ids.last()
             && ids.len() > ESAM3_PROMPT_TOKENS
         {
@@ -727,15 +728,20 @@ fn edt_1d(f: &mut [f32], v: &mut [usize], z: &mut [f32], d: &mut [f32]) {
     z[0] = f32::NEG_INFINITY;
     z[1] = f32::INFINITY;
     for q in 1..n {
-        let mut s = ((f[q] + (q * q) as f32) - (f[v[k]] + (v[k] * v[k]) as f32))
-            / (2.0 * (q as f32 - v[k] as f32));
+        let q_f = q as f32;
+        let vk = v[k];
+        let vk_f = vk as f32;
+        let mut s = ((f[q] + q_f * q_f) - (f[vk] + vk_f * vk_f))
+            / (2.0 * (q_f - vk_f));
         while s <= z[k] {
             if k == 0 {
                 break;
             }
             k -= 1;
-            s = ((f[q] + (q * q) as f32) - (f[v[k]] + (v[k] * v[k]) as f32))
-                / (2.0 * (q as f32 - v[k] as f32));
+            let nk = v[k];
+            let nk_f = nk as f32;
+            s = ((f[q] + q_f * q_f) - (f[nk] + nk_f * nk_f))
+                / (2.0 * (q_f - nk_f));
         }
         k += 1;
         v[k] = q;
@@ -754,33 +760,25 @@ fn edt_1d(f: &mut [f32], v: &mut [usize], z: &mut [f32], d: &mut [f32]) {
 }
 
 fn edt_2d(grid: &[bool], width: usize, height: usize) -> Vec<f32> {
-    let area = width * height;
-    let mut f = vec![0.0; area];
-    for i in 0..area {
-        f[i] = if grid[i] { 1e10 } else { 0.0 };
-    }
+    let mut f: Vec<f32> = grid.iter().map(|&c| if c { 1e10 } else { 0.0 }).collect();
 
     let max_dim = width.max(height);
     let mut v = vec![0; max_dim];
     let mut z = vec![0.0; max_dim + 1];
     let mut d = vec![0.0; max_dim];
 
-    for y in 0..height {
+    (0..height).for_each(|y| {
         let start = y * width;
         let end = start + width;
         edt_1d(&mut f[start..end], &mut v, &mut z, &mut d);
-    }
+    });
 
     let mut col = vec![0.0; height];
-    for x in 0..width {
-        for y in 0..height {
-            col[y] = f[y * width + x];
-        }
+    (0..width).for_each(|x| {
+        col.iter_mut().enumerate().for_each(|(y, c)| *c = f[y * width + x]);
         edt_1d(&mut col, &mut v, &mut z, &mut d);
-        for y in 0..height {
-            f[y * width + x] = col[y];
-        }
-    }
+        col.iter().enumerate().for_each(|(y, &c)| f[y * width + x] = c);
+    });
 
     f.into_iter().map(f32::sqrt).collect()
 }
@@ -790,15 +788,15 @@ fn box_filter_horiz(src: &[f32], dest: &mut [f32], w: usize, r: usize) {
         .zip(src.par_chunks_exact(w))
         .for_each(|(dest_row, src_row)| {
             let mut prefix = vec![0.0; w + 1];
-            for x in 0..w {
-                prefix[x + 1] = prefix[x] + src_row[x];
-            }
-            for (x, dest_val) in dest_row.iter_mut().enumerate() {
+            src_row.iter().enumerate().for_each(|(x, &s)| {
+                prefix[x + 1] = prefix[x] + s;
+            });
+            dest_row.iter_mut().enumerate().for_each(|(x, dest_val)| {
                 let x_min = x.saturating_sub(r);
                 let x_max = (x + r).min(w - 1);
                 let count = (x_max - x_min + 1) as f32;
                 *dest_val = (prefix[x_max + 1] - prefix[x_min]) / count;
-            }
+            });
         });
 }
 
@@ -806,9 +804,10 @@ fn transpose(src: &[f32], dest: &mut [f32], w: usize, h: usize) {
     dest.par_chunks_exact_mut(h)
         .enumerate()
         .for_each(|(x, dest_col)| {
-            for y in 0..h {
-                dest_col[y] = src[y * w + x];
-            }
+            dest_col
+                .iter_mut()
+                .enumerate()
+                .for_each(|(y, c)| *c = src[y * w + x]);
         });
 }
 
@@ -903,8 +902,14 @@ pub fn fast_guided_filter(
     box_filter_opt(&b, &mut mean_b, &mut temp1, &mut temp2, w, h, r);
     drop((a, b, temp1, temp2));
 
-    let mean_a_img = ImageBuffer::<Luma<f32>, Vec<f32>>::from_raw(lr_w, lr_h, mean_a).unwrap();
-    let mean_b_img = ImageBuffer::<Luma<f32>, Vec<f32>>::from_raw(lr_w, lr_h, mean_b).unwrap();
+    let Some(mean_a_img) = ImageBuffer::<Luma<f32>, Vec<f32>>::from_raw(lr_w, lr_h, mean_a)
+    else {
+        unreachable!("guided filter buffers match their dimensions")
+    };
+    let Some(mean_b_img) = ImageBuffer::<Luma<f32>, Vec<f32>>::from_raw(lr_w, lr_h, mean_b)
+    else {
+        unreachable!("guided filter buffers match their dimensions")
+    };
 
     let upscale = |img: ImageBuffer<Luma<f32>, Vec<f32>>| {
         if (lr_w, lr_h) == (hr_w, hr_h) {
@@ -930,7 +935,10 @@ pub fn fast_guided_filter(
             *out = (q.clamp(0.0, 1.0) * 255.0).round() as u8;
         });
 
-    GrayImage::from_raw(hr_w, hr_h, final_mask_raw).unwrap()
+    let Some(final_mask) = GrayImage::from_raw(hr_w, hr_h, final_mask_raw) else {
+        unreachable!("mask buffer matches its dimensions")
+    };
+    final_mask
 }
 
 fn bilinear_sample(i: usize, scale: f32, n: usize) -> (usize, usize, f32) {
@@ -1019,11 +1027,11 @@ pub fn fast_color_guided_filter(
         .enumerate()
         .for_each(|(y, (out_row, guide_row))| {
             let (y0, y1, ty) = bilinear_sample(y, h as f32 / hr_h as f32, h);
-            for (x, (out, pixel)) in out_row
+            out_row
                 .iter_mut()
                 .zip(guide_row.as_chunks::<3>().0)
                 .enumerate()
-            {
+                .for_each(|(x, (out, pixel))| {
                 let (x0, x1, tx) = x_samples[x];
                 let sample = |values: &[f32]| {
                     let top = values[y0 * w + x0] * (1.0 - tx) + values[y0 * w + x1] * tx;
@@ -1035,10 +1043,13 @@ pub fn fast_color_guided_filter(
                     .sum::<f32>()
                     + sample(&mean_coefficients[3]);
                 *out = (q.clamp(0.0, 1.0) * 255.0).round() as u8;
-            }
+                });
         });
 
-    GrayImage::from_raw(hr_w as u32, hr_h as u32, final_mask_raw).unwrap()
+    let Some(final_mask) = GrayImage::from_raw(hr_w as u32, hr_h as u32, final_mask_raw) else {
+        unreachable!("mask buffer matches its dimensions")
+    };
+    final_mask
 }
 
 fn get_models_dir(host: &dyn Host) -> Result<PathBuf> {
@@ -1416,32 +1427,28 @@ fn mirror_coord(c: i32, size: i32) -> i32 {
 fn extract_tile_mirror(img: &Rgb32FImage, x0: i32, y0: i32, cs: usize) -> Array4<f32> {
     let (w, h) = (img.width() as i32, img.height() as i32);
     let mut arr = Array4::zeros((1, 3, cs, cs));
-    for dy in 0..cs as i32 {
-        for dx in 0..cs as i32 {
-            let sx = mirror_coord(x0 + dx, w);
-            let sy = mirror_coord(y0 + dy, h);
-            let px = img.get_pixel(sx as u32, sy as u32);
-            arr[[0, 0, dy as usize, dx as usize]] = px[0];
-            arr[[0, 1, dy as usize, dx as usize]] = px[1];
-            arr[[0, 2, dy as usize, dx as usize]] = px[2];
-        }
-    }
+    let cs_i = cs as i32;
+    (0..cs_i).for_each(|dy| {
+        let dy_u = dy as usize;
+        let sy_u = mirror_coord(y0 + dy, h) as u32;
+        (0..cs_i).for_each(|dx| {
+            let dx_u = dx as usize;
+            let sx_u = mirror_coord(x0 + dx, w) as u32;
+            let px = img.get_pixel(sx_u, sy_u);
+            arr[[0, 0, dy_u, dx_u]] = px[0];
+            arr[[0, 1, dy_u, dx_u]] = px[1];
+            arr[[0, 2, dy_u, dx_u]] = px[2];
+        });
+    });
     arr
 }
 
 fn tile_origins(len: usize, params: TileParams) -> Vec<i32> {
     let valid = params.cs - 2 * params.margin;
     let step = (valid - params.overlap).max(1);
-    let mut origins = Vec::new();
-    let mut start = 0;
-    loop {
-        origins.push(start as i32 - params.margin as i32);
-        if start + valid >= len {
-            break;
-        }
-        start += step;
-    }
-    origins
+    std::iter::successors(Some(0), |&s| if s + valid >= len { None } else { Some(s + step) })
+        .map(|start| start as i32 - params.margin as i32)
+        .collect()
 }
 
 fn tile_blend_weights(params: TileParams) -> Vec<f32> {
@@ -1471,46 +1478,49 @@ fn run_native_denoise(
     let mut accumulator = vec![0.0f32; width * height * 3];
     let mut weight_sum = vec![0.0f32; width * height];
 
-    for (i, (&y0, &x0)) in ys
+    let margin_i = params.margin as i32;
+    let width_i = width as i32;
+    let height_i = height as i32;
+    ys
         .iter()
         .flat_map(|y| xs.iter().map(move |x| (y, x)))
         .enumerate()
-    {
-        on_progress(i as f32 / total as f32);
+        .try_for_each(|(i, (&y0, &x0))| {
+            on_progress(i as f32 / total as f32);
 
-        let crop = extract_tile_mirror(img, x0, y0, params.cs);
-        let t_input = Tensor::from_array(crop.as_standard_layout().to_owned())?;
+            let crop = extract_tile_mirror(img, x0, y0, params.cs);
+            let t_input = Tensor::from_array(crop.as_standard_layout().to_owned())?;
 
-        let tile = {
-            let mut sess = session.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
-            let outputs = gpu_inference(sess.run(ort::inputs![t_input]))?;
-            outputs[0]
-                .try_extract_array::<f32>()?
-                .to_owned()
-                .into_dimensionality::<ndarray::Ix4>()
-                .map_err(|e| anyhow::anyhow!("Unexpected output shape: {e}"))?
-        };
+            let tile = {
+                let mut sess = session.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
+                let outputs = gpu_inference(sess.run(ort::inputs![t_input]))?;
+                outputs[0]
+                    .try_extract_array::<f32>()?
+                    .to_owned()
+                    .into_dimensionality::<ndarray::Ix4>()
+                    .map_err(|e| anyhow::anyhow!("Unexpected output shape: {e}"))?
+            };
 
-        for ty in 0..valid {
-            let gy = y0 + (params.margin + ty) as i32;
-            if gy < 0 || gy >= height as i32 {
-                continue;
-            }
-            for tx in 0..valid {
-                let gx = x0 + (params.margin + tx) as i32;
-                if gx < 0 || gx >= width as i32 {
-                    continue;
+            (0..valid).for_each(|ty| {
+                let gy = y0 + margin_i + ty as i32;
+                if (0..height_i).contains(&gy) {
+                    (0..valid).for_each(|tx| {
+                        let gx = x0 + margin_i + tx as i32;
+                        if (0..width_i).contains(&gx) {
+                            let w = weights[ty] * weights[tx];
+                            let idx = gy as usize * width + gx as usize;
+                            (0..3).for_each(|c| {
+                                let v =
+                                    tile[[0, c, params.margin + ty, params.margin + tx]].clamp(0.0, 1.0);
+                                accumulator[idx * 3 + c] += v * w;
+                            });
+                            weight_sum[idx] += w;
+                        }
+                    });
                 }
-                let w = weights[ty] * weights[tx];
-                let idx = gy as usize * width + gx as usize;
-                for c in 0..3 {
-                    let v = tile[[0, c, params.margin + ty, params.margin + tx]].clamp(0.0, 1.0);
-                    accumulator[idx * 3 + c] += v * w;
-                }
-                weight_sum[idx] += w;
-            }
-        }
-    }
+            });
+            Ok::<(), anyhow::Error>(())
+        })?;
 
     let mut out = Rgb32FImage::new(width as u32, height as u32);
     out.par_chunks_exact_mut(3)
@@ -1518,9 +1528,9 @@ fn run_native_denoise(
         .zip(weight_sum.par_iter())
         .for_each(|((px, acc), &w)| {
             let inv = if w > 0.0 { 1.0 / w } else { 0.0 };
-            for c in 0..3 {
+            (0..3).for_each(|c| {
                 px[c] = (acc[c] * inv).clamp(0.0, 1.0);
-            }
+            });
         });
     Ok(out)
 }
@@ -1543,20 +1553,20 @@ fn dilate_mask(mask: &[bool], w: usize, h: usize, r: usize) -> Vec<bool> {
     horiz.par_chunks_mut(w).enumerate().for_each(|(y, row)| {
         let src = &mask[y * w..(y + 1) * w];
         let mut prefix = vec![0u32; w + 1];
-        for x in 0..w {
-            prefix[x + 1] = prefix[x] + u32::from(src[x]);
-        }
-        for (x, out) in row.iter_mut().enumerate() {
+        src.iter().enumerate().for_each(|(x, &s)| {
+            prefix[x + 1] = prefix[x] + u32::from(s);
+        });
+        row.iter_mut().enumerate().for_each(|(x, out)| {
             *out = prefix[(x + r + 1).min(w)] > prefix[x.saturating_sub(r)];
-        }
+        });
     });
     let mut dilated = vec![false; w * h];
     dilated.par_chunks_mut(w).enumerate().for_each(|(y, row)| {
         let y0 = y.saturating_sub(r);
         let y1 = (y + r).min(h - 1);
-        for (x, out) in row.iter_mut().enumerate() {
+        row.iter_mut().enumerate().for_each(|(x, out)| {
             *out = (y0..=y1).any(|yy| horiz[yy * w + x]);
-        }
+        });
     });
     dilated
 }
@@ -1576,17 +1586,21 @@ fn catmull_rom_sample(img: &[[f32; 3]], w: usize, h: usize, x: f32, y: f32) -> [
     let wx = weights(x - fx);
     let wy = weights(y - fy);
     let mut acc = [0.0f32; 3];
-    for (j, wyj) in wy.iter().enumerate() {
-        let sy = (fy as i32 + j as i32 - 1).clamp(0, h as i32 - 1) as usize;
-        for (i, wxi) in wx.iter().enumerate() {
-            let sx = (fx as i32 + i as i32 - 1).clamp(0, w as i32 - 1) as usize;
+    let h_i = h as i32;
+    let w_i = w as i32;
+    let fx_i = fx as i32;
+    let fy_i = fy as i32;
+    wy.iter().enumerate().for_each(|(j, wyj)| {
+        let sy = (fy_i + j as i32 - 1).clamp(0, h_i - 1) as usize;
+        wx.iter().enumerate().for_each(|(i, wxi)| {
+            let sx = (fx_i + i as i32 - 1).clamp(0, w_i - 1) as usize;
             let p = img[sy * w + sx];
             let wgt = wyj * wxi;
             acc[0] += p[0] * wgt;
             acc[1] += p[1] * wgt;
             acc[2] += p[2] * wgt;
-        }
-    }
+        });
+    });
     acc
 }
 
@@ -1606,22 +1620,27 @@ fn patch_distance(
     s: (i32, i32),
     limit: f32,
 ) -> f32 {
-    let mut d = 0.0f32;
-    for dy in -LAMA_PATCH_RADIUS..=LAMA_PATCH_RADIUS {
-        let ty = (t.1 + dy).clamp(0, h as i32 - 1) as usize;
-        let srow = (s.1 + dy) as usize * w;
-        for dx in -LAMA_PATCH_RADIUS..=LAMA_PATCH_RADIUS {
-            let tx = (t.0 + dx).clamp(0, w as i32 - 1) as usize;
-            let a = target[ty * w + tx];
-            let b = source[srow + (s.0 + dx) as usize];
-            let (e0, e1, e2) = (a[0] - b[0], a[1] - b[1], a[2] - b[2]);
-            d += e0 * e0 + e1 * e1 + e2 * e2;
-        }
-        if d >= limit {
-            return d;
-        }
+    let h_i = h as i32;
+    let w_i = w as i32;
+    let result = (-LAMA_PATCH_RADIUS..=LAMA_PATCH_RADIUS)
+        .try_fold(0.0f32, |mut d, dy| {
+            if d >= limit {
+                return ControlFlow::Break(d);
+            }
+            let ty = (t.1 + dy).clamp(0, h_i - 1) as usize;
+            let srow = (s.1 + dy) as usize * w;
+            (-LAMA_PATCH_RADIUS..=LAMA_PATCH_RADIUS).for_each(|dx| {
+                let tx = (t.0 + dx).clamp(0, w_i - 1) as usize;
+                let a = target[ty * w + tx];
+                let b = source[srow + (s.0 + dx) as usize];
+                let (e0, e1, e2) = (a[0] - b[0], a[1] - b[1], a[2] - b[2]);
+                d += e0 * e0 + e1 * e1 + e2 * e2;
+            });
+            ControlFlow::Continue(d)
+        });
+    match result {
+        ControlFlow::Break(d) | ControlFlow::Continue(d) => d,
     }
-    d
 }
 
 fn lama_patch_match(
@@ -1632,9 +1651,10 @@ fn lama_patch_match(
     is_target: &[bool],
     is_source: &[bool],
 ) -> Option<Vec<Option<(i32, i32)>>> {
+    let coords = |i: usize| ((i % w) as i32, (i / w) as i32);
     let sources: Vec<(i32, i32)> = (0..w * h)
         .filter(|&i| is_source[i])
-        .map(|i| ((i % w) as i32, (i / w) as i32))
+        .map(coords)
         .collect();
     let targets: Vec<usize> = (0..w * h).filter(|&i| is_target[i]).collect();
     if sources.is_empty() || targets.is_empty() {
@@ -1642,11 +1662,12 @@ fn lama_patch_match(
     }
 
     let valid = |p: (i32, i32)| {
+        let (px, py) = (p.0 as usize, p.1 as usize);
         p.0 >= 0
             && p.1 >= 0
-            && (p.0 as usize) < w
-            && (p.1 as usize) < h
-            && is_source[p.1 as usize * w + p.0 as usize]
+            && px < w
+            && py < h
+            && is_source[py * w + px]
     };
     let random_source = |seed: u64| sources[(seed % sources.len() as u64) as usize];
 
@@ -1655,22 +1676,22 @@ fn lama_patch_match(
     let init: Vec<((i32, i32), f32)> = targets
         .par_iter()
         .map(|&i| {
-            let t = ((i % w) as i32, (i / w) as i32);
+            let t = coords(i);
             let s = random_source(splitmix64(i as u64));
             (s, patch_distance(target, source, w, h, t, s, f32::MAX))
         })
         .collect();
-    for (&i, (s, c)) in targets.iter().zip(init) {
+    targets.iter().zip(init).for_each(|(&i, (s, c))| {
         nnf[i] = s;
         cost[i] = c;
-    }
+    });
 
     for iter in 0..LAMA_PATCH_MATCH_ITERS {
         let jump = 1i32 << (LAMA_PATCH_MATCH_ITERS - 1 - iter).min(3);
         let updates: Vec<((i32, i32), f32)> = targets
             .par_iter()
             .map(|&i| {
-                let t = ((i % w) as i32, (i / w) as i32);
+                let t = coords(i);
                 let mut best = nnf[i];
                 let mut best_cost = cost[i];
                 let consider = |c: (i32, i32), best: &mut (i32, i32), best_cost: &mut f32| {
@@ -1683,15 +1704,24 @@ fn lama_patch_match(
                     }
                 };
 
-                for (dx, dy) in [(-jump, 0), (jump, 0), (0, -jump), (0, jump)] {
-                    let (nx, ny) = (t.0 + dx, t.1 + dy);
-                    if nx >= 0 && ny >= 0 && (nx as usize) < w && (ny as usize) < h {
-                        let n = ny as usize * w + nx as usize;
-                        if is_target[n] {
-                            consider((nnf[n].0 - dx, nnf[n].1 - dy), &mut best, &mut best_cost);
+                [(-jump, 0), (jump, 0), (0, -jump), (0, jump)]
+                    .iter()
+                    .for_each(|&(dx, dy)| {
+                        let (nx, ny) = (t.0 + dx, t.1 + dy);
+                        if nx >= 0 && ny >= 0 {
+                            let (nx_u, ny_u) = (nx as usize, ny as usize);
+                            if nx_u < w && ny_u < h {
+                                let n = ny_u * w + nx_u;
+                                if is_target[n] {
+                                    consider(
+                                        (nnf[n].0 - dx, nnf[n].1 - dy),
+                                        &mut best,
+                                        &mut best_cost,
+                                    );
+                                }
+                            }
                         }
-                    }
-                }
+                    });
 
                 let mut seed = splitmix64(i as u64 ^ ((u64::from(iter) + 1) << 40));
                 let mut radius = w.max(h) as i32;
@@ -1710,10 +1740,10 @@ fn lama_patch_match(
                 (best, best_cost)
             })
             .collect();
-        for (&i, (s, c)) in targets.iter().zip(updates) {
+        targets.iter().zip(updates).for_each(|(&i, (s, c))| {
             nnf[i] = s;
             cost[i] = c;
-        }
+        });
     }
 
     Some((0..w * h).map(|i| is_target[i].then_some(nnf[i])).collect())
@@ -1728,17 +1758,16 @@ pub fn run_lama_inpainting(
 
     let (mut min_x, mut min_y) = (w, h);
     let (mut max_x, mut max_y) = (0u32, 0u32);
-    let mut has_mask = false;
 
-    for (x, y, p) in mask.enumerate_pixels() {
-        if p[0] > 0 {
+    mask.enumerate_pixels()
+        .filter(|&(_, _, p)| p[0] > 0)
+        .for_each(|(x, y, _)| {
             min_x = min_x.min(x);
             min_y = min_y.min(y);
             max_x = max_x.max(x);
             max_y = max_y.max(y);
-            has_mask = true;
-        }
-    }
+        });
+    let has_mask = min_y < h;
 
     if !has_mask {
         return Ok((image.to_rgba8(), 0, 0));
@@ -1747,8 +1776,14 @@ pub fn run_lama_inpainting(
     let mask_w = max_x - min_x + 1;
     let mask_h = max_y - min_y + 1;
 
-    let pad_x = 128.max((mask_w as f32 * 1.5) as u32);
-    let pad_y = 128.max((mask_h as f32 * 1.5) as u32);
+    let pad_x = {
+        let mask_wf = mask_w as f32;
+        128.max((mask_wf * 1.5) as u32)
+    };
+    let pad_y = {
+        let mask_hf = mask_h as f32;
+        128.max((mask_hf * 1.5) as u32)
+    };
 
     let x0 = min_x.saturating_sub(pad_x);
     let y0 = min_y.saturating_sub(pad_y);
@@ -1764,8 +1799,12 @@ pub fn run_lama_inpainting(
     let scale = (LAMA_PIXEL_BUDGET / (crop_w as f32 * crop_h as f32))
         .sqrt()
         .min(1.0);
-    let fw = ((crop_w as f32 * scale).round() as u32).max(1);
-    let fh = ((crop_h as f32 * scale).round() as u32).max(1);
+    let scaled = |dim: u32| {
+        let dim_f = dim as f32;
+        ((dim_f * scale).round() as u32).max(1)
+    };
+    let fw = scaled(crop_w);
+    let fh = scaled(crop_h);
     let needs_downscale = fw != crop_w || fh != crop_h;
 
     let (inf_img, inf_mask) = if needs_downscale {
@@ -1781,21 +1820,22 @@ pub fn run_lama_inpainting(
     let tensor_w = fw.div_ceil(align) * align;
     let tensor_h = fh.div_ceil(align) * align;
 
-    let mut img_tensor = Array::<f32, _>::zeros((1, 3, tensor_h as usize, tensor_w as usize));
-    let mut msk_tensor = Array::<f32, _>::zeros((1, 1, tensor_h as usize, tensor_w as usize));
+    let tensor_h_u = tensor_h as usize;
+    let tensor_w_u = tensor_w as usize;
+    let mut img_tensor = Array::<f32, _>::zeros((1, 3, tensor_h_u, tensor_w_u));
+    let mut msk_tensor = Array::<f32, _>::zeros((1, 1, tensor_h_u, tensor_w_u));
 
-    for y in 0..tensor_h {
-        for x in 0..tensor_w {
+    (0..tensor_h).for_each(|y| {
+        (0..tensor_w).for_each(|x| {
+            let (x_u, y_u) = (x as usize, y as usize);
             let p = inf_img.get_pixel(x.min(fw - 1), y.min(fh - 1));
             let m = inf_mask.get_pixel(x.min(fw - 1), y.min(fh - 1))[0];
-            let (y, x) = (y as usize, x as usize);
-
-            img_tensor[[0, 0, y, x]] = f32::from(p[0]) / 255.0;
-            img_tensor[[0, 1, y, x]] = f32::from(p[1]) / 255.0;
-            img_tensor[[0, 2, y, x]] = f32::from(p[2]) / 255.0;
-            msk_tensor[[0, 0, y, x]] = if m > 0 { 1.0 } else { 0.0 };
-        }
-    }
+            img_tensor[[0, 0, y_u, x_u]] = f32::from(p[0]) / 255.0;
+            img_tensor[[0, 1, y_u, x_u]] = f32::from(p[1]) / 255.0;
+            img_tensor[[0, 2, y_u, x_u]] = f32::from(p[2]) / 255.0;
+            msk_tensor[[0, 0, y_u, x_u]] = if m > 0 { 1.0 } else { 0.0 };
+        });
+    });
 
     let t_img = Tensor::from_array(img_tensor.into_dyn().as_standard_layout().into_owned())?;
     let t_msk = Tensor::from_array(msk_tensor.into_dyn().as_standard_layout().into_owned())?;
@@ -1829,10 +1869,12 @@ pub fn run_lama_inpainting(
         let is_target = dilate_mask(&hole, iw, ih, 1);
         let blocked = dilate_mask(&hole, iw, ih, LAMA_PATCH_RADIUS as usize + 2);
         let r = LAMA_PATCH_RADIUS;
+        let iw_i = iw as i32;
+        let ih_i = ih as i32;
         let is_source: Vec<bool> = (0..iw * ih)
             .map(|i| {
                 let (x, y) = ((i % iw) as i32, (i / iw) as i32);
-                !blocked[i] && x >= r && y >= r && x < iw as i32 - r && y < ih as i32 - r
+                !blocked[i] && x >= r && y >= r && x < iw_i - r && y < ih_i - r
             })
             .collect();
         lama_patch_match(&target, &source, iw, ih, &is_target, &is_source)
@@ -1840,21 +1882,38 @@ pub fn run_lama_inpainting(
         None
     };
 
-    let sx = fw as f32 / crop_w as f32;
-    let sy = fh as f32 / crop_h as f32;
+    let fx = fw as f32;
+    let fy = fh as f32;
+    let sx = fx / crop_w as f32;
+    let sy = fy / crop_h as f32;
     let mut final_crop = cropped_img.clone();
 
+    let crop_w_u = crop_w as usize;
+    let iw_i = iw as i32;
+    let ih_i = ih as i32;
+    let crop_w_i = crop_w as i32;
+    let crop_h_i = crop_h as i32;
+    let rounded_step = |n: i32, c: i32, sc: f32| {
+        let nc_f = (n - c) as f32;
+        (nc_f / sc).round() as i32
+    };
     final_crop
-        .par_chunks_mut(crop_w as usize * 4)
+        .par_chunks_mut(crop_w_u * 4)
         .enumerate()
         .for_each(|(y, row)| {
-            for x in 0..crop_w as usize {
-                let m = cropped_mask.get_pixel(x as u32, y as u32)[0];
+            let y_u = y as u32;
+            let y_f = y_u as f32;
+            let y_i = y_u as i32;
+            (0..crop_w_u).for_each(|x| {
+                let x_u = x as u32;
+                let x_f = x_u as f32;
+                let x_i = x_u as i32;
+                let m = cropped_mask.get_pixel(x_u, y_u)[0];
                 if m == 0 {
-                    continue;
+                    return;
                 }
-                let u = (x as f32 + 0.5) * sx - 0.5;
-                let v = (y as f32 + 0.5) * sy - 0.5;
+                let u = (x_f + 0.5) * sx - 0.5;
+                let v = (y_f + 0.5) * sy - 0.5;
                 let mut value = catmull_rom_sample(&target, iw, ih, u, v);
 
                 if let Some(nnf) = &nnf {
@@ -1862,26 +1921,31 @@ pub fn run_lama_inpainting(
                     let (fu, fv) = (u - u0, v - v0);
                     let mut groups = [((0i32, 0i32), 0.0f32, [0.0f32; 3]); 4];
                     let mut group_count = 0;
-                    for (cu, cv, wgt) in [
+                    [
                         (u0, v0, (1.0 - fu) * (1.0 - fv)),
                         (u0 + 1.0, v0, fu * (1.0 - fv)),
                         (u0, v0 + 1.0, (1.0 - fu) * fv),
                         (u0 + 1.0, v0 + 1.0, fu * fv),
-                    ] {
-                        let cu = (cu as i32).clamp(0, iw as i32 - 1);
-                        let cv = (cv as i32).clamp(0, ih as i32 - 1);
-                        let Some((su, sv)) = nnf[cv as usize * iw + cu as usize] else {
-                            continue;
+                    ]
+                    .iter()
+                    .for_each(|&(cu, cv, wgt)| {
+                        let cu_i = (cu as i32).clamp(0, iw_i - 1);
+                        let cu_u = cu_i as usize;
+                        let cv_i = (cv as i32).clamp(0, ih_i - 1);
+                        let cv_u = cv_i as usize;
+                        let Some((su, sv)) = nnf[cv_u * iw + cu_u] else {
+                            return;
                         };
-                        let qx = x as i32 + ((su - cu) as f32 / sx).round() as i32;
-                        let qy = y as i32 + ((sv - cv) as f32 / sy).round() as i32;
-                        if qx < 0 || qy < 0 || qx >= crop_w as i32 || qy >= crop_h as i32 {
-                            continue;
+                        let qx = x_i + rounded_step(su, cu_i, sx);
+                        let qy = y_i + rounded_step(sv, cv_i, sy);
+                        if qx < 0 || qy < 0 || qx >= crop_w_i || qy >= crop_h_i {
+                            return;
                         }
-                        if cropped_mask.get_pixel(qx as u32, qy as u32)[0] > 0 {
-                            continue;
+                        let (qx_u, qy_u) = (qx as u32, qy as u32);
+                        if cropped_mask.get_pixel(qx_u, qy_u)[0] > 0 {
+                            return;
                         }
-                        let o = cropped_img.get_pixel(qx as u32, qy as u32);
+                        let o = cropped_img.get_pixel(qx_u, qy_u);
                         let low = catmull_rom_sample(
                             &source,
                             iw,
@@ -1890,34 +1954,38 @@ pub fn run_lama_inpainting(
                             (qy as f32 + 0.5) * sy - 0.5,
                         );
                         let detail = [0, 1, 2].map(|c| f32::from(o[c]) / 255.0 - low[c]);
-                        let shift = (qx - x as i32, qy - y as i32);
-                        if let Some(g) = groups[..group_count].iter_mut().find(|g| g.0 == shift) { g.1 += wgt } else {
+                        let shift = (qx - x_i, qy - y_i);
+                        if let Some(g) =
+                            groups[..group_count].iter_mut().find(|g| g.0 == shift)
+                        {
+                            g.1 += wgt;
+                        } else {
                             groups[group_count] = (shift, wgt, detail);
                             group_count += 1;
                         }
-                    }
+                    });
                     let norm = groups[..group_count]
                         .iter()
                         .map(|g| g.1 * g.1)
                         .sum::<f32>()
                         .sqrt();
                     if norm > 0.0 {
-                        for (_, wgt, detail) in &groups[..group_count] {
-                            for c in 0..3 {
+                        groups[..group_count].iter().for_each(|&(_, wgt, detail)| {
+                            (0..3).for_each(|c| {
                                 value[c] += wgt * detail[c] / norm;
-                            }
-                        }
+                            });
+                        });
                     }
                 }
 
                 let alpha = f32::from(m) / 255.0;
                 let px = &mut row[x * 4..x * 4 + 3];
-                for c in 0..3 {
+                (0..3).for_each(|c| {
                     px[c] = (value[c].clamp(0.0, 1.0) * 255.0 * alpha
                         + f32::from(px[c]) * (1.0 - alpha))
-                        .round() as u8;
-                }
-            }
+                    .round() as u8;
+                });
+            });
         });
 
     Ok((final_crop, x0, y0))
@@ -1931,8 +1999,12 @@ pub fn generate_image_embeddings(
 
     let long_side = orig_width.max(orig_height) as f32;
     let scale = SAM_INPUT_SIZE as f32 / long_side;
-    let new_width = (orig_width as f32 * scale).round() as u32;
-    let new_height = (orig_height as f32 * scale).round() as u32;
+    let resized = |dim: u32| {
+        let dim_f = dim as f32;
+        (dim_f * scale).round() as u32
+    };
+    let new_width = resized(orig_width);
+    let new_height = resized(orig_height);
 
     let resized_image = image.resize(new_width, new_height, FilterType::Triangle);
     let rgb_image = resized_image.into_rgb8();
@@ -1943,14 +2015,15 @@ pub fn generate_image_embeddings(
         Array::zeros((1, 3, SAM_INPUT_SIZE as usize, SAM_INPUT_SIZE as usize));
 
     let w_usize = actual_width as usize;
-    for y in 0..(actual_height as usize) {
-        for x in 0..w_usize {
+    let h_usize = actual_height as usize;
+    (0..h_usize).for_each(|y| {
+        (0..w_usize).for_each(|x| {
             let idx = (y * w_usize + x) * 3;
             input_tensor[[0, 0, y, x]] = raw_pixels[idx];
             input_tensor[[0, 1, y, x]] = raw_pixels[idx + 1];
             input_tensor[[0, 2, y, x]] = raw_pixels[idx + 2];
-        }
-    }
+        });
+    });
 
     let input_tensor_dyn = input_tensor.into_dyn();
     let input_values = input_tensor_dyn.as_standard_layout();
@@ -1982,25 +2055,21 @@ pub fn run_sam_decoder(
 
     let is_point =
         (start_point.0 - end_point.0).abs() < 1e-6 && (start_point.1 - end_point.1).abs() < 1e-6;
-    let mut point_coords = Vec::new();
-    let mut point_labels = Vec::new();
-
-    if is_point {
-        point_coords.push((
-            (start_point.0 * scale) as f32,
-            (start_point.1 * scale) as f32,
-        ));
-        point_labels.push(1.0f32);
+    let (mut point_coords, mut point_labels): (Vec<(f32, f32)>, Vec<f32>) = if is_point {
+        (
+            vec![(
+                (start_point.0 * scale) as f32,
+                (start_point.1 * scale) as f32,
+            )],
+            vec![1.0f32],
+        )
     } else {
         let x1 = (start_point.0.min(end_point.0) * scale) as f32;
-        let y1 = (start_point.1.min(end_point.1) * scale) as f32;
         let x2 = (start_point.0.max(end_point.0) * scale) as f32;
+        let y1 = (start_point.1.min(end_point.1) * scale) as f32;
         let y2 = (start_point.1.max(end_point.1) * scale) as f32;
-        point_coords.push((x1, y1));
-        point_coords.push((x2, y2));
-        point_labels.push(2.0f32);
-        point_labels.push(3.0f32);
-    }
+        (vec![(x1, y1), (x2, y2)], vec![2.0f32, 3.0f32])
+    };
 
     let mut mask_input = Array::zeros((1, 1, 256, 256)).into_dyn();
     let mut has_mask_input = 0.0f32;
@@ -2012,11 +2081,12 @@ pub fn run_sam_decoder(
     let mut final_w = 0;
     let mut final_h = 0;
 
-    for i in 0..iters {
+    (0..iters).try_for_each(|i| -> Result<()> {
         let pc_len = point_coords.len();
         let pl_len = point_labels.len();
 
-        let coords_flat: Vec<f32> = point_coords.iter().flat_map(|&(x, y)| vec![x, y]).collect();
+        let coords_flat: Vec<f32> =
+            point_coords.iter().flat_map(|&(x, y)| [x, y]).collect();
         let coords_array = Array::from_shape_vec((1, pc_len, 2), coords_flat)?.into_dyn();
         let labels_array = Array::from_shape_vec((1, pl_len), point_labels.clone())?.into_dyn();
 
@@ -2058,17 +2128,16 @@ pub fn run_sam_decoder(
         let w = mask_dims[3];
         let area = h * w;
 
-        let mask_slice = mask_tensor.as_slice().unwrap();
+        let mask_slice = mask_tensor
+            .as_slice()
+            .ok_or_else(|| anyhow::anyhow!("sam mask tensor is not contiguous"))?;
         let first_mask_slice = &mask_slice[0..area];
 
         if i == iters - 1 {
-            final_mask_data = first_mask_slice
-                .iter()
-                .map(|&val| if val > 0.0 { 255 } else { 0 })
-                .collect();
+            final_mask_data = first_mask_slice.iter().map(|&val| if val > 0.0 { 255 } else { 0 }).collect();
             final_w = w;
             final_h = h;
-            break;
+            return Ok(());
         }
 
         let mut binary_mask = vec![false; area];
@@ -2091,83 +2160,103 @@ pub fn run_sam_decoder(
             }
         }
 
+        first_mask_slice
+            .iter()
+            .enumerate()
+            .filter(|&(_, &val)| val > 0.0)
+            .for_each(|(idx, _)| {
+                binary_mask[idx] = true;
+                let x = idx % w;
+                let y = idx / w;
+                min_x = min_x.min(x);
+                max_x = max_x.max(x);
+                min_y = min_y.min(y);
+                max_y = max_y.max(y);
+                mask_area += 1.0;
+            });
+
         if mask_area == 0.0 || min_x > max_x {
-            final_mask_data = first_mask_slice
-                .iter()
-                .map(|&val| if val > 0.0 { 255 } else { 0 })
-                .collect();
+            final_mask_data = first_mask_slice.iter().map(|&val| if val > 0.0 { 255 } else { 0 }).collect();
             final_w = w;
             final_h = h;
-            break;
+            return Ok(());
         }
 
         let dt_in = edt_2d(&binary_mask, w, h);
-        let mut max_in = 0.0;
-        let mut pos_idx = 0;
-        for (idx, &v) in dt_in.iter().enumerate() {
-            if v > max_in {
-                max_in = v;
-                pos_idx = idx;
-            }
-        }
+        let (max_in, pos_idx) = dt_in
+            .iter()
+            .enumerate()
+            .fold((0.0f32, 0), |(max_in, pos_idx), (idx, &v)| {
+                if v > max_in {
+                    (v, idx)
+                } else {
+                    (max_in, pos_idx)
+                }
+            });
         let pos_y = pos_idx / w;
         let pos_x = pos_idx % w;
 
-        let mut rev_mask = vec![false; area];
-        for (idx, is_true) in binary_mask.iter().enumerate() {
-            rev_mask[idx] = !is_true;
-        }
+        let rev_mask: Vec<bool> = binary_mask.iter().map(|is_true| !is_true).collect();
         let mut dt_out = edt_2d(&rev_mask, w, h);
 
-        for y in 0..h {
-            for x in 0..w {
-                if x < min_x || x > max_x || y < min_y || y > max_y {
+        (0..h).for_each(|y| {
+            (0..w)
+                .filter(|&x| x < min_x || x > max_x || y < min_y || y > max_y)
+                .for_each(|x| {
                     dt_out[y * w + x] = 0.0;
-                }
-            }
-        }
+                });
+        });
 
-        let mut max_out = 0.0;
-        let mut neg_idx = 0;
-        for (idx, &v) in dt_out.iter().enumerate() {
-            if v > max_out {
-                max_out = v;
-                neg_idx = idx;
-            }
-        }
+        let neg_idx = dt_out
+            .iter()
+            .enumerate()
+            .fold((0.0f32, 0), |(hi, acc), (idx, &v)| if v > hi { (v, idx) } else { (hi, acc) })
+            .1;
         let neg_y = neg_idx / w;
         let neg_x = neg_idx % w;
 
-        point_coords.clear();
-        point_labels.clear();
-
-        point_coords.push(((pos_x as f64 * scale) as f32, (pos_y as f64 * scale) as f32));
-        point_labels.push(1.0);
-        point_coords.push(((neg_x as f64 * scale) as f32, (neg_y as f64 * scale) as f32));
-        point_labels.push(0.0);
-        point_coords.push(((min_x as f64 * scale) as f32, (min_y as f64 * scale) as f32));
-        point_labels.push(2.0);
-        point_coords.push(((max_x as f64 * scale) as f32, (max_y as f64 * scale) as f32));
-        point_labels.push(3.0);
+        let to_f32 = |p: (usize, usize)| {
+            let px = p.0 as f64;
+            let py = p.1 as f64;
+            let cx = (px * scale) as f32;
+            let cy = (py * scale) as f32;
+            (cx, cy)
+        };
+        point_coords = vec![
+            to_f32((pos_x, pos_y)),
+            to_f32((neg_x, neg_y)),
+            to_f32((min_x, min_y)),
+            to_f32((max_x, max_y)),
+        ];
+        point_labels = vec![1.0, 0.0, 2.0, 3.0];
 
         let mut gaus_dt = vec![0.0f32; area];
         let variance = (mask_area / 4.0_f32).max(1.0_f32);
-        for (idx, &is_true) in binary_mask.iter().enumerate() {
-            if is_true {
-                let diff = dt_in[idx] - max_in;
+        binary_mask
+            .iter()
+            .enumerate()
+            .zip(dt_in.iter())
+            .filter(|&((_, &is_true), _)| is_true)
+            .for_each(|((idx, _), &dt)| {
+                let diff = dt - max_in;
                 gaus_dt[idx] = (-(diff * diff) / variance).exp();
-            }
-        }
+            });
 
         let mask_f32_vec: Vec<f32> = first_mask_slice
             .iter()
             .map(|&v| if v > 0.0 { 15.0 } else { -15.0 })
             .collect();
 
-        let img_mask_f32 =
-            ImageBuffer::<Luma<f32>, Vec<f32>>::from_raw(w as u32, h as u32, mask_f32_vec).unwrap();
-        let img_gaus_f32 =
-            ImageBuffer::<Luma<f32>, Vec<f32>>::from_raw(w as u32, h as u32, gaus_dt).unwrap();
+        let Some(img_mask_f32) =
+            ImageBuffer::<Luma<f32>, Vec<f32>>::from_raw(w as u32, h as u32, mask_f32_vec)
+        else {
+            unreachable!("mask buffer matches the model output area")
+        };
+        let Some(img_gaus_f32) =
+            ImageBuffer::<Luma<f32>, Vec<f32>>::from_raw(w as u32, h as u32, gaus_dt)
+        else {
+            unreachable!("mask buffer matches the model output area")
+        };
 
         let resized_mask = imageops::resize(&img_mask_f32, 256, 256, FilterType::Triangle);
         let resized_gaus = imageops::resize(&img_gaus_f32, 256, 256, FilterType::Triangle);
@@ -2175,21 +2264,21 @@ pub fn run_sam_decoder(
         let rm_raw = resized_mask.as_raw();
         let rg_raw = resized_gaus.as_raw();
         let mut mask_input_flat = vec![0.0f32; 256 * 256];
-
-        for i in 0..(256 * 256) {
-            let m_val = rm_raw[i];
-            let mut g_val = rg_raw[i];
-            if g_val <= 0.0 {
-                g_val = 1.0;
-            }
-            mask_input_flat[i] = m_val * g_val;
-        }
+        rm_raw
+            .iter()
+            .zip(rg_raw)
+            .zip(mask_input_flat.iter_mut())
+            .for_each(|((&m_val, &g_raw), out)| {
+                let g_val = if g_raw > 0.0 { g_raw } else { 1.0 };
+                *out = m_val * g_val;
+            });
 
         mask_input = Array::from_shape_vec((1, 1, 256, 256), mask_input_flat)
-            .unwrap()
+            .map_err(|_| anyhow::anyhow!("sam mask input length mismatch"))?
             .into_dyn();
         has_mask_input = 1.0;
-    }
+        Ok(())
+    })?;
 
     let gray_mask = GrayImage::from_raw(final_w as u32, final_h as u32, final_mask_data)
         .ok_or_else(|| anyhow::anyhow!("Failed to create mask image from raw data"))?;
@@ -2209,10 +2298,10 @@ pub fn run_sam_decoder(
         let mut refined_mask =
             fast_guided_filter(&guide_hr, &feathered_coarse_mask, radius as usize, 0.01);
 
-        for p in refined_mask.pixels_mut() {
+        refined_mask.pixels_mut().for_each(|p| {
             let v = f32::from(p[0]) / 255.0;
             p[0] = (((v - 0.03) / 0.94).clamp(0.0, 1.0) * 255.0).round() as u8;
-        }
+        });
 
         Ok(refined_mask)
     } else {
@@ -2250,15 +2339,15 @@ pub fn run_esam3_image_encoder(
         (if i >= n { 2 * n - 2 - i } else { i }) as u32
     };
     let mut input_tensor = Array4::<f32>::zeros((1, 3, size, size));
-    for y in 0..size {
+    (0..size).for_each(|y| {
         let src_y = reflect(y);
-        for x in 0..size {
+        (0..size).for_each(|x| {
             let pixel = resized_rgb.get_pixel(reflect(x), src_y);
-            for c in 0..3 {
+            (0..3).for_each(|c| {
                 input_tensor[[0, c, y, x]] = f32::from(pixel[c]) / 127.5 - 1.0;
-            }
-        }
-    }
+            });
+        });
+    });
 
     let mut session = encoder_session.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
     let outputs =
@@ -2361,16 +2450,20 @@ pub fn run_esam3_decoder(
         run_esam3_queries(decoder_session, features, prompt, |scores, _, masks| {
             let (mask_h, mask_w) = (masks.shape()[2], masks.shape()[3]);
             let mut coarse_mask: Option<Vec<f32>> = None;
-            for (query, &score) in scores.iter().enumerate() {
-                if score <= score_threshold {
-                    continue;
-                }
-                let combined = coarse_mask.get_or_insert_with(|| vec![0.0; mask_h * mask_w]);
-                let query_mask = masks.slice(s![0, query, .., ..]);
-                for (out, &value) in combined.iter_mut().zip(query_mask.iter()) {
-                    *out = out.max(sigmoid(value));
-                }
-            }
+            scores
+                .iter()
+                .enumerate()
+                .filter(|&(_, &score)| score > score_threshold)
+                .for_each(|(query, _)| {
+                    let combined = coarse_mask.get_or_insert_with(|| vec![0.0; mask_h * mask_w]);
+                    let query_mask = masks.slice(s![0, query, .., ..]);
+                    combined
+                        .iter_mut()
+                        .zip(query_mask.iter())
+                        .for_each(|(out, &value)| {
+                            *out = out.max(sigmoid(value));
+                        });
+                });
             (coarse_mask, mask_w, mask_h)
         })?;
 
@@ -2409,8 +2502,12 @@ pub fn run_esam3_decoder(
 
     let (orig_width, orig_height) = image.dimensions();
     let scale = (ESAM3_REFINE_SIZE as f32 / orig_width.max(orig_height) as f32).min(1.0);
-    let refine_w = ((orig_width as f32 * scale).round() as u32).max(1);
-    let refine_h = ((orig_height as f32 * scale).round() as u32).max(1);
+    let ref_size = |dim: u32| {
+        let dim_f = dim as f32;
+        ((dim_f * scale).round() as u32).max(1)
+    };
+    let refine_w = ref_size(orig_width);
+    let refine_h = ref_size(orig_height);
     let refine_mask = imageops::resize(&image_mask, refine_w, refine_h, FilterType::Triangle);
 
     Ok(Some(fast_color_guided_filter(
@@ -2520,38 +2617,44 @@ fn blend_feathered(mask: &mut GrayImage, detail: &GrayImage, x0: u32, y0: u32) {
     let weights_x = ramp(x0, crop_width, width);
     let weights_y = ramp(y0, crop_height, height);
 
-    for (v, weight_y) in weights_y.iter().enumerate() {
-        for (u, weight_x) in weights_x.iter().enumerate() {
+    weights_y.iter().enumerate().for_each(|(v, weight_y)| {
+        weights_x.iter().enumerate().for_each(|(u, weight_x)| {
             let weight = weight_x.min(*weight_y);
-            let base = f32::from(mask.get_pixel(x0 + u as u32, y0 + v as u32)[0]);
-            let refined = f32::from(detail.get_pixel(u as u32, v as u32)[0]);
+            let (u_u, v_u) = (u as u32, v as u32);
+            let base = f32::from(mask.get_pixel(x0 + u_u, y0 + v_u)[0]);
+            let refined = f32::from(detail.get_pixel(u_u, v_u)[0]);
             mask.put_pixel(
-                x0 + u as u32,
-                y0 + v as u32,
+                x0 + u_u,
+                y0 + v_u,
                 Luma([(base + (refined - base) * weight).round() as u8]),
             );
-        }
-    }
+        });
+    });
 }
 
 fn zoom_region(coarse: &GrayImage, width: u32, height: u32) -> Option<(u32, u32, u32, u32)> {
     let (mut min_x, mut min_y, mut max_x, mut max_y) = (u32::MAX, u32::MAX, 0, 0);
-    for (x, y, pixel) in coarse.enumerate_pixels() {
-        if pixel[0] >= 128 {
+    coarse
+        .enumerate_pixels()
+        .filter(|&(_, _, pixel)| pixel[0] >= 128)
+        .for_each(|(x, y, _)| {
             min_x = min_x.min(x);
             min_y = min_y.min(y);
             max_x = max_x.max(x + 1);
             max_y = max_y.max(y + 1);
-        }
-    }
+        });
     if min_x == u32::MAX {
         return None;
     }
 
-    let scale_x = width as f32 / coarse.width() as f32;
-    let scale_y = height as f32 / coarse.height() as f32;
+    let cw = coarse.width() as f32;
+    let ch = coarse.height() as f32;
+    let scale_x = width as f32 / cw;
+    let scale_y = height as f32 / ch;
     let long_side = width.max(height) as f32;
-    let subject_side = ((max_x - min_x) as f32 * scale_x).max((max_y - min_y) as f32 * scale_y);
+    let span_x = (max_x - min_x) as f32;
+    let span_y = (max_y - min_y) as f32;
+    let subject_side = (span_x * scale_x).max(span_y * scale_y);
     let side = (subject_side * (1.0 + 2.0 * ZOOM_MARGIN))
         .max(ZOOM_MIN_SIDE)
         .min(long_side);
@@ -2560,10 +2663,13 @@ fn zoom_region(coarse: &GrayImage, width: u32, height: u32) -> Option<(u32, u32,
     }
 
     let place = |min: u32, max: u32, scale: f32, extent: u32| {
+        let extent_f = extent as f32;
         let center = (min + max) as f32 * 0.5 * scale;
-        let length = side.min(extent as f32);
-        let start = (center - length * 0.5).clamp(0.0, extent as f32 - length);
-        (start as u32, (length as u32).min(extent - start as u32))
+        let length = side.min(extent_f);
+        let start = (center - length * 0.5).clamp(0.0, extent_f - length);
+        let start_u = start as u32;
+        let length_u = length as u32;
+        (start_u, length_u.min(extent - start_u))
     };
     let (x, crop_width) = place(min_x, max_x, scale_x, width);
     let (y, crop_height) = place(min_y, max_y, scale_y, height);
@@ -2584,12 +2690,12 @@ fn run_birefnet_pass(image: &DynamicImage, session: &mut Session) -> Result<Gray
     let std = [0.229, 0.224, 0.225];
 
     let mut input_tensor = Array4::<f32>::zeros((1, 3, size, size));
-    for (x, y, pixel) in resized_rgb.enumerate_pixels() {
-        for c in 0..3 {
-            input_tensor[[0, c, y as usize, x as usize]] =
-                (f32::from(pixel[c]) / 255.0 - mean[c]) / std[c];
-        }
-    }
+    resized_rgb.enumerate_pixels().for_each(|(x, y, pixel)| {
+        let (x_u, y_u) = (x as usize, y as usize);
+        (0..3).for_each(|c| {
+            input_tensor[[0, c, y_u, x_u]] = (f32::from(pixel[c]) / 255.0 - mean[c]) / std[c];
+        });
+    });
 
     let outputs = gpu_inference(session.run(ort::inputs![Tensor::from_array(input_tensor)?]))?;
     let mask_data: Vec<u8> = outputs[0]
@@ -2623,8 +2729,8 @@ pub fn run_depth_anything_model(
     let rw = resized_w as usize;
     let rh = resized_h as usize;
 
-    for y in 0..rh {
-        for x in 0..rw {
+    (0..rh).for_each(|y| {
+        (0..rw).for_each(|x| {
             let idx = (y * rw + x) * 3;
             let dest_y = y + paste_y;
             let dest_x = x + paste_x;
@@ -2635,8 +2741,8 @@ pub fn run_depth_anything_model(
                 (f32::from(raw_pixels[idx + 1]) / 255.0 - mean[1]) / std[1];
             input_tensor[[0, 2, dest_y, dest_x]] =
                 (f32::from(raw_pixels[idx + 2]) / 255.0 - mean[2]) / std[2];
-        }
-    }
+        });
+    });
 
     let input_tensor_dyn = input_tensor.into_dyn();
     let t_input = Tensor::from_array(input_tensor_dyn.as_standard_layout().into_owned())?;
@@ -2644,30 +2750,31 @@ pub fn run_depth_anything_model(
     let mut session = depth_session.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
     let outputs = gpu_inference(session.run(ort::inputs![t_input]))?;
     let output_tensor = outputs[0].try_extract_array::<f32>()?.to_owned();
-    let out_slice = output_tensor.as_slice().unwrap();
+    let out_slice = output_tensor
+        .as_slice()
+        .ok_or_else(|| anyhow::anyhow!("depth output tensor is not contiguous"))?;
 
     let usize_size = DEPTH_INPUT_SIZE as usize;
 
     let mut min_val = f32::MAX;
     let mut max_val = f32::MIN;
-    for y in 0..rh {
+    (0..rh).for_each(|y| {
         let src_y = y + paste_y;
-        for x in 0..rw {
+        (0..rw).for_each(|x| {
             let src_x = x + paste_x;
             let val = out_slice[src_y * usize_size + src_x];
             min_val = min_val.min(val);
             max_val = max_val.max(val);
-        }
-    }
+        });
+    });
 
     let range = max_val - min_val;
     let scale = if range > 1e-6 { 255.0 / range } else { 0.0 };
 
-    let mut cropped_depth_data = Vec::with_capacity(rw * rh);
-
-    for y in 0..rh {
-        let src_y = y + paste_y;
-        for x in 0..rw {
+    let cropped_depth_data: Vec<u8> = (0..rh)
+        .flat_map(|y| (0..rw).map(move |x| (y, x)))
+        .map(|(y, x)| {
+            let src_y = y + paste_y;
             let src_x = x + paste_x;
             let val = out_slice[src_y * usize_size + src_x];
             let pixel = if range > 1e-6 {
@@ -2675,9 +2782,9 @@ pub fn run_depth_anything_model(
             } else {
                 0
             };
-            cropped_depth_data.push(pixel);
-        }
-    }
+            pixel
+        })
+        .collect();
 
     let depth_map = GrayImage::from_raw(resized_w, resized_h, cropped_depth_data)
         .ok_or_else(|| anyhow::anyhow!("Failed to create mask from Depth output"))?;
@@ -2740,14 +2847,14 @@ pub fn run_normal_model(
     let rh = resized_h as usize;
 
     let mut input_tensor: Array<f32, _> = Array::zeros((1, 3, rh, rw));
-    for y in 0..rh {
-        for x in 0..rw {
+    (0..rh).for_each(|y| {
+        (0..rw).for_each(|x| {
             let idx = (y * rw + x) * 3;
             input_tensor[[0, 0, y, x]] = f32::from(raw_pixels[idx]) / 255.0;
             input_tensor[[0, 1, y, x]] = f32::from(raw_pixels[idx + 1]) / 255.0;
             input_tensor[[0, 2, y, x]] = f32::from(raw_pixels[idx + 2]) / 255.0;
-        }
-    }
+        });
+    });
 
     let t_image = Tensor::from_array(input_tensor.into_dyn())?;
     let t_num_tokens = Tensor::from_array(ndarray::arr0(NORMAL_NUM_TOKENS))?;
@@ -2775,11 +2882,17 @@ pub fn run_normal_model(
     }
 
     let normals = normal_tensor.as_standard_layout();
-    let normals = normals.as_slice().unwrap();
+    let normals = normals
+        .as_slice()
+        .ok_or_else(|| anyhow::anyhow!("normals tensor is not contiguous"))?;
     let mask = mask_tensor.as_standard_layout();
-    let mask = mask.as_slice().unwrap();
-    let points = points_tensor.as_standard_layout();
-    let depth = build_normal_depth(points.as_slice().unwrap(), mask);
+    let mask = mask
+        .as_slice()
+        .ok_or_else(|| anyhow::anyhow!("normal mask tensor is not contiguous"))?;
+    let points = points_tensor
+        .as_slice()
+        .ok_or_else(|| anyhow::anyhow!("normal points tensor is not contiguous"))?;
+    let depth = build_normal_depth(points, mask);
 
     let pack = |v: f32| ((v * 0.5 + 0.5).clamp(0.0, 1.0) * 255.0).round() as u8;
 
