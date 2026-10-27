@@ -1847,6 +1847,7 @@ dependencies = [
  "libc",
  "little_exif",
  "log",
+ "lsdetect",
  "memmap2",
  "mozjpeg-rs",
  "nalgebra",

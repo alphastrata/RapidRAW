@@ -3100,7 +3100,7 @@ pub async fn apply_auto_straighten_to_paths(
         "auto straighten",
         false,
         |image, source_path, _, adjustments| {
-            crate::auto_straighten::straighten_adjustments(image, source_path, adjustments)
+            engine::auto_straighten::straighten_adjustments(image, source_path, adjustments)
         },
     )
     .await

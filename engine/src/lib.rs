@@ -6,6 +6,7 @@ pub mod android;
 pub mod app_state;
 pub mod apple_raw;
 pub mod as_shot;
+pub mod auto_straighten;
 pub mod baseline_exposure;
 pub mod best_effort;
 pub mod bm3d;
