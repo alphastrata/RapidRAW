@@ -564,8 +564,9 @@ pub fn compute_max_inscribed_crop(forward_h: &[[f64; 3]; 3], width: f64, height:
     let mut best_i = 0usize;
     let mut best_j = 1usize;
     (0..SAMPLES).for_each(|i| {
-        (i + 1..SAMPLES).for_each(|j| {
-            if let Some(rect) = slab_rect(&poly, ys[i], ys[j]) {
+        (i + 1..SAMPLES)
+            .filter_map(|j| slab_rect(&poly, ys[i], ys[j]).map(|rect| (j, rect)))
+            .for_each(|(j, rect)| {
                 let area = rect[2] * rect[3];
                 if area > best_area {
                     best_area = area;
@@ -573,8 +574,7 @@ pub fn compute_max_inscribed_crop(forward_h: &[[f64; 3]; 3], width: f64, height:
                     best_i = i;
                     best_j = j;
                 }
-            }
-        });
+            });
     });
 
     let step = (y_max - y_min) / samples_f;
