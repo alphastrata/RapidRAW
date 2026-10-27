@@ -26,7 +26,7 @@ struct MiddlewareResponse {
     color: String,
 }
 
-pub fn generate_source_id(path_str: &str) -> Result<String> {
+pub(crate) fn generate_source_id(path_str: &str) -> Result<String> {
     let path = Path::new(path_str);
     let metadata = fs::metadata(path)?;
     let mod_time = metadata
