@@ -219,12 +219,13 @@ impl CameraToSrgb {
         if achromatic <= 0.0 {
             return [0.0; 3];
         }
-        rgb.iter_mut().zip(&self.compression).for_each(|(value, compression)| {
-            if let Some(compression) = compression {
+        rgb.iter_mut()
+            .zip(&self.compression)
+            .filter_map(|(value, compression)| Some((value, compression.as_ref()?)))
+            .for_each(|(value, compression)| {
                 let distance = (achromatic - *value) / achromatic;
                 *value = achromatic - compression.compress(distance) * achromatic;
-            }
-        });
+            });
         rgb
     }
 
