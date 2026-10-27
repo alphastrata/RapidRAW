@@ -6,6 +6,14 @@ use alloc::vec::Vec;
 
 type I64x8 = i64x8;
 
+struct RowScan<'k> {
+    vertical: bool,
+    y: usize,
+    kernel: &'k [f32],
+    w: usize,
+    h: usize,
+}
+
 #[inline]
 fn splat_i64(v: i64) -> I64x8 {
     I64x8::splat(v)
@@ -24,29 +32,24 @@ fn tap(data: &[f32], idx: I64x8, k: f32) -> f32x8 {
         * f32x8::splat(k)
 }
 
-#[inline]
-fn row_out(
-    dst_row: &mut [f32],
-    src: &[f32],
-    kernel: &[f32],
-    w: usize,
-    max_coord: i64,
-    coord_stride: usize,
-    vertical: bool,
-    y: usize,
-) {
-    let r = (kernel.len() / 2) as i64;
-    let row_offset = splat_i64((y * w) as i64);
+fn row_out(scan: &RowScan<'_>, src: &[f32], dst_row: &mut [f32]) {
+    let w = scan.w;
+    let (max_coord, coord_stride, fixed) = if scan.vertical {
+        (scan.h as i64 - 1, w, splat_i64(scan.y as i64))
+    } else {
+        (w as i64 - 1, 1usize, splat_i64((scan.y * w) as i64))
+    };
+    let r = (scan.kernel.len() / 2) as i64;
 
     for chunk_start in (0..w).step_by(8) {
         let lane_count = (w - chunk_start).min(8);
         let xs = I64x8::from_array(core::array::from_fn(|i| (chunk_start + i) as i64));
 
         let mut acc = f32x8::splat(0.0);
-        for (t, &k) in kernel.iter().enumerate() {
-            let coord = if vertical { splat_i64(y as i64) } else { xs } + splat_i64(t as i64 - r);
+        for (t, &k) in scan.kernel.iter().enumerate() {
+            let coord = if scan.vertical { fixed } else { xs } + splat_i64(t as i64 - r);
             let clamped = simd_clamp_i64(coord, max_coord) * splat_i64(coord_stride as i64);
-            let idx = if vertical { clamped + xs } else { clamped + row_offset };
+            let idx = if scan.vertical { clamped + xs } else { clamped + fixed };
             acc += tap(src, idx, k);
         }
 
@@ -55,27 +58,22 @@ fn row_out(
     }
 }
 
-#[inline]
-fn pass(dst: &mut [f32], src: &[f32], kernel: &[f32], w: usize, h: usize, vertical: bool) {
-    let max_coord = if vertical { h as i64 - 1 } else { w as i64 - 1 };
-    let coord_stride = if vertical { w } else { 1 };
-    for (y, out_row) in dst.chunks_mut(w).enumerate() {
-        row_out(out_row, src, kernel, w, max_coord, coord_stride, vertical, y);
-    }
-}
-
 pub fn conv_row_horizontal(src: &[f32], w: usize, kernel: &[f32], y: usize, dst_row: &mut [f32]) {
-    row_out(dst_row, src, kernel, w, w as i64 - 1, 1, false, y);
+    row_out(&RowScan { kernel, w, h: 0, vertical: false, y }, src, dst_row);
 }
 
 pub fn conv_row_vertical(src: &[f32], w: usize, h: usize, kernel: &[f32], y: usize, dst_row: &mut [f32]) {
-    row_out(dst_row, src, kernel, w, h as i64 - 1, w, true, y);
+    row_out(&RowScan { kernel, w, h, vertical: true, y }, src, dst_row);
 }
 
 pub fn convolve_separable(src: &[f32], w: usize, h: usize, kernel: &[f32]) -> Vec<f32> {
     let mut tmp = vec![0.0; w * h];
     let mut out = vec![0.0; w * h];
-    pass(&mut tmp, src, kernel, w, h, false);
-    pass(&mut out, &tmp, kernel, w, h, true);
+    for (y, row) in tmp.chunks_mut(w).enumerate() {
+        row_out(&RowScan { kernel, w, h, vertical: false, y }, src, row);
+    }
+    for (y, row) in out.chunks_mut(w).enumerate() {
+        row_out(&RowScan { kernel, w, h, vertical: true, y }, &tmp, row);
+    }
     out
 }
