@@ -15,7 +15,7 @@ use crate::paths::parse_virtual_path;
 pub type TransformedPreview = (Arc<DynamicImage>, f32, (f32, f32));
 
 pub fn generate_transformed_preview(
-    state: &tauri::State<AppState>,
+    state: &AppState,
     loaded_image: &LoadedImage,
     adjustments: &serde_json::Value,
     preview_dim: u32,
@@ -70,7 +70,7 @@ fn get_or_compute_stage(
 }
 
 fn compute_transformed_preview(
-    state: &tauri::State<AppState>,
+    state: &AppState,
     loaded_image: &LoadedImage,
     adjustments: &serde_json::Value,
     preview_dim: u32,
@@ -263,14 +263,14 @@ pub fn build_ai_source_image(
 }
 
 pub fn get_cached_full_warped_image(
-    state: &tauri::State<AppState>,
+    state: &AppState,
     js_adjustments: &serde_json::Value,
 ) -> Result<Arc<DynamicImage>, String> {
     get_cached_full_warped_image_for_path(state, None, js_adjustments)
 }
 
 pub fn get_cached_full_warped_image_for_path(
-    state: &tauri::State<AppState>,
+    state: &AppState,
     path: Option<&str>,
     js_adjustments: &serde_json::Value,
 ) -> Result<Arc<DynamicImage>, String> {

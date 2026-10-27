@@ -31,6 +31,41 @@ impl Host for TauriHost {
         crate::app_settings::load_settings(self.app_handle.clone()).unwrap_or_default()
     }
 
+    fn app_data_dir(&self) -> PathBuf {
+        self.app_handle
+            .path()
+            .app_data_dir()
+            .unwrap_or_else(|_| std::env::temp_dir().join("rapidraw"))
+    }
+
+    fn resource_dir(&self) -> PathBuf {
+        self.app_handle
+            .path()
+            .resource_dir()
+            .unwrap_or_else(|_| std::env::current_dir().unwrap_or_default())
+    }
+
+    fn create_display_surface(&self, instance: &wgpu::Instance) -> Option<wgpu::Surface<'static>> {
+        if !self.load_settings().use_wgpu_renderer.unwrap_or(true) {
+            return None;
+        }
+        let window = self.app_handle.get_webview_window("main")?;
+        match instance.create_surface(window) {
+            Ok(surface) => Some(surface),
+            Err(e) => {
+                log::warn!("Failed to create surface, falling back to compute-only: {}", e);
+                None
+            }
+        }
+    }
+
+    fn window_size(&self) -> (u32, u32) {
+        self.app_handle
+            .get_webview_window("main")
+            .and_then(|w| w.inner_size().ok())
+            .map_or((1280, 720), |s| (s.width, s.height))
+    }
+
     fn models_dir(&self) -> PathBuf {
         let fallback = || {
             std::env::var("HOME")

@@ -21,7 +21,10 @@ macro_rules! cli_eprintln {
 }
 
 mod ai_commands;
+pub mod cache_utils;
 mod host;
+pub mod lut_processing;
+pub mod mask_generation;
 pub use engine::ai_connector;
 mod android_integration;
 mod app_settings;
@@ -611,7 +614,7 @@ fn process_preview_job(
     active_waveform_channel: Option<&str>,
 ) -> Result<Vec<u8>, String> {
     let fn_start = std::time::Instant::now();
-    let context = get_or_init_gpu_context(&state, app_handle)?;
+    let context = get_or_init_gpu_context(&state, &*crate::host::TauriHost::host(app_handle.clone()))?;
     hydrate_adjustments(&state, &mut adjustments_json);
     let adjustments_clone = adjustments_json;
 
@@ -1063,7 +1066,7 @@ async fn generate_uncropped_preview(
     state: tauri::State<'_, AppState>,
     app_handle: tauri::AppHandle,
 ) -> Result<Response, String> {
-    let context = get_or_init_gpu_context(&state, &app_handle)?;
+    let context = get_or_init_gpu_context(&state, &*crate::host::TauriHost::host(app_handle.clone()))?;
     let mut adjustments_clone = js_adjustments.clone();
     hydrate_adjustments(&state, &mut adjustments_clone);
 
@@ -1217,7 +1220,7 @@ async fn generate_preset_preview(
 ) -> Result<Response, String> {
     tauri::async_runtime::spawn_blocking(move || {
         let state = app_handle.state::<AppState>();
-        let context = get_or_init_gpu_context(&state, &app_handle)?;
+        let context = get_or_init_gpu_context(&state, &*crate::host::TauriHost::host(app_handle.clone()))?;
 
         let loaded_image = state
             .original_image
@@ -1344,7 +1347,7 @@ async fn generate_all_community_previews(
 
     tauri::async_runtime::spawn_blocking(move || {
         let state = app_handle.state::<AppState>();
-        let context = get_or_init_gpu_context(&state, &app_handle)?;
+        let context = get_or_init_gpu_context(&state, &*crate::host::TauriHost::host(app_handle.clone()))?;
 
         const TILE_DIM: u32 = 360;
         const PROCESSING_DIM: u32 = TILE_DIM * 2;
@@ -1697,7 +1700,7 @@ async fn generate_preview_for_path(
 ) -> Result<Response, String> {
     tokio::task::spawn_blocking(move || {
         let state = app_handle.state::<AppState>();
-        let context = get_or_init_gpu_context(&state, &app_handle)?;
+        let context = get_or_init_gpu_context(&state, &*crate::host::TauriHost::host(app_handle.clone()))?;
         let (source_path, _) = parse_virtual_path(&path);
         let source_path_str = source_path.to_string_lossy().to_string();
         let is_raw = is_raw_file(&source_path_str);
@@ -2288,7 +2291,7 @@ pub fn run() {
             #[cfg(not(target_os = "android"))]
             {
                 let app_state = app.state::<AppState>();
-                if let Err(error) = get_or_init_gpu_context(&app_state, app.handle()) {
+                if let Err(error) = get_or_init_gpu_context(&app_state, &*crate::host::TauriHost::host(app.handle().clone())) {
                     log::warn!(
                         "GPU pre-initialization failed (editing and thumbnails may be degraded): {}",
                         error
@@ -2669,7 +2672,7 @@ pub use engine::ai_processing;
 pub use engine::app_state;
 pub use engine::as_shot;
 pub use engine::baseline_exposure;
-pub use engine::cache_utils;
+
 pub use engine::effect_maps;
 pub use engine::exif_processing;
 pub use engine::face_masking;
@@ -2680,8 +2683,8 @@ pub mod image_loader;
 pub use engine::image_processing;
 pub use engine::lens_blur;
 pub use engine::lens_correction;
-pub use engine::lut_processing;
-pub use engine::mask_generation;
+
+
 pub use engine::memory_budget;
 pub use engine::negative_conversion;
 pub use engine::raw_processing;

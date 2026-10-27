@@ -12,7 +12,6 @@ use std::collections::hash_map::DefaultHasher;
 use std::f32::consts::PI;
 use std::hash::{Hash, Hasher};
 use std::sync::Arc;
-use tauri::ipc::Response;
 
 use crate::app_state::AppState;
 use crate::image_processing::{apply_cpu_default_raw_processing, apply_geometry_warp};
@@ -1396,7 +1395,6 @@ pub fn generate_mask_bitmap(
     Some(final_mask)
 }
 
-#[tauri::command(async)]
 pub fn generate_mask_overlay(
     mut mask_def: serde_json::Value,
     width: u32,
@@ -1404,8 +1402,8 @@ pub fn generate_mask_overlay(
     scale: f32,
     crop_offset: (f32, f32),
     mut js_adjustments: Option<serde_json::Value>,
-    state: tauri::State<'_, AppState>,
-) -> Result<Response, String> {
+    state: &AppState,
+) -> Result<Option<Vec<u8>>, String> {
     if let Some(ref mut adj) = js_adjustments {
         crate::adjustment_utils::hydrate_adjustments(&state, adj);
     }
@@ -1443,14 +1441,14 @@ pub fn generate_mask_overlay(
             .write_image(&rgba_mask, width, height, ExtendedColorType::Rgba8)
             .map_err(|e| e.to_string())?;
 
-        Ok(Response::new(buf))
+        Ok(Some(buf))
     } else {
-        Ok(Response::new(Vec::new()))
+        Ok(None)
     }
 }
 
 pub fn resolve_warped_image_for_masks(
-    state: &tauri::State<AppState>,
+    state: &AppState,
     adjustments: &serde_json::Value,
     masks: &[MaskDefinition],
 ) -> Option<Arc<DynamicImage>> {
@@ -1537,7 +1535,7 @@ pub struct GeneratedMasks {
 
 #[allow(clippy::too_many_arguments)]
 pub fn get_cached_or_generate_masks(
-    state: &tauri::State<AppState>,
+    state: &AppState,
     path: &str,
     definitions: &[MaskDefinition],
     width: u32,

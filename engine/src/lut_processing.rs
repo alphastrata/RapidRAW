@@ -13,13 +13,13 @@ use std::sync::Arc;
 
 use base64::{Engine as _, engine::general_purpose};
 use mozjpeg_rs::{Encoder, Preset};
-use tauri::{AppHandle, Manager, State};
 
 use crate::app_state::AppState;
+use crate::host::Host;
 use crate::cache_utils::calculate_transform_hash;
 use crate::image_processing::{
     RenderRequest, get_all_adjustments_from_json, mark_baseline_exposure,
-    process_and_get_dynamic_image, resolve_render_options_from_handle,
+    process_and_get_dynamic_image,
 };
 
 #[derive(Debug, Clone)]
@@ -59,12 +59,8 @@ fn strip_verbatim(path: &Path) -> PathBuf {
     PathBuf::from(s.strip_prefix(r"\\?\").unwrap_or(&s).to_string())
 }
 
-fn film_luts_dir(app_handle: &AppHandle) -> Option<PathBuf> {
-    app_handle
-        .path()
-        .resolve("resources/film_luts", tauri::path::BaseDirectory::Resource)
-        .ok()
-        .map(|p| strip_verbatim(&p))
+fn film_luts_dir(host: &dyn Host) -> Option<PathBuf> {
+    Some(strip_verbatim(&host.resource_dir().join("resources").join("film_luts")))
 }
 
 pub fn get_luts_dir(app_data_dir: &Path) -> anyhow::Result<PathBuf> {
@@ -472,7 +468,7 @@ pub fn convert_image_to_cube_lut(image: &DynamicImage, size: u32) -> Result<Vec<
     Ok(out.into_bytes())
 }
 
-pub fn get_or_load_lut(state: &State<AppState>, path: &str) -> Result<Arc<Lut>, String> {
+pub fn get_or_load_lut(state: &AppState, path: &str) -> Result<Arc<Lut>, String> {
     let mut cache = state.lut_cache.lock().unwrap();
     if let Some(lut) = cache.get(path) {
         return Ok(lut.clone());
@@ -484,20 +480,16 @@ pub fn get_or_load_lut(state: &State<AppState>, path: &str) -> Result<Arc<Lut>, 
     Ok(arc_lut)
 }
 
-#[tauri::command]
-pub fn list_luts(app_handle: AppHandle) -> Result<Vec<LutEntry>, String> {
+pub fn list_luts_impl(host: &dyn Host) -> Result<Vec<LutEntry>, String> {
     let mut all_luts = Vec::new();
 
-    if let Some(resource_path) = film_luts_dir(&app_handle)
+    if let Some(resource_path) = film_luts_dir(host)
         && let Ok(built_in) = list_luts_in_dir(&resource_path, true)
     {
         all_luts.extend(built_in);
     }
 
-    let data_dir = app_handle
-        .path()
-        .app_data_dir()
-        .map_err(|e| e.to_string())?;
+    let data_dir = host.app_data_dir();
     let luts_dir = get_luts_dir(&data_dir).map_err(|e| e.to_string())?;
 
     #[cfg(target_os = "android")]
@@ -567,31 +559,23 @@ fn list_luts_in_cache() -> anyhow::Result<Vec<LutEntry>> {
     Ok(entries)
 }
 
-#[tauri::command]
-pub fn import_luts(
-    app_handle: AppHandle,
+pub fn import_luts_impl(
+    host: &dyn Host,
     source_paths: Vec<String>,
 ) -> Result<Vec<LutEntry>, String> {
-    let data_dir = app_handle
-        .path()
-        .app_data_dir()
-        .map_err(|e| e.to_string())?;
+    let data_dir = host.app_data_dir();
     let luts_dir = get_luts_dir(&data_dir).map_err(|e| e.to_string())?;
     import_luts_to_dir(&luts_dir, &source_paths).map_err(|e| e.to_string())?;
 
-    list_luts(app_handle)
+    list_luts_impl(host)
 }
 
-#[tauri::command]
-pub fn remove_lut(app_handle: AppHandle, path: String) -> Result<Vec<LutEntry>, String> {
-    let data_dir = app_handle
-        .path()
-        .app_data_dir()
-        .map_err(|e| e.to_string())?;
+pub fn remove_lut_impl(host: &dyn Host, path: String) -> Result<Vec<LutEntry>, String> {
+    let data_dir = host.app_data_dir();
     let luts_dir = strip_verbatim(&get_luts_dir(&data_dir).map_err(|e| e.to_string())?);
     let target_path = strip_verbatim(Path::new(&path));
 
-    if let Some(resource_path) = film_luts_dir(&app_handle)
+    if let Some(resource_path) = film_luts_dir(host)
         && target_path.starts_with(&resource_path)
     {
         return Err("Cannot delete built-in film emulations".to_string());
@@ -619,12 +603,12 @@ pub fn remove_lut(app_handle: AppHandle, path: String) -> Result<Vec<LutEntry>, 
         return Err("LUT file not found".to_string());
     }
 
-    list_luts(app_handle)
+    list_luts_impl(host)
 }
 
 fn render_lut_swatch(
     context: &crate::image_processing::GpuContext,
-    state: &State<AppState>,
+    state: &AppState,
     base_image: &DynamicImage,
     transform_hash: u64,
     adjustments: crate::image_processing::AllAdjustments,
@@ -659,15 +643,14 @@ fn render_lut_swatch(
     ))
 }
 
-#[tauri::command]
-pub async fn generate_lut_previews(
+pub async fn generate_lut_previews_impl(
+    host: Arc<dyn Host>,
     luts: Vec<LutPreviewRequest>,
     size: u32,
-    app_handle: AppHandle,
 ) -> Result<Vec<LutPreview>, String> {
-    tauri::async_runtime::spawn_blocking(move || {
-        let state = app_handle.state::<AppState>();
-        let context = crate::image_processing::get_or_init_gpu_context(&state, &app_handle)?;
+    tokio::task::spawn_blocking(move || {
+        let state = host.app_state();
+        let context = crate::image_processing::get_or_init_gpu_context(&state, host.as_ref())?;
         let loaded_image = state
             .original_image
             .lock()
@@ -680,7 +663,7 @@ pub async fn generate_lut_previews(
         let (base_image, _scale, _offset) =
             crate::preview_cache::generate_transformed_preview(&state, &loaded_image, &base_json, size)?;
 
-        let render = resolve_render_options_from_handle(&app_handle, is_raw);
+        let render = crate::image_processing::resolve_render_options(&host.load_settings(), is_raw);
         let transform_hash = calculate_transform_hash(&base_json);
 
         let previews = luts
@@ -721,8 +704,7 @@ pub async fn generate_lut_previews(
     .map_err(|e| e.to_string())?
 }
 
-#[tauri::command]
-pub fn load_and_parse_lut(path: String, state: State<AppState>) -> Result<LutParseResult, String> {
+pub fn load_and_parse_lut_impl(path: String, state: &AppState) -> Result<LutParseResult, String> {
     let lut = parse_lut_file(&path).map_err(|e| e.to_string())?;
     let lut_size = lut.size;
 

@@ -353,7 +353,7 @@ pub async fn start_background_indexing(
 
         let state_clone = app_handle_clone.state::<AppState>();
         let gpu_context =
-            crate::gpu_processing::get_or_init_gpu_context(&state_clone, &app_handle).ok();
+            crate::gpu_processing::get_or_init_gpu_context(&state_clone, &*crate::host::TauriHost::host(app_handle.clone())).ok();
 
         let processed_count = Arc::new(Mutex::new(0));
         let custom_ai_tags_shared = Arc::new(custom_ai_tags);

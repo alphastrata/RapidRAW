@@ -1897,7 +1897,7 @@ pub fn start_thumbnail_workers(app_handle: tauri::AppHandle) {
 
                 let state = app_clone.state::<crate::AppState>();
                 let gpu_context =
-                    crate::gpu_processing::get_or_init_gpu_context(&state, &app_clone).ok();
+                    crate::gpu_processing::get_or_init_gpu_context(&state, &*crate::host::TauriHost::host(app_clone.clone())).ok();
 
                 let current_settings = load_settings(app_clone.clone()).unwrap_or_default();
 
@@ -2610,7 +2610,7 @@ pub fn save_metadata_and_update_thumbnail(
     };
     drop(loaded_image_lock);
 
-    let gpu_context = gpu_processing::get_or_init_gpu_context(&state, &app_handle).ok();
+    let gpu_context = gpu_processing::get_or_init_gpu_context(&state, &*crate::host::TauriHost::host(app_handle.clone())).ok();
     let app_handle_clone = app_handle.clone();
     let path_clone = path.clone();
 
@@ -2848,7 +2848,7 @@ pub(crate) fn regenerate_thumbnails(
         }
     };
 
-    let gpu_context = gpu_processing::get_or_init_gpu_context(&state, app_handle).ok();
+    let gpu_context = gpu_processing::get_or_init_gpu_context(&state, &*crate::host::TauriHost::host(app_handle.clone())).ok();
 
     run_batch_workers(paths, |path| {
         let path_str = path.as_str();
@@ -2948,7 +2948,7 @@ async fn update_sidecars_from_images(
             }
         };
 
-        let gpu_context = gpu_processing::get_or_init_gpu_context(&state, &app_handle).ok();
+        let gpu_context = gpu_processing::get_or_init_gpu_context(&state, &*crate::host::TauriHost::host(app_handle.clone())).ok();
 
         let process = |path: &String| {
             let loaded_image: Option<DynamicImage> = (|| -> Result<DynamicImage, String> {

@@ -1620,7 +1620,7 @@ pub(crate) async fn export_images_impl(
         return Ok(());
     }
 
-    let context = match get_or_init_gpu_context(&state, &app_handle) {
+    let context = match get_or_init_gpu_context(&state, &*crate::host::TauriHost::host(app_handle.clone())) {
         Ok(context) => context,
         Err(_) if cancellation_token.load(Ordering::SeqCst) => return Ok(()),
         Err(error) => return Err(error),
@@ -2302,7 +2302,7 @@ pub async fn estimate_export_sizes(
     let (source_path, sidecar_path) = parse_virtual_path(first_path);
     let source_path_str = source_path.to_string_lossy().to_string();
 
-    let context = get_or_init_gpu_context(&state, &app_handle)?;
+    let context = get_or_init_gpu_context(&state, &*crate::host::TauriHost::host(app_handle.clone()))?;
     let is_current_edit = Some(&source_path_str) == current_edit_path.as_ref();
     let is_raw = is_raw_file(&source_path_str);
     let settings = load_settings(app_handle.clone()).unwrap_or_default();

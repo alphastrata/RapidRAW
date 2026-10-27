@@ -707,8 +707,7 @@ pub fn clear_preview_stage_caches(state: &AppState) {
         .unwrap_or_else(|e| e.into_inner()) = None;
 }
 
-#[tauri::command]
-pub fn clear_image_caches(state: tauri::State<AppState>) {
+pub fn clear_image_caches(state: &AppState) {
     if let Ok(mut decoded_cache) = state.decoded_image_cache.lock() {
         decoded_cache.clear();
     }
@@ -724,8 +723,7 @@ pub fn clear_image_caches(state: tauri::State<AppState>) {
     clear_preview_stage_caches(&state);
 }
 
-#[tauri::command]
-pub fn clear_session_caches(state: tauri::State<AppState>) {
+pub fn clear_session_caches(state: &AppState) {
     if let Ok(mut patch_cache) = state.patch_cache.lock() {
         patch_cache.clear();
     }

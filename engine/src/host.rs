@@ -14,6 +14,10 @@ pub trait Host: Send + Sync {
     fn emit_json(&self, event: &str, payload: Json);
     fn emit_str(&self, event: &str, payload: &str);
     fn load_settings(&self) -> AppSettings;
+    fn app_data_dir(&self) -> PathBuf;
+    fn create_display_surface(&self, instance: &wgpu::Instance) -> Option<wgpu::Surface<'static>>;
+    fn window_size(&self) -> (u32, u32);
+    fn resource_dir(&self) -> PathBuf;
     fn models_dir(&self) -> PathBuf;
     fn app_state(&self) -> Arc<AppState>;
     fn add_to_thumbnail_queue(&self, state: &AppState, count: usize);
@@ -36,8 +40,20 @@ impl Host for SilentHost {
     fn load_settings(&self) -> AppSettings {
         AppSettings::default()
     }
+    fn app_data_dir(&self) -> PathBuf {
+        std::env::temp_dir().join("rapidraw")
+    }
+    fn create_display_surface(&self, _: &wgpu::Instance) -> Option<wgpu::Surface<'static>> {
+        None
+    }
+    fn window_size(&self) -> (u32, u32) {
+        (1280, 720)
+    }
+    fn resource_dir(&self) -> PathBuf {
+        std::env::current_dir().unwrap_or_default()
+    }
     fn models_dir(&self) -> PathBuf {
-        std::env::temp_dir().join("rapidraw-models")
+        self.app_data_dir().join("models")
     }
     fn app_state(&self) -> Arc<AppState> {
         Arc::new(AppState::new())

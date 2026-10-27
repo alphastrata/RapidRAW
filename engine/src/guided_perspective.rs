@@ -616,7 +616,6 @@ fn flatten_row_major(h: &[[f64; 3]; 3]) -> [f64; 9] {
     ]
 }
 
-#[tauri::command]
 pub fn calculate_guided_perspective(
     lines: Vec<GuideLine>,
     width: f64,

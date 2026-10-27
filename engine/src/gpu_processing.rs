@@ -7,8 +7,6 @@ use half::f16;
 use image::{DynamicImage, GenericImageView, ImageBuffer, Luma, Rgba};
 use std::num::NonZero;
 
-#[cfg(not(any(target_os = "android", target_os = "linux")))]
-use tauri::Manager;
 use wgpu::util::{DeviceExt, TextureDataOrder};
 
 use crate::image_processing::{
@@ -225,11 +223,11 @@ impl WgpuDisplay {
 static GPU_DEVICE_LOST: AtomicBool = AtomicBool::new(false);
 
 pub fn get_or_init_gpu_context(
-    state: &tauri::State<AppState>,
-    _app_handle: &tauri::AppHandle,
+    state: &AppState,
+    host: &dyn crate::host::Host,
 ) -> Result<GpuContext, String> {
-    #[cfg(not(any(target_os = "android", target_os = "linux")))]
-    let app_handle = _app_handle;
+    #[cfg(any(target_os = "android", target_os = "linux"))]
+    let _ = host;
 
     let mut context_lock = match state.gpu_context.lock() {
         Ok(guard) => guard,
@@ -274,32 +272,7 @@ pub fn get_or_init_gpu_context(
     let instance = wgpu::Instance::new(instance_desc);
 
     #[cfg(not(any(target_os = "android", target_os = "linux")))]
-    let surface_opt = {
-        let settings = crate::app_settings::load_settings(app_handle.clone()).unwrap_or_default();
-        let use_wgpu_renderer = settings.use_wgpu_renderer.unwrap_or(true);
-
-        if use_wgpu_renderer {
-            if let Some(window) = app_handle.get_webview_window("main") {
-                match instance.create_surface(window) {
-                    Ok(surface) => Some(surface),
-                    Err(e) => {
-                        log::warn!(
-                            "Failed to create surface, falling back to compute-only: {}",
-                            e
-                        );
-                        if let Some(p) = &flag_path {
-                            let _ = std::fs::remove_file(p);
-                        }
-                        None
-                    }
-                }
-            } else {
-                None
-            }
-        } else {
-            None
-        }
-    };
+    let surface_opt = host.create_display_surface(&instance);
 
     #[cfg(any(target_os = "android", target_os = "linux"))]
     let surface_opt: Option<wgpu::Surface> = None;
@@ -367,10 +340,6 @@ pub fn get_or_init_gpu_context(
 
     #[cfg(not(any(target_os = "android", target_os = "linux")))]
     let display_opt = if let Some(surface) = surface_opt {
-        let window = app_handle
-            .get_webview_window("main")
-            .ok_or("Failed to get main window")?;
-
         let swapchain_caps = surface.get_capabilities(&adapter);
         let swapchain_format = swapchain_caps
             .formats
@@ -399,12 +368,10 @@ pub fn get_or_init_gpu_context(
             swapchain_caps.alpha_modes[0]
         };
 
-        let size = window
-            .inner_size()
-            .unwrap_or(tauri::PhysicalSize::new(1280, 720));
+        let (width_px, height_px) = host.window_size();
         let config = wgpu::SurfaceConfiguration {
-            width: size.width.max(1),
-            height: size.height.max(1),
+            width: width_px.max(1),
+            height: height_px.max(1),
             format: swapchain_format,
             usage: wgpu::TextureUsages::RENDER_ATTACHMENT,
             present_mode: wgpu::PresentMode::Fifo,
@@ -2842,7 +2809,7 @@ impl GpuProcessor {
 
 pub fn process_and_get_dynamic_image(
     context: &GpuContext,
-    state: &tauri::State<AppState>,
+    state: &AppState,
     base_image: &DynamicImage,
     transform_hash: u64,
     request: RenderRequest,
@@ -2863,7 +2830,7 @@ pub fn process_and_get_dynamic_image(
 
 pub fn process_and_get_dynamic_image_with_precision(
     context: &GpuContext,
-    state: &tauri::State<AppState>,
+    state: &AppState,
     base_image: &DynamicImage,
     transform_hash: u64,
     request: RenderRequest,
@@ -2883,10 +2850,9 @@ pub fn process_and_get_dynamic_image_with_precision(
     )
 }
 
-#[allow(clippy::too_many_arguments)]
 pub fn process_and_get_dynamic_image_with_analytics(
     context: &GpuContext,
-    state: &tauri::State<AppState>,
+    state: &AppState,
     base_image: &DynamicImage,
     transform_hash: u64,
     request: RenderRequest,
@@ -2907,10 +2873,9 @@ pub fn process_and_get_dynamic_image_with_analytics(
     )
 }
 
-#[allow(clippy::too_many_arguments)]
 fn process_and_get_dynamic_image_inner(
     context: &GpuContext,
-    state: &tauri::State<AppState>,
+    state: &AppState,
     base_image: &DynamicImage,
     transform_hash: u64,
     request: RenderRequest,
