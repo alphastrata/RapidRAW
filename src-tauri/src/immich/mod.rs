@@ -17,7 +17,7 @@ use tauri::AppHandle;
 
 use client::ImmichClient;
 
-pub use config::ImmichSettings;
+pub use engine::immich::ImmichSettings;
 pub use files::ensure_local;
 pub use thumbnails::placeholder_thumbnail;
 pub use trash::trash_remote;

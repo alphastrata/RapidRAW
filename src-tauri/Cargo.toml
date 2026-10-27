@@ -11,7 +11,7 @@ crate-type = ["staticlib", "cdylib", "rlib"]
 
 [features]
 default = []
-tethering = ["dep:gphoto2"]
+tethering = ["dep:gphoto2", "engine/tethering"]
 
 [dependencies]
 tauri = { version = "2.12", features = [ "macos-private-api", "rustls-tls", "protocol-asset" ] }

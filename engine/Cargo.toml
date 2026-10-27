@@ -3,6 +3,10 @@ name = "engine"
 edition = "2024"
 rust-version = "1.98"
 
+[features]
+default = []
+tethering = []
+
 [dependencies]
 anyhow = "1.0.104"
 base64 = "0.23"
