@@ -170,7 +170,11 @@ fn sample_rgb(image: &RgbImage, x: f32, y: f32, replicate: bool) -> [f32; 3] {
     }
     let taps = bilinear(x, y, w, h);
     let raw = image.as_raw();
-    std::array::from_fn(|c| taps.iter().map(|&(i, k)| f32::from(raw[i * 3 + c]) * k).sum())
+    std::array::from_fn(|c| {
+        taps.iter()
+            .map(|&(i, k)| f32::from(raw[i * 3 + c]) * k)
+            .sum()
+    })
 }
 
 fn frame_tensor(
@@ -205,7 +209,9 @@ fn run_landmarks(
     frame: &FaceFrame,
 ) -> Result<(Vec<[f32; 2]>, f32)> {
     let tensor = frame_tensor(image, frame, LANDMARK_INPUT_SIZE, false, |v| v / 255.0);
-    let mut session = session.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
+    let mut session = session
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
     let outputs = session.run(ort::inputs![Tensor::from_array(tensor)?])?;
     let points = outputs[0].try_extract_array::<f32>()?;
     let score = outputs[1]
@@ -293,7 +299,9 @@ fn run_segmenter(
     let tensor = frame_tensor(image, frame, SEGMENTER_INPUT_SIZE, true, |v| {
         v / 127.5 - 1.0
     });
-    let mut session = session.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
+    let mut session = session
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
     let outputs = session.run(ort::inputs![Tensor::from_array(tensor)?])?;
     let logits = outputs[0].try_extract_array::<f32>()?;
     let logits = logits
@@ -444,8 +452,7 @@ fn rasterize(
                     .for_each(|[a, b]| {
                         let start = ((a + 0.5) * scale - 0.5).ceil().clamp(0.0, samples) as usize;
                         let end = ((b + 0.5) * scale - 0.5).ceil().clamp(0.0, samples) as usize;
-                        (start..end)
-                            .for_each(|n| row[n / SUPERSAMPLING] += 1.0 / (scale * scale));
+                        (start..end).for_each(|n| row[n / SUPERSAMPLING] += 1.0 / (scale * scale));
                     });
             });
         });
@@ -531,7 +538,11 @@ fn to_gray(values: &[f32], width: usize, height: usize) -> GrayImage {
 }
 
 fn from_gray(image: &GrayImage) -> Vec<f32> {
-    image.as_raw().iter().map(|&v| f32::from(v) / 255.0).collect()
+    image
+        .as_raw()
+        .iter()
+        .map(|&v| f32::from(v) / 255.0)
+        .collect()
 }
 
 fn refine(guide: &RgbImage, mask: &[f32], radius: usize) -> Vec<f32> {
@@ -753,12 +764,11 @@ fn face_parts_mask(
     let fades = [x0 > 0, y0 > 0, x1 < image.width(), y1 < image.height()];
     combined.par_chunks_mut(w).enumerate().for_each(|(y, row)| {
         for (x, v) in row.iter_mut().enumerate() {
-            let distances = [
-                x as f32,
-                y as f32,
-                (w - 1 - x) as f32,
-                (h - 1 - y) as f32,
-            ];
+            let x_f = x as f32;
+            let y_f = y as f32;
+            let w_f = (w - 1 - x) as f32;
+            let h_f = (h - 1 - y) as f32;
+            let distances = [x_f, y_f, w_f, h_f];
             let edge = distances
                 .iter()
                 .zip(fades)
