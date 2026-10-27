@@ -71,38 +71,43 @@ pub fn get_luts_dir(app_data_dir: &Path) -> anyhow::Result<PathBuf> {
     Ok(luts_dir)
 }
 
+fn is_supported_lut_path(path: &Path) -> bool {
+    let extension = path
+        .extension()
+        .and_then(|s| s.to_str())
+        .unwrap_or("")
+        .to_lowercase();
+    matches!(
+        extension.as_str(),
+        "cube" | "3dl" | "png" | "jpg" | "jpeg" | "tiff"
+    )
+}
+
 pub fn list_luts_in_dir(dir: &Path, is_built_in: bool) -> anyhow::Result<Vec<LutEntry>> {
     let mut entries: Vec<LutEntry> = Vec::new();
     if !dir.exists() {
         return Ok(entries);
     }
-    for entry in read_dir(dir)? {
-        let path = entry?.path();
-        let extension = path
-            .extension()
-            .and_then(|s| s.to_str())
-            .unwrap_or("")
-            .to_lowercase();
-
-        let is_supported = matches!(
-            extension.as_str(),
-            "cube" | "3dl" | "png" | "jpg" | "jpeg" | "tiff"
-        );
-
-        if is_supported {
-            let name = path
-                .file_stem()
-                .and_then(|s| s.to_str())
-                .unwrap_or("LUT")
-                .to_string();
-
-            entries.push(LutEntry {
-                name,
-                path: strip_verbatim(&path).to_string_lossy().into_owned(),
-                is_built_in,
-            });
-        }
-    }
+    entries = read_dir(dir)?
+        .map(|entry| {
+            entry
+                .map(|e| e.path())
+                .map(|path| {
+                    is_supported_lut_path(&path).then_some(LutEntry {
+                        name: path
+                            .file_stem()
+                            .and_then(|s| s.to_str())
+                            .unwrap_or("LUT")
+                            .to_string(),
+                        path: strip_verbatim(&path).to_string_lossy().into_owned(),
+                        is_built_in,
+                    })
+                })
+        })
+        .collect::<Result<Vec<Option<_>>, _>>()?
+        .into_iter()
+        .flatten()
+        .collect();
     entries.sort_by_key(|a| a.name.to_lowercase());
     Ok(entries)
 }
@@ -121,30 +126,26 @@ pub fn import_luts_to_dir(dir: &Path, source_paths: &[String]) -> anyhow::Result
     for source in source_paths {
         if let Err(error) = parse_lut_file(source) {
             log::warn!("Skipping invalid LUT '{source}': {error}");
-            continue;
-        }
-
-        #[cfg(target_os = "android")]
-        if is_android_content_uri(source) {
+        } else if cfg!(target_os = "android") && is_android_content_uri(source) {
+            #[cfg(target_os = "android")]
             if let Err(error) = import_android_lut(source) {
                 log::error!("Failed to import LUT from '{}': {}", source, error);
             }
-            continue;
-        }
-
-        let source_path = Path::new(source);
-        let stem = source_path
-            .file_stem()
-            .and_then(|s| s.to_str())
-            .unwrap_or("LUT");
-        let extension = source_path
-            .extension()
-            .and_then(|s| s.to_str())
-            .unwrap_or("cube")
-            .to_lowercase();
-        let destination = unique_lut_destination(dir, stem, &extension);
-        if let Err(error) = copy(source_path, &destination) {
-            log::error!("Failed to copy LUT '{source}': {error}");
+        } else {
+            let source_path = Path::new(source);
+            let stem = source_path
+                .file_stem()
+                .and_then(|s| s.to_str())
+                .unwrap_or("LUT");
+            let extension = source_path
+                .extension()
+                .and_then(|s| s.to_str())
+                .unwrap_or("cube")
+                .to_lowercase();
+            let destination = unique_lut_destination(dir, stem, &extension);
+            if let Err(error) = copy(source_path, &destination) {
+                log::error!("Failed to copy LUT '{source}': {error}");
+            }
         }
     }
     list_luts_in_dir(dir, false)
@@ -180,24 +181,23 @@ fn import_android_lut(source: &str) -> anyhow::Result<()> {
 fn parse_cube(reader: impl BufRead) -> anyhow::Result<Lut> {
     let mut size: Option<u32> = None;
     let mut data: Vec<f32> = Vec::new();
-    let mut line_num = 0;
 
-    for line in reader.lines() {
-        line_num += 1;
+    reader.lines().enumerate().try_for_each(|(index, line)| -> anyhow::Result<()> {
+        let line_num = index + 1;
         let line = line?;
         let trimmed = line.trim();
 
         if trimmed.is_empty() || trimmed.starts_with('#') {
-            continue;
+            return Ok(());
         }
 
         let parts: Vec<&str> = trimmed.split_whitespace().collect();
         if parts.is_empty() {
-            continue;
+            return Ok(());
         }
 
         match parts[0].to_uppercase().as_str() {
-            "TITLE" | "DOMAIN_MIN" | "DOMAIN_MAX" => continue,
+            "TITLE" | "DOMAIN_MIN" | "DOMAIN_MAX" => Ok(()),
 
             "LUT_3D_SIZE" => {
                 if parts.len() < 2 {
@@ -210,6 +210,7 @@ fn parse_cube(reader: impl BufRead) -> anyhow::Result<Lut> {
                         "Failed to parse LUT_3D_SIZE on line {line_num}: '{line}'. Error: {e}"
                     )
                 })?);
+                Ok(())
             }
             _ => {
                 if size.is_some() {
@@ -236,13 +237,12 @@ fn parse_cube(reader: impl BufRead) -> anyhow::Result<Lut> {
                             "Failed to parse B value on line {line_num}: '{line}'. Error: {e}"
                         )
                     })?;
-                    data.push(r);
-                    data.push(g);
-                    data.push(b);
+                    data.extend([r, g, b]);
                 }
+                Ok(())
             }
         }
-    }
+    })?;
 
     let lut_size = size.ok_or(anyhow!("LUT_3D_SIZE not found in .cube file"))?;
     let expected_len = (lut_size * lut_size * lut_size * 3) as usize;
@@ -264,22 +264,20 @@ fn parse_cube(reader: impl BufRead) -> anyhow::Result<Lut> {
 fn parse_3dl(reader: impl BufRead) -> anyhow::Result<Lut> {
     let mut data: Vec<f32> = Vec::new();
 
-    for line in reader.lines() {
+    reader.lines().try_for_each(|line| -> anyhow::Result<()> {
         let line = line?;
         let trimmed = line.trim();
         if trimmed.is_empty() || trimmed.starts_with('#') {
-            continue;
+            return Ok(());
         }
         let parts: Vec<&str> = trimmed.split_whitespace().collect();
         if parts.len() == 3 {
-            let r: f32 = parts[0].parse()?;
-            let g: f32 = parts[1].parse()?;
-            let b: f32 = parts[2].parse()?;
-            data.push(r);
-            data.push(g);
-            data.push(b);
+            data.push(parts[0].parse()?);
+            data.push(parts[1].parse()?);
+            data.push(parts[2].parse()?);
         }
-    }
+        Ok(())
+    })?;
 
     let total_values = data.len();
     if total_values == 0 {
@@ -409,44 +407,42 @@ pub fn parse_lut_file(path_str: &str) -> anyhow::Result<Lut> {
 pub fn generate_identity_lut_image(size: u32) -> DynamicImage {
     let width = size;
     let height = size * size;
+    let denom = (size - 1) as f32;
+    let coords: Vec<f32> = (0..size).map(|i| i as f32 / denom).collect();
+    let size_us = size as usize;
     let mut img = Rgb32FImage::new(width, height);
 
-    for z in 0..size {
-        for y in 0..size {
-            for x in 0..size {
-                let r = x as f32 / (size - 1) as f32;
-                let g = y as f32 / (size - 1) as f32;
-                let b = z as f32 / (size - 1) as f32;
-
-                img.put_pixel(x, z * size + y, Rgb([r, g, b]));
-            }
-        }
-    }
+    img.pixels_mut()
+        .enumerate()
+        .for_each(|(i, pixel)| {
+            let row = i / size_us;
+            let x = i % size_us;
+            let y = row % size_us;
+            let z = row / size_us;
+            *pixel = Rgb([coords[x], coords[y], coords[z]]);
+        });
 
     DynamicImage::ImageRgb32F(img)
 }
 
 pub fn convert_image_to_cube_lut(image: &DynamicImage, size: u32) -> Result<Vec<u8>, String> {
     let f32_image = image.to_rgb32f();
-    let mut out = String::new();
 
-    out.push_str(&format!("LUT_3D_SIZE {size}\n"));
-    out.push_str("DOMAIN_MIN 0.0 0.0 0.0\n");
-    out.push_str("DOMAIN_MAX 1.0 1.0 1.0\n");
-
-    for z in 0..size {
-        for y in 0..size {
-            for x in 0..size {
-                let pixel = f32_image.get_pixel(x, z * size + y);
+    let out = f32_image
+        .pixels()
+        .enumerate()
+        .fold(
+            format!("LUT_3D_SIZE {size}\nDOMAIN_MIN 0.0 0.0 0.0\nDOMAIN_MAX 1.0 1.0 1.0\n"),
+            |mut out, (_, pixel)| {
                 out.push_str(&format!(
                     "{:.6} {:.6} {:.6}\n",
                     pixel[0].clamp(0.0, 1.0),
                     pixel[1].clamp(0.0, 1.0),
                     pixel[2].clamp(0.0, 1.0)
                 ));
-            }
-        }
-    }
+                out
+            },
+        );
 
     Ok(out.into_bytes())
 }
@@ -506,40 +502,7 @@ fn get_lut_cache_dir() -> anyhow::Result<PathBuf> {
 #[cfg(target_os = "android")]
 fn list_luts_in_cache() -> anyhow::Result<Vec<LutEntry>> {
     let cache_dir = get_lut_cache_dir()?;
-
-    if !cache_dir.exists() {
-        return Ok(Vec::new());
-    }
-
-    let mut entries: Vec<LutEntry> = Vec::new();
-    for entry in read_dir(&cache_dir)? {
-        let path = entry?.path();
-        let extension = path
-            .extension()
-            .and_then(|s| s.to_str())
-            .unwrap_or("")
-            .to_lowercase();
-
-        let is_supported = matches!(
-            extension.as_str(),
-            "cube" | "3dl" | "png" | "jpg" | "jpeg" | "tiff"
-        );
-
-        if is_supported {
-            let name = path
-                .file_stem()
-                .and_then(|s| s.to_str())
-                .unwrap_or("LUT")
-                .to_string();
-            entries.push(LutEntry {
-                name,
-                path: strip_verbatim(&path).to_string_lossy().into_owned(),
-                is_built_in: false,
-            });
-        }
-    }
-    entries.sort_by_key(|a| a.name.to_lowercase());
-    Ok(entries)
+    list_luts_in_dir(&cache_dir, false)
 }
 
 pub fn import_luts_impl(
@@ -644,8 +607,13 @@ pub async fn generate_lut_previews_impl(
         let is_raw = loaded_image.is_raw;
 
         let base_json = serde_json::json!({});
-        let (base_image, _scale, _offset) =
-            crate::preview_cache::generate_transformed_preview(&state, &loaded_image, &base_json, size)?;
+    let (base_image, _scale, _offset) = crate::preview_cache::generate_transformed_preview(
+        &state,
+        &loaded_image,
+        &base_json,
+        size,
+    )
+    .map_err(|e| e.to_string())?;
 
         let render = crate::image_processing::resolve_render_options(&host.load_settings(), is_raw);
         let transform_hash = calculate_transform_hash(&base_json);
@@ -688,8 +656,8 @@ pub async fn generate_lut_previews_impl(
     .map_err(|e| e.to_string())?
 }
 
-pub fn load_and_parse_lut_impl(path: String, state: &AppState) -> Result<LutParseResult, String> {
-    let lut = parse_lut_file(&path).map_err(|e| e.to_string())?;
+pub fn load_and_parse_lut_impl(path: String, state: &AppState) -> anyhow::Result<LutParseResult> {
+    let lut = parse_lut_file(&path)?;
     let lut_size = lut.size;
 
     let mut cache = state.lut_cache.lock().unwrap_or_else(std::sync::PoisonError::into_inner);

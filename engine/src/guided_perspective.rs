@@ -58,13 +58,9 @@ pub(crate) fn cross(a: [f64; 3], b: [f64; 3]) -> [f64; 3] {
 }
 
 fn matmul(a: &[[f64; 3]; 3], b: &[[f64; 3]; 3]) -> [[f64; 3]; 3] {
-    let mut out = [[0.0; 3]; 3];
-    for i in 0..3 {
-        for j in 0..3 {
-            out[i][j] = a[i][0] * b[0][j] + a[i][1] * b[1][j] + a[i][2] * b[2][j];
-        }
-    }
-    out
+    std::array::from_fn(|i| {
+        std::array::from_fn(|j| a[i][0] * b[0][j] + a[i][1] * b[1][j] + a[i][2] * b[2][j])
+    })
 }
 
 fn hom_mul(h: &[[f64; 3]; 3], v: [f64; 3]) -> [f64; 3] {
@@ -129,18 +125,18 @@ fn filter_valid_lines(
     width: f64,
     height: f64,
 ) -> (Vec<GuideLine>, Vec<GuideLine>) {
-    let mut verts = Vec::new();
-    let mut hors = Vec::new();
-    for line in lines {
-        if !is_line_valid(line, width, height) {
-            continue;
-        }
-        match line.orientation {
-            GuideOrientation::Vertical if verts.len() < 2 => verts.push(line.clone()),
-            GuideOrientation::Horizontal if hors.len() < 2 => hors.push(line.clone()),
-            _ => {}
-        }
-    }
+    let verts: Vec<GuideLine> = lines
+        .iter()
+        .filter(|l| l.orientation == GuideOrientation::Vertical && is_line_valid(l, width, height))
+        .take(2)
+        .cloned()
+        .collect();
+    let hors: Vec<GuideLine> = lines
+        .iter()
+        .filter(|l| l.orientation == GuideOrientation::Horizontal && is_line_valid(l, width, height))
+        .take(2)
+        .cloned()
+        .collect();
     (verts, hors)
 }
 
@@ -320,23 +316,24 @@ fn solve_1v1h(vert: &GuideLine, hor: &GuideLine, width: f64, height: f64) -> Opt
 }
 
 fn quad_ok(pts: &[(f64, f64); 4]) -> bool {
-    let mut sign = 0.0;
-    for i in 0..4 {
+    let mut sign = 0.0f64;
+    let consistent = (0..4).all(|i| {
         let (x0, y0) = pts[i];
         let (x1, y1) = pts[(i + 1) % 4];
         let (x2, y2) = pts[(i + 2) % 4];
         let c = (x1 - x0) * (y2 - y1) - (y1 - y0) * (x2 - x1);
         if c.abs() < 1e-12 {
-            continue;
+            return true;
         }
         let s = c.signum();
         if sign == 0.0 {
             sign = s;
-        } else if s != sign {
-            return false;
+            true
+        } else {
+            s == sign
         }
-    }
-    sign > 0.0
+    });
+    consistent && sign > 0.0
 }
 
 fn finalize_h(mut h: [[f64; 3]; 3], width: f64, height: f64) -> Option<[[f64; 3]; 3]> {
@@ -355,16 +352,19 @@ fn finalize_h(mut h: [[f64; 3]; 3], width: f64, height: f64) -> Option<[[f64; 3]
     let hh = height / 2.0;
     let src = [(-hw, -hh), (hw, -hh), (hw, hh), (-hw, hh)];
     let mut dest = [(0.0, 0.0); 4];
-    for (i, (x, y)) in src.iter().enumerate() {
-        let w = h[2][0] * x + h[2][1] * y + h[2][2];
-        if w.abs() < 1e-6 {
-            return None;
-        }
-        dest[i] = (
-            (h[0][0] * x + h[0][1] * y + h[0][2]) / w,
-            (h[1][0] * x + h[1][1] * y + h[1][2]) / w,
-        );
-    }
+    src.iter()
+        .enumerate()
+        .try_fold((), |_, (i, &(x, y))| {
+            let w = h[2][0] * x + h[2][1] * y + h[2][2];
+            if w.abs() < 1e-6 {
+                return None;
+            }
+            dest[i] = (
+                (h[0][0] * x + h[0][1] * y + h[0][2]) / w,
+                (h[1][0] * x + h[1][1] * y + h[1][2]) / w,
+            );
+            Some(())
+        })?;
     if !quad_ok(&dest) {
         return None;
     }
@@ -401,17 +401,17 @@ pub fn compute_guided_homography(
     }
 
     let h = if verts.len() == 2 {
-        let (v, q) = v_vp.unwrap();
+        let (v, q) = v_vp?;
         let mut hp = primary_vertical(v, q, height)?;
         if hors.len() == 2 {
-            let (vh, _) = h_vp.unwrap();
+            let (vh, _) = h_vp?;
             hp = secondary_two_horizontal(&hp, vh, width)?;
         } else if hors.len() == 1 {
             hp = secondary_one_line(&hp, &hors[0], false, width, height);
         }
         hp
     } else if hors.len() == 2 {
-        let (v, q) = h_vp.unwrap();
+        let (v, q) = h_vp?;
         let mut hp = primary_horizontal(v, q, width)?;
         if verts.len() == 1 {
             hp = secondary_one_line(&hp, &verts[0], true, width, height);
@@ -436,7 +436,7 @@ fn clip_poly_edge(
     if poly.is_empty() {
         return Vec::new();
     }
-    let mut out = Vec::new();
+    let mut out = Vec::with_capacity(2 * poly.len());
     let mut prev = poly[poly.len() - 1];
     let mut prev_in = inside(prev.0, prev.1);
     for &curr in poly {
@@ -493,7 +493,7 @@ fn sutherland_hodgman_unit_square(poly: &[(f64, f64)]) -> Vec<(f64, f64)> {
 }
 
 fn x_bounds_at(poly: &[(f64, f64)], y: f64) -> Option<(f64, f64)> {
-    let mut xs = Vec::new();
+    let mut xs: Vec<f64> = Vec::with_capacity(2 * poly.len());
     let n = poly.len();
     for i in 0..n {
         let (x1, y1) = poly[i];
@@ -501,14 +501,13 @@ fn x_bounds_at(poly: &[(f64, f64)], y: f64) -> Option<(f64, f64)> {
         let dy = y2 - y1;
         if dy.abs() <= 1e-15 {
             if (y1 - y).abs() < 1e-12 {
-                xs.push(x1);
-                xs.push(x2);
+                xs.extend([x1, x2]);
             }
-            continue;
-        }
-        let t = (y - y1) / dy;
-        if (-1e-9..=1.0 + 1e-9).contains(&t) {
-            xs.push(x1 + t * (x2 - x1));
+        } else {
+            let t = (y - y1) / dy;
+            if (-1e-9..=1.0 + 1e-9).contains(&t) {
+                xs.extend([x1 + t * (x2 - x1)]);
+            }
         }
     }
     if xs.is_empty() {
@@ -556,15 +555,17 @@ pub fn compute_max_inscribed_crop(forward_h: &[[f64; 3]; 3], width: f64, height:
     }
 
     const SAMPLES: usize = 96;
+    let samples_f = (SAMPLES - 1) as f64;
+    let ys: Vec<f64> = (0..SAMPLES)
+        .map(|k| y_min + (y_max - y_min) * (k as f64) / samples_f)
+        .collect();
     let mut best = [0.0, 0.0, 1.0, 1.0];
     let mut best_area = 0.0;
     let mut best_i = 0usize;
     let mut best_j = 1usize;
-    for i in 0..SAMPLES {
-        for j in (i + 1)..SAMPLES {
-            let y1 = y_min + (y_max - y_min) * (i as f64) / ((SAMPLES - 1) as f64);
-            let y2 = y_min + (y_max - y_min) * (j as f64) / ((SAMPLES - 1) as f64);
-            if let Some(rect) = slab_rect(&poly, y1, y2) {
+    (0..SAMPLES).for_each(|i| {
+        (i + 1..SAMPLES).for_each(|j| {
+            if let Some(rect) = slab_rect(&poly, ys[i], ys[j]) {
                 let area = rect[2] * rect[3];
                 if area > best_area {
                     best_area = area;
@@ -573,16 +574,16 @@ pub fn compute_max_inscribed_crop(forward_h: &[[f64; 3]; 3], width: f64, height:
                     best_j = j;
                 }
             }
-        }
-    }
+        });
+    });
 
-    let step = (y_max - y_min) / ((SAMPLES - 1) as f64);
+    let step = (y_max - y_min) / samples_f;
     let mut y1 = y_min + step * (best_i as f64);
     let mut y2 = y_min + step * (best_j as f64);
     let mut half = step;
     for _ in 0..6 {
         half *= 0.5;
-        for (dy1, dy2) in [
+        [
             (-half, 0.0),
             (half, 0.0),
             (0.0, -half),
@@ -591,22 +592,23 @@ pub fn compute_max_inscribed_crop(forward_h: &[[f64; 3]; 3], width: f64, height:
             (-half, half),
             (half, -half),
             (half, half),
-        ] {
+        ]
+        .into_iter()
+        .for_each(|(dy1, dy2)| {
             let ny1 = (y1 + dy1).clamp(y_min, y_max);
             let ny2 = (y2 + dy2).clamp(y_min, y_max);
-            if ny2 <= ny1 {
-                continue;
-            }
-            if let Some(rect) = slab_rect(&poly, ny1, ny2) {
-                let area = rect[2] * rect[3];
-                if area > best_area {
-                    best_area = area;
-                    best = rect;
-                    y1 = ny1;
-                    y2 = ny2;
+            if ny2 > ny1 {
+                if let Some(rect) = slab_rect(&poly, ny1, ny2) {
+                    let area = rect[2] * rect[3];
+                    if area > best_area {
+                        best_area = area;
+                        best = rect;
+                        y1 = ny1;
+                        y2 = ny2;
+                    }
                 }
             }
-        }
+        });
     }
 
     best

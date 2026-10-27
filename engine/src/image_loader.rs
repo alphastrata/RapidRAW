@@ -57,14 +57,16 @@ fn srgb_to_linear_lut() -> &'static [f32; 256] {
     static LUT: OnceLock<[f32; 256]> = OnceLock::new();
     LUT.get_or_init(|| {
         let mut lut = [0.0f32; 256];
-        for (i, v) in lut.iter_mut().enumerate() {
-            let x = i as f32 / 255.0;
-            *v = if x <= 0.04045 {
-                x / 12.92
-            } else {
-                ((x + 0.055) / 1.055).powf(2.4)
-            };
-        }
+        lut.iter_mut()
+            .enumerate()
+            .for_each(|(i, v)| {
+                let x = i as f32 / 255.0;
+                *v = if x <= 0.04045 {
+                    x / 12.92
+                } else {
+                    ((x + 0.055) / 1.055).powf(2.4)
+                };
+            });
         lut
     })
 }
@@ -269,69 +271,64 @@ fn largest_tiff_jpeg_preview(buf: &[u8]) -> Option<DynamicImage> {
     let mut seen = HashMap::new();
 
     while let Some(ifd) = queue.pop() {
-        if seen.insert(ifd, ()).is_some() || seen.len() > 64 {
-            continue;
-        }
-        let Some(n) = rd16(ifd as usize) else {
-            continue;
-        };
+        if seen.insert(ifd, ()).is_none()
+            && seen.len() <= 64
+            && let Some(n) = rd16(ifd as usize)
+        {
+            let mut compression: u64 = 0;
+            let mut strip: Option<(u64, u64)> = None;
+            let mut old_jpeg: Option<(u64, u64)> = None;
 
-        let mut compression: u64 = 0;
-        let mut strip: Option<(u64, u64)> = None;
-        let mut old_jpeg: Option<(u64, u64)> = None;
-
-        for i in 0..n {
-            let e = ifd as usize + 2 + (i as usize) * 12;
-            let (Some(tag), Some(count), Some(val)) = (rd16(e), rd32(e + 4), rd32(e + 8)) else {
-                continue;
-            };
-            match tag {
-                259 => compression = val,
-                273 if count == 1 => strip = Some((val, strip.map_or(0, |s| s.1))),
-                279 if count == 1 => strip = strip.map(|s| (s.0, val)).or(Some((0, val))),
-                513 => old_jpeg = Some((val, old_jpeg.map_or(0, |s| s.1))),
-                514 => old_jpeg = old_jpeg.map(|s| (s.0, val)).or(Some((0, val))),
-                330 => {
-                    if count == 1 {
-                        queue.push(val);
-                    } else {
-                        for j in 0..count.min(8) {
-                            if let Some(p) = rd32(val as usize + (j as usize) * 4) {
-                                queue.push(p);
-                            }
+            (0..n).for_each(|i| {
+                let e = ifd as usize + 2 + (i as usize) * 12;
+                let (Some(tag), Some(count), Some(val)) = (rd16(e), rd32(e + 4), rd32(e + 8)) else {
+                    return;
+                };
+                match tag {
+                    259 => compression = val,
+                    273 if count == 1 => strip = Some((val, strip.map_or(0, |s| s.1))),
+                    279 if count == 1 => strip = strip.map(|s| (s.0, val)).or(Some((0, val))),
+                    513 => old_jpeg = Some((val, old_jpeg.map_or(0, |s| s.1))),
+                    514 => old_jpeg = old_jpeg.map(|s| (s.0, val)).or(Some((0, val))),
+                    330 => {
+                        if count == 1 {
+                            queue.push(val);
+                        } else {
+                            (0..count.min(8)).for_each(|j| {
+                                if let Some(p) = rd32(val as usize + (j as usize) * 4) {
+                                    queue.push(p);
+                                }
+                            });
                         }
                     }
+                    _ => {}
                 }
-                _ => {}
-            }
-        }
+            });
 
-        if matches!(compression, 6 | 7)
-            && let Some(s) = strip
-        {
-            candidates.push(s);
-        }
-        if let Some(oj) = old_jpeg {
-            candidates.push(oj);
-        }
-        if let Some(next) = rd32(ifd as usize + 2 + (n as usize) * 12)
-            && next != 0
-        {
-            queue.push(next);
+            if matches!(compression, 6 | 7)
+                && let Some(s) = strip
+            {
+                candidates.push(s);
+            }
+            if let Some(oj) = old_jpeg {
+                candidates.push(oj);
+            }
+            if let Some(next) = rd32(ifd as usize + 2 + (n as usize) * 12)
+                && next != 0
+            {
+                queue.push(next);
+            }
         }
     }
 
     candidates.sort_by_key(|&(_, len)| std::cmp::Reverse(len));
 
-    for (off, len) in candidates {
-        if let Some(bytes) = buf.get(off as usize..(off + len) as usize)
-            && let Ok(img) = image::load_from_memory_with_format(bytes, image::ImageFormat::Jpeg)
-        {
-            return Some(img);
-        }
-    }
-
-    None
+    candidates.into_iter().find_map(|(off, len)| {
+        buf.get(off as usize..(off + len) as usize)
+            .and_then(|bytes| {
+                image::load_from_memory_with_format(bytes, image::ImageFormat::Jpeg).ok()
+            })
+    })
 }
 
 #[must_use]
@@ -368,11 +365,11 @@ pub fn safe_embedded_preview_fallback(bytes: &[u8], path: &str) -> Option<Dynami
 fn linearize_embedded_preview(preview: DynamicImage) -> DynamicImage {
     let preview = DynamicImage::ImageRgb32F(preview.to_rgb32f());
     let mut linear_preview = apply_srgb_to_linear(preview).into_rgb32f();
-    for pixel in linear_preview.pixels_mut() {
+    linear_preview.pixels_mut().for_each(|pixel| {
         pixel[0] *= 0.4;
         pixel[1] *= 0.4;
         pixel[2] *= 0.4;
-    }
+    });
     DynamicImage::ImageRgb32F(linear_preview)
 }
 
@@ -581,7 +578,7 @@ fn composite_patches_cow<'a>(
 
     let get_color = |patch: &DecodedPatch, r: u8, g: u8, b: u8| -> (f32, f32, f32) {
         if patch.is_srgb_encoded {
-            (lut[r as usize], lut[g as usize], lut[b as usize])
+            (lut[usize::from(r)], lut[usize::from(g)], lut[usize::from(b)])
         } else {
             (f32::from(r) / 255.0, f32::from(g) / 255.0, f32::from(b) / 255.0)
         }
@@ -589,7 +586,7 @@ fn composite_patches_cow<'a>(
 
     match &mut composited_image {
         DynamicImage::ImageRgb32F(img_buf) => {
-            for patch in decoded_patches {
+            decoded_patches.into_iter().for_each(|patch| {
                 let mask_raw = patch.mask.as_raw();
                 let color_raw = patch.color.as_raw();
                 let patch_w = patch.mask.width() as usize;
@@ -602,7 +599,7 @@ fn composite_patches_cow<'a>(
                     let crop_h = max_y.saturating_sub(oy) as usize;
 
                     if crop_w == 0 || crop_h == 0 {
-                        continue;
+                        return;
                     }
 
                     let base_w_usize = base_w as usize;
@@ -618,7 +615,7 @@ fn composite_patches_cow<'a>(
                             let py = y - oy_usize;
                             let patch_row_start = py * patch_w;
 
-                            for x in ox_usize..(ox_usize + crop_w) {
+                            (ox_usize..(ox_usize + crop_w)).for_each(|x| {
                                 let px = x - ox_usize;
                                 let mask_idx = patch_row_start + px;
                                 let mask_value = mask_raw[mask_idx];
@@ -641,7 +638,7 @@ fn composite_patches_cow<'a>(
                                     row[base_idx + 2] =
                                         pb * alpha + row[base_idx + 2] * one_minus_alpha;
                                 }
-                            }
+                            });
                         });
                 } else {
                     img_buf
@@ -649,7 +646,7 @@ fn composite_patches_cow<'a>(
                         .enumerate()
                         .for_each(|(y, row)| {
                             let patch_row_start = y * patch_w;
-                            for x in 0..base_w as usize {
+                            (0..base_w as usize).for_each(|x| {
                                 let mask_idx = patch_row_start + x;
                                 let mask_value = mask_raw[mask_idx];
                                 if mask_value > 0 {
@@ -667,13 +664,13 @@ fn composite_patches_cow<'a>(
                                     row[x * 3 + 1] = pg * alpha + row[x * 3 + 1] * one_minus_alpha;
                                     row[x * 3 + 2] = pb * alpha + row[x * 3 + 2] * one_minus_alpha;
                                 }
-                            }
+                            });
                         });
                 }
-            }
+            });
         }
         DynamicImage::ImageRgba32F(img_buf) => {
-            for patch in decoded_patches {
+            decoded_patches.into_iter().for_each(|patch| {
                 let mask_raw = patch.mask.as_raw();
                 let color_raw = patch.color.as_raw();
                 let patch_w = patch.mask.width() as usize;
@@ -686,7 +683,7 @@ fn composite_patches_cow<'a>(
                     let crop_h = max_y.saturating_sub(oy) as usize;
 
                     if crop_w == 0 || crop_h == 0 {
-                        continue;
+                        return;
                     }
 
                     let base_w_usize = base_w as usize;
@@ -702,7 +699,7 @@ fn composite_patches_cow<'a>(
                             let py = y - oy_usize;
                             let patch_row_start = py * patch_w;
 
-                            for x in ox_usize..(ox_usize + crop_w) {
+                            (ox_usize..(ox_usize + crop_w)).for_each(|x| {
                                 let px = x - ox_usize;
                                 let mask_idx = patch_row_start + px;
                                 let mask_value = mask_raw[mask_idx];
@@ -724,7 +721,7 @@ fn composite_patches_cow<'a>(
                                     row[base_idx + 2] =
                                         pb * alpha + row[base_idx + 2] * one_minus_alpha;
                                 }
-                            }
+                            });
                         });
                 } else {
                     img_buf
@@ -732,7 +729,7 @@ fn composite_patches_cow<'a>(
                         .enumerate()
                         .for_each(|(y, row)| {
                             let patch_row_start = y * patch_w;
-                            for x in 0..base_w as usize {
+                            (0..base_w as usize).for_each(|x| {
                                 let mask_idx = patch_row_start + x;
                                 let mask_value = mask_raw[mask_idx];
                                 if mask_value > 0 {
@@ -750,14 +747,14 @@ fn composite_patches_cow<'a>(
                                     row[x * 4 + 1] = pg * alpha + row[x * 4 + 1] * one_minus_alpha;
                                     row[x * 4 + 2] = pb * alpha + row[x * 4 + 2] * one_minus_alpha;
                                 }
-                            }
+                            });
                         });
                 }
-            }
+            });
         }
         _ => {
             let mut rgba32_img = composited_image.to_rgba32f();
-            for patch in decoded_patches {
+            decoded_patches.into_iter().for_each(|patch| {
                 let mask_raw = patch.mask.as_raw();
                 let color_raw = patch.color.as_raw();
                 let patch_w = patch.mask.width() as usize;
@@ -770,7 +767,7 @@ fn composite_patches_cow<'a>(
                     let crop_h = max_y.saturating_sub(oy) as usize;
 
                     if crop_w == 0 || crop_h == 0 {
-                        continue;
+                        return;
                     }
 
                     let base_w_usize = base_w as usize;
@@ -786,7 +783,7 @@ fn composite_patches_cow<'a>(
                             let py = y - oy_usize;
                             let patch_row_start = py * patch_w;
 
-                            for x in ox_usize..(ox_usize + crop_w) {
+                            (ox_usize..(ox_usize + crop_w)).for_each(|x| {
                                 let px = x - ox_usize;
                                 let mask_idx = patch_row_start + px;
                                 let mask_value = mask_raw[mask_idx];
@@ -808,7 +805,7 @@ fn composite_patches_cow<'a>(
                                     row[base_idx + 2] =
                                         pb * alpha + row[base_idx + 2] * one_minus_alpha;
                                 }
-                            }
+                            });
                         });
                 } else {
                     rgba32_img
@@ -816,7 +813,7 @@ fn composite_patches_cow<'a>(
                         .enumerate()
                         .for_each(|(y, row)| {
                             let patch_row_start = y * patch_w;
-                            for x in 0..base_w as usize {
+                            (0..base_w as usize).for_each(|x| {
                                 let mask_idx = patch_row_start + x;
                                 let mask_value = mask_raw[mask_idx];
                                 if mask_value > 0 {
@@ -826,6 +823,7 @@ fn composite_patches_cow<'a>(
                                     let pb_u8 = color_raw[color_idx + 2];
 
                                     let (pr, pg, pb) = get_color(&patch, pr_u8, pg_u8, pb_u8);
+
                                     let alpha = f32::from(mask_value) / 255.0;
                                     let one_minus_alpha = 1.0 - alpha;
 
@@ -833,14 +831,13 @@ fn composite_patches_cow<'a>(
                                     row[x * 4 + 1] = pg * alpha + row[x * 4 + 1] * one_minus_alpha;
                                     row[x * 4 + 2] = pb * alpha + row[x * 4 + 2] * one_minus_alpha;
                                 }
-                            }
+                            });
                         });
                 }
-            }
+            });
             composited_image = DynamicImage::ImageRgba32F(rgba32_img);
         }
     }
-
     Ok(Cow::Owned(composited_image))
 }
 

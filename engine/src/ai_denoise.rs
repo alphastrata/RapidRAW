@@ -2,6 +2,7 @@ use crate::app_state::LoadedImage;
 use crate::host::Host;
 use crate::paths::parse_virtual_path;
 use crate::relight::RelightTap;
+use anyhow::anyhow;
 use half::f16;
 use half::slice::HalfFloatSliceExt;
 use image::{DynamicImage, GenericImageView, Rgb32FImage, imageops};
@@ -139,16 +140,20 @@ fn base_fingerprints(base: &DynamicImage) -> [u64; 2] {
     let mut hasher = blake3::Hasher::new();
     let mut legacy_hasher = blake3::Hasher::new();
     let (w, h) = base.dimensions();
-    for hasher in [&mut hasher, &mut legacy_hasher] {
-        hasher.update(&w.to_le_bytes());
-        hasher.update(&h.to_le_bytes());
-    }
+    [&mut hasher, &mut legacy_hasher]
+        .into_iter()
+        .for_each(|hasher| {
+            hasher.update(&w.to_le_bytes());
+            hasher.update(&h.to_le_bytes());
+        });
     if let Some(buf) = base.as_rgb32f() {
         let raw = buf.as_raw();
-        for value in raw.iter().step_by((raw.len() / 4096).max(1)) {
-            hasher.update(&f16::from_f32(*value).to_bits().to_le_bytes());
-            legacy_hasher.update(&value.to_bits().to_le_bytes());
-        }
+        raw.iter()
+            .step_by((raw.len() / 4096).max(1))
+            .for_each(|value| {
+                hasher.update(&f16::from_f32(*value).to_bits().to_le_bytes());
+                legacy_hasher.update(&value.to_bits().to_le_bytes());
+            });
     }
     [hasher, legacy_hasher].map(|hasher| {
         let bytes = hasher.finalize();
@@ -227,11 +232,12 @@ fn read_from_disk(key: &str, source: &str) -> Option<DenoisedBase> {
     })
 }
 
-fn write_to_disk(entry: &DenoisedBase) -> Result<(), String> {
-    let path = entry_path(&entry.key).ok_or("AI denoise cache directory is not initialized")?;
+fn write_to_disk(entry: &DenoisedBase) -> anyhow::Result<()> {
+    let path = entry_path(&entry.key)
+        .ok_or_else(|| anyhow!("AI denoise cache directory is not initialised"))?;
     let tmp_path = path.with_extension("tmp");
 
-    let mut file = BufWriter::new(File::create(&tmp_path).map_err(|e| e.to_string())?);
+    let mut file = BufWriter::new(File::create(&tmp_path)?);
     let source = entry.source.as_bytes();
     file.write_all(FILE_MAGIC)
         .and_then(|()| file.write_all(&(source.len() as u32).to_le_bytes()))
@@ -240,11 +246,10 @@ fn write_to_disk(entry: &DenoisedBase) -> Result<(), String> {
         .and_then(|()| file.write_all(&entry.width.to_le_bytes()))
         .and_then(|()| file.write_all(&entry.height.to_le_bytes()))
         .and_then(|()| file.write_all(bytemuck::cast_slice(&entry.data)))
-        .and_then(|()| file.flush())
-        .map_err(|e| e.to_string())?;
+        .and_then(|()| file.flush())?;
     drop(file);
 
-    fs::rename(&tmp_path, &path).map_err(|e| e.to_string())?;
+    fs::rename(&tmp_path, &path)?;
     if let Some(dir) = path.parent() {
         evict_disk_cache(dir, Some(&path));
     }
@@ -269,14 +274,15 @@ fn evict_disk_cache(dir: &Path, keep: Option<&Path>) {
     let mut total: u64 = entries.iter().map(|(_, len, _)| len).sum();
     entries.sort_by_key(|(_, _, modified)| *modified);
 
-    for (path, len, _) in entries {
+    let _: std::result::Result<(), ()> = entries.into_iter().try_for_each(|(path, len, _)| {
         if total <= limit {
-            break;
+            return Err(());
         }
         if Some(path.as_path()) != keep && fs::remove_file(&path).is_ok() {
             total = total.saturating_sub(len);
         }
-    }
+        Ok(())
+    });
 }
 
 fn load_entry(key: &str, source: &str) -> Option<Arc<DenoisedBase>> {
@@ -328,8 +334,9 @@ pub fn apply_ai_denoise<'a>(
             .par_chunks_mut(BLEND_CHUNK)
             .zip(entry.data.par_chunks(BLEND_CHUNK))
             .for_each(|(dst, src)| src.convert_to_f32_slice(dst));
-        let full = Rgb32FImage::from_raw(entry.width, entry.height, expanded)
-            .expect("Denoised buffer matches its dimensions");
+        let Some(full) = Rgb32FImage::from_raw(entry.width, entry.height, expanded) else {
+            unreachable!("denoised buffer matches its dimensions")
+        };
         let resized = imageops::resize(&full, w, h, imageops::FilterType::Triangle);
         resized
             .as_raw()
@@ -348,18 +355,18 @@ pub fn apply_ai_denoise<'a>(
         .for_each(|(chunk, dn_chunk)| {
             let mut dn_values = vec![0.0f32; dn_chunk.len()];
             dn_chunk.convert_to_f32_slice(&mut dn_values);
-            for (px, dn) in chunk
+            chunk
                 .as_chunks_mut::<3>()
                 .0
                 .iter_mut()
                 .zip(dn_values.as_chunks::<3>().0)
-            {
-                let r = [px[0] - dn[0], px[1] - dn[1], px[2] - dn[2]];
-                let r_luma = 0.2126 * r[0] + 0.7152 * r[1] + 0.0722 * r[2];
-                for c in 0..3 {
-                    px[c] = dn[c] + chroma_keep * (r[c] - r_luma) + luma_keep * r_luma;
-                }
-            }
+                .for_each(|(px, dn)| {
+                    let r = [px[0] - dn[0], px[1] - dn[1], px[2] - dn[2]];
+                    let r_luma = 0.2126 * r[0] + 0.7152 * r[1] + 0.0722 * r[2];
+                    px.iter_mut().zip(dn).zip(r).for_each(|((p, d), rc)| {
+                        *p = *d + chroma_keep * (rc - r_luma) + luma_keep * r_luma;
+                    });
+                });
         });
 
     Cow::Owned(DynamicImage::ImageRgb32F(out))
@@ -395,9 +402,9 @@ fn restore_low_frequencies(denoised: &mut Rgb32FImage, source: &Rgb32FImage) {
                         *out = acc / (y_range.len() * x_range.len()) as f32;
                     }
                 });
-            for _ in 0..3 {
+            (0..3).for_each(|_| {
                 crate::lens_blur::dof_box_filter(&mut plane, sw, sh, 1, 3);
-            }
+            });
             plane
         })
         .collect();
@@ -407,12 +414,13 @@ fn restore_low_frequencies(denoised: &mut Rgb32FImage, source: &Rgb32FImage) {
         .enumerate()
         .for_each(|(y, row)| {
             let v = (y as f32 + 0.5) / h as f32;
-            for x in 0..w {
+            (0..w).for_each(|x| {
                 let tap = RelightTap::new((x as f32 + 0.5) / w as f32, v, sw, sh);
-                for (c, plane) in planes.iter().enumerate() {
-                    row[x * 3 + c] += tap.sample(plane);
-                }
-            }
+                planes
+                    .iter()
+                    .enumerate()
+                    .for_each(|(c, plane)| row[x * 3 + c] += tap.sample(plane));
+            });
         });
 }
 
@@ -420,12 +428,12 @@ fn run_denoiser(
     base: &DynamicImage,
     session: Option<&Session>,
     on_progress: &(dyn Fn(f32) + Sync),
-) -> Result<Rgb32FImage, String> {
+) -> anyhow::Result<Rgb32FImage> {
     let source = base.to_rgb32f();
     let mut output = match session {
-        Some(session) => crate::ai_processing::run_ai_denoise(&source, session, on_progress)
-            .map_err(|e| e.to_string())?
-            .into_rgb32f(),
+        Some(session) => {
+            crate::ai_processing::run_ai_denoise(&source, session, on_progress)?.into_rgb32f()
+        }
         None => crate::bm3d::denoise(&source, BM3D_INTENSITY, on_progress),
     };
 
@@ -445,7 +453,7 @@ fn denoise_into_cache(
     source: String,
     fingerprint: u64,
     on_progress: &(dyn Fn(f32) + Sync),
-) -> Result<(), String> {
+) -> anyhow::Result<()> {
     let image = run_denoiser(base, session, on_progress)?;
 
     let (width, height) = image.dimensions();
@@ -472,19 +480,14 @@ fn denoise_into_cache(
     cache.epoch += 1;
     Ok(())
 }
-async fn load_session(host: &dyn Host, method: DenoiseMethod) -> Result<Option<Session>, String> {
+async fn load_session(host: &dyn Host, method: DenoiseMethod) -> anyhow::Result<Option<Session>> {
     if method != DenoiseMethod::Nind {
         return Ok(None);
     }
     let state = host.app_state();
-    crate::ai_processing::get_or_init_denoise_model(
-        host,
-        &state.ai_state,
-        &state.ai_init_lock,
-    )
-    .await
-    .map(Some)
-    .map_err(|e| e.to_string())
+    crate::ai_processing::get_or_init_denoise_model(host, &state.ai_state, &state.ai_init_lock)
+        .await
+        .map(Some)
 }
 
 fn generate_blocking(
@@ -494,7 +497,7 @@ fn generate_blocking(
     key: String,
     source: String,
     fingerprint: u64,
-) -> Result<(), String> {
+) -> anyhow::Result<()> {
     let session = pollster::block_on(load_session(Arc::as_ref(host), method))?;
 
     denoise_into_cache(
@@ -557,7 +560,9 @@ pub fn ensure_generated(host: Arc<dyn Host>, loaded_image: &LoadedImage, adjustm
             }
             Err(error) => {
                 log::error!("AI denoise failed for {path}: {error}");
-                host.emit_json("ai-denoise-error", serde_json::json!({ "path": path, "error": error }),
+                host.emit_json(
+                    "ai-denoise-error",
+                    serde_json::json!({ "path": path, "error": error.to_string() }),
                 );
             }
         }
@@ -585,7 +590,7 @@ pub fn generate_for_base(
     path: &str,
     base: &DynamicImage,
     method: DenoiseMethod,
-) -> Result<bool, String> {
+) -> anyhow::Result<bool> {
     let source = source_string(path);
     let key = entry_key(&source, method);
     if !cache().pending.insert(key.clone()) {
@@ -620,7 +625,9 @@ pub fn generate_for_base(
             host.emit_json("ai-denoise-ready", path.into());
         }
         Err(error) => {
-            host.emit_json("ai-denoise-error", serde_json::json!({ "path": path, "error": error }),
+            host.emit_json(
+                "ai-denoise-error",
+                serde_json::json!({ "path": path, "error": error.to_string() }),
             );
         }
     }
@@ -642,11 +649,10 @@ fn cache_files() -> Vec<(PathBuf, u64)> {
         .collect()
 }
 
-pub fn clear_cache_files() -> Result<(), String> {
-    for (path, _) in cache_files() {
-        fs::remove_file(&path)
-            .map_err(|e| format!("Failed to remove {}: {}", path.display(), e))?;
-    }
+pub fn clear_cache_files() -> anyhow::Result<()> {
+    cache_files().into_iter().try_for_each(|(path, _)| {
+        fs::remove_file(&path).map_err(|e| anyhow!("Failed to remove {}: {e}", path.display()))
+    })?;
     let mut cache = cache();
     cache.entries.clear();
     cache.epoch += 1;
