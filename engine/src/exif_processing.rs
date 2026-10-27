@@ -83,26 +83,28 @@ pub fn flush_all_dirty_caches() {
     };
 
     let dirty_folders: Vec<PathBuf> = state.dirty.drain().collect();
-    let mut to_write = Vec::new();
 
-    for folder in &dirty_folders {
-        if let Some(folder_map) = state.cache.get(folder)
-            && !folder_map.is_empty()
-            && let Some(cache_path) = state.get_cache_file_path(folder)
-        {
-            to_write.push((cache_path, folder_map.clone()));
-        }
-    }
-
-    for (path, map) in to_write {
-        if let Ok(json) = serde_json::to_string(&map) {
+    dirty_folders
+        .iter()
+        .filter_map(|folder| {
+            let folder_map = state.cache.get(folder)?;
+            if folder_map.is_empty() {
+                None
+            } else {
+                Some((state.get_cache_file_path(folder)?, folder_map.clone()))
+            }
+        })
+        .filter_map(|(path, map)| {
+            let json = serde_json::to_string(&map).ok()?;
+            Some((path, json))
+        })
+        .for_each(|(path, json)| {
             best_effort(crate::paths::write_file_atomic(&path, json.as_bytes()));
-        }
-    }
+        });
     drop(state);
 }
 
-pub fn clear_disk_cache() -> Result<(), String> {
+pub fn clear_disk_cache() -> anyhow::Result<()> {
     let mut state = get_exif_cache()
         .lock()
         .unwrap_or_else(PoisonError::into_inner);
@@ -115,12 +117,15 @@ pub fn clear_disk_cache() -> Result<(), String> {
     else {
         return Ok(());
     };
-    for path in read_dir.filter_map(std::result::Result::ok).map(|e| e.path()) {
-        if path.is_file() {
-            fs::remove_file(&path)
-                .map_err(|e| format!("Failed to remove {}: {}", path.display(), e))?;
-        }
-    }
+    read_dir
+        .filter_map(std::result::Result::ok)
+        .map(|e| e.path())
+        .filter(|path| path.is_file())
+        .try_for_each(|path| {
+            fs::remove_file(&path).map_err(|e| {
+                anyhow::anyhow!("Failed to remove {}: {}", path.display(), e)
+            })
+        })?;
     Ok(())
 }
 
@@ -260,12 +265,13 @@ pub fn lock_sidecar(sidecar_path: &Path) -> MutexGuard<'static, ()> {
 fn heal_bloated_exif(meta: &mut ImageMetadata) -> bool {
     let mut healed = false;
     if let Some(ref mut exif_map) = meta.exif {
-        for val in exif_map.values_mut() {
-            if val.len() > 500 {
+        exif_map
+            .values_mut()
+            .filter(|val| val.len() > 500)
+            .for_each(|val| {
                 *val = truncate_large_exif(val);
                 healed = true;
-            }
-        }
+            });
     }
     healed
 }
@@ -487,9 +493,9 @@ fn fmt_date_str(s: String) -> String {
     format_creation_datetime(&s, "%Y-%m-%d %H:%M:%S")
 }
 
-fn normalize_creation_datetime(s: &str) -> Option<String> {
-    let normalized = s.replace('T', " ");
-    let (date, time) = normalized.split_once(' ')?;
+fn normalise_creation_datetime(s: &str) -> Option<String> {
+    let normalised = s.replace('T', " ");
+    let (date, time) = normalised.split_once(' ')?;
     Some(format!("{} {}", date.replace(':', "-"), time))
 }
 
@@ -499,21 +505,19 @@ fn parse_creation_datetime(s: &str) -> Option<NaiveDateTime> {
         return None;
     }
 
-    let normalized = normalize_creation_datetime(clean);
-    for candidate in std::iter::once(clean).chain(normalized.as_deref()) {
-        for format in [
-            "%Y:%m:%d %H:%M:%S",
-            "%Y:%m:%d %H:%M:%S%.f",
-            "%Y-%m-%d %H:%M:%S",
-            "%Y-%m-%d %H:%M:%S%.f",
-        ] {
-            if let Ok(dt) = NaiveDateTime::parse_from_str(candidate, format) {
-                return Some(dt);
-            }
-        }
-    }
-
-    None
+    let normalised = normalise_creation_datetime(clean);
+    std::iter::once(clean)
+        .chain(normalised.as_deref())
+        .find_map(|candidate| {
+            [
+                "%Y:%m:%d %H:%M:%S",
+                "%Y:%m:%d %H:%M:%S%.f",
+                "%Y-%m-%d %H:%M:%S",
+                "%Y-%m-%d %H:%M:%S%.f",
+            ]
+            .into_iter()
+            .find_map(|format| NaiveDateTime::parse_from_str(candidate, format).ok())
+        })
 }
 
 fn creation_datetime_to_utc(dt: NaiveDateTime) -> DateTime<Utc> {
@@ -635,17 +639,17 @@ fn insert_missing_lens_fields(map: &mut HashMap<String, String>, lens: &LensDesc
         Some(aperture).filter(|(amin, amax)| *amin > 0.0 || *amax > 0.0),
     );
 
-    for (key, val) in [
+    [
         ("LensModel", lens.lens_model.as_str()),
         ("LensMake", lens.lens_make.as_str()),
         ("LensSpecification", spec.as_str()),
-    ] {
-        let trimmed = val.trim();
-        if !trimmed.is_empty() {
-            map.entry(key.to_string())
-                .or_insert_with(|| truncate_large_exif(trimmed));
-        }
-    }
+    ]
+    .into_iter()
+    .filter(|(_, val)| !val.trim().is_empty())
+    .for_each(|(key, val)| {
+        map.entry(key.to_string())
+            .or_insert_with(|| truncate_large_exif(val.trim()));
+    });
 }
 
 #[must_use]
@@ -757,7 +761,7 @@ pub fn extract_metadata(file_bytes: &[u8]) -> Option<HashMap<String, String>> {
     let mut map = HashMap::new();
 
     if let Some(exif_obj) = read_exif(file_bytes) {
-        for field in exif_obj.fields() {
+        exif_obj.fields().for_each(|field| {
             match field.tag {
                 exif::Tag::ExposureTime => {
                     if let exif::Value::Rational(ref v) = field.value
@@ -880,9 +884,9 @@ pub fn extract_metadata(file_bytes: &[u8]) -> Option<HashMap<String, String>> {
                             map.insert(tag, truncate_large_exif(&val));
                         }
                     }
-                },
+                 },
             }
-        }
+        });
     }
 
     if !map.is_empty() {
@@ -1166,14 +1170,16 @@ pub fn try_get_exif_creation_date(path: &Path) -> Option<DateTime<Utc>> {
         let mut bufreader = BufReader::new(&file);
         let exifreader = exif::Reader::new();
 
-        if let Ok(exif_obj) = exifreader.read_from_container(&mut bufreader) {
-            for tag in [exif::Tag::DateTimeOriginal, exif::Tag::DateTime] {
-                if let Some(field) = exif_obj.get_field(tag, exif::In::PRIMARY)
-                    && let Some(dt) = parse_creation_field(field)
-                {
-                    return Some(dt);
-                }
-            }
+        if let Ok(exif_obj) = exifreader.read_from_container(&mut bufreader)
+            && let Some(dt) = [exif::Tag::DateTimeOriginal, exif::Tag::DateTime]
+                .into_iter()
+                .find_map(|tag| {
+                    exif_obj
+                        .get_field(tag, exif::In::PRIMARY)
+                        .and_then(parse_creation_field)
+                })
+        {
+            return Some(dt);
         }
     }
 
@@ -1197,14 +1203,16 @@ pub fn try_get_exif_creation_date(path: &Path) -> Option<DateTime<Utc>> {
 
 #[cfg(target_os = "android")]
 pub fn get_creation_date_from_bytes(path_hint: &str, file_bytes: &[u8]) -> DateTime<Utc> {
-    if let Some(exif_obj) = read_exif(file_bytes) {
-        for tag in [exif::Tag::DateTimeOriginal, exif::Tag::DateTime] {
-            if let Some(field) = exif_obj.get_field(tag, exif::In::PRIMARY)
-                && let Some(dt) = parse_creation_field(field)
-            {
-                return dt;
-            }
-        }
+    if let Some(exif_obj) = read_exif(file_bytes)
+        && let Some(dt) = [exif::Tag::DateTimeOriginal, exif::Tag::DateTime]
+            .into_iter()
+            .find_map(|tag| {
+                exif_obj
+                    .get_field(tag, exif::In::PRIMARY)
+                    .and_then(parse_creation_field)
+            })
+    {
+        return dt;
     }
 
     if is_raw_file(path_hint)
@@ -1231,18 +1239,18 @@ fn copy_full_exif_from_source(
     };
 
     let mut copied_any = false;
-    for ifd in source_metadata.get_ifds() {
-        if ifd.get_generic_ifd_nr() != 0 {
-            continue;
-        }
-        if strip_gps && ifd.get_ifd_type() == ExifTagGroup::GPS {
-            continue;
-        }
-        for tag in ifd.get_tags() {
-            metadata.set_tag(tag.clone());
-            copied_any = true;
-        }
-    }
+    source_metadata
+        .get_ifds()
+        .iter()
+        .filter(|ifd| {
+            ifd.get_generic_ifd_nr() == 0 && !(strip_gps && ifd.get_ifd_type() == ExifTagGroup::GPS)
+        })
+        .for_each(|ifd| {
+            ifd.get_tags().into_iter().for_each(|tag| {
+                metadata.set_tag(tag.clone());
+                copied_any = true;
+            });
+        });
     copied_any
 }
 
@@ -1465,7 +1473,7 @@ pub fn write_image_with_metadata(
     strip_gps: bool,
     xmp: &ExportXmp,
     dpi: Option<u16>,
-) -> Result<(), String> {
+) -> anyhow::Result<()> {
     if !keep_metadata || output_format.to_lowercase() == "tiff" {
         return Ok(());
     }
@@ -1495,7 +1503,7 @@ fn write_exif_metadata(
     file_type: FileExtension,
     strip_gps: bool,
     dpi: Option<u16>,
-) -> Result<(), String> {
+) -> anyhow::Result<()> {
     let original_path = Path::new(original_path_str);
     if !original_path.exists() {
         return Ok(());
@@ -1781,12 +1789,14 @@ impl ExportXmp {
     pub fn from_metadata(metadata: &ImageMetadata) -> Self {
         let tags = metadata.tags.as_deref().unwrap_or_default();
         let mut keywords = Vec::new();
-        for tag in tags.iter().filter(|t| !t.starts_with(COLOR_TAG_PREFIX)) {
-            push_keyword(
-                &mut keywords,
-                tag.strip_prefix(USER_TAG_PREFIX).unwrap_or(tag),
-            );
-        }
+        tags.iter()
+            .filter(|t| !t.starts_with(COLOR_TAG_PREFIX))
+            .for_each(|tag| {
+                push_keyword(
+                    &mut keywords,
+                    tag.strip_prefix(USER_TAG_PREFIX).unwrap_or(tag),
+                );
+            });
         Self {
             keywords,
             rating: (metadata.rating > 0 || metadata.flag == Some(ImageFlag::Reject))
@@ -1839,14 +1849,15 @@ fn read_source_xmp(path: &Path) -> Option<String> {
 
 fn build_export_xmp(xmp: &ExportXmp, source_xmp: Option<&str>) -> Option<String> {
     let mut keywords = xmp.keywords.clone();
-    for tag in source_xmp
+    source_xmp
         .map_or_default(extract_xmp_tags)
-    {
-        push_keyword(
-            &mut keywords,
-            &unescape(&tag).unwrap_or(Cow::Borrowed(&tag)),
-        );
-    }
+        .into_iter()
+        .for_each(|tag| {
+            push_keyword(
+                &mut keywords,
+                &unescape(&tag).unwrap_or(Cow::Borrowed(&tag)),
+            );
+        });
 
     let description = export_xmp_description(xmp, &keywords);
     if let Some(merged) = source_xmp.and_then(|source| merge_source_xmp(source, &description, xmp))
@@ -1912,11 +1923,12 @@ fn is_replaced_xmp_property(name: &str, xmp: &ExportXmp) -> bool {
 
 fn without_replaced_attributes(element: &BytesStart, xmp: &ExportXmp) -> BytesStart<'static> {
     let mut kept = BytesStart::new(element.name().as_ref().to_string());
-    for attribute in element.attributes().with_checks(false).flatten() {
-        if !is_replaced_xmp_property(attribute.key.as_ref(), xmp) {
-            kept.push_attribute(attribute);
-        }
-    }
+    element
+        .attributes()
+        .with_checks(false)
+        .flatten()
+        .filter(|attribute| !is_replaced_xmp_property(attribute.key.as_ref(), xmp))
+        .for_each(|attribute| kept.push_attribute(attribute));
     kept
 }
 
@@ -2198,7 +2210,10 @@ pub fn persist_exif_if_missing(source_path: &Path, source_path_str: &str, file_b
     }
 }
 
-pub fn write_rrexif_sidecar(source_path_str: &str, target_image_path: &Path) -> Result<(), String> {
+pub fn write_rrexif_sidecar(
+    source_path_str: &str,
+    target_image_path: &Path,
+) -> anyhow::Result<()> {
     let source_path = Path::new(source_path_str);
 
     let exif_data = if let Some(existing) = read_rrexif_sidecar(source_path) {
@@ -2216,7 +2231,7 @@ pub fn write_rrexif_sidecar(source_path_str: &str, target_image_path: &Path) -> 
     update_primary_metadata(target_image_path, |metadata| {
         metadata.exif = Some(exif_data);
     })
-    .map_err(|e| format!("Failed to write sidecar: {e}"))
+    .map_err(|e| anyhow::anyhow!("Failed to write sidecar: {e}"))
 }
 
 #[must_use]
@@ -2233,8 +2248,8 @@ pub fn xmp_label(tags: &[String]) -> Option<String> {
     tags.iter()
         .rev()
         .find_map(|t| t.strip_prefix(COLOR_TAG_PREFIX))
-        .map(|color| {
-            let mut c = color.chars();
+        .map(|colour| {
+            let mut c = colour.chars();
             match c.next() {
                 None => String::new(),
                 Some(f) => f.to_uppercase().collect::<String>() + c.as_str(),
@@ -2244,32 +2259,34 @@ pub fn xmp_label(tags: &[String]) -> Option<String> {
 
 #[must_use]
 pub fn extract_xmp_tags(content: &str) -> Vec<String> {
-    let mut tags = Vec::new();
-    if let Some(start_idx) = content.find("<dc:subject>")
-        && let Some(end_idx) = content[start_idx..].find("</dc:subject>")
-    {
-        let subject_block = &content[start_idx..start_idx + end_idx];
-        let mut current_idx = 0;
-        while let Some(li_start) = subject_block[current_idx..].find("<rdf:li>") {
-            let val_start = current_idx + li_start + 8;
-            if let Some(li_end) = subject_block[val_start..].find("</rdf:li>") {
-                tags.push(subject_block[val_start..val_start + li_end].to_string());
-                current_idx = val_start + li_end + 9;
-            } else {
-                break;
-            }
-        }
-    }
-    tags
+    content
+        .find("<dc:subject>")
+        .and_then(|start_idx| {
+            content[start_idx..]
+                .find("</dc:subject>")
+                .map(|end_idx| &content[start_idx..start_idx + end_idx])
+        })
+        .map_or_else(Vec::new, |subject_block| {
+            let mut subject = subject_block;
+            std::iter::from_fn(move || {
+                subject = &subject[subject.find("<rdf:li>")? + 8..];
+                let li_end = subject.find("</rdf:li>")?;
+                let value = subject[..li_end].to_string();
+                subject = &subject[li_end + 9..];
+                Some(value)
+            })
+            .collect()
+        })
 }
 
 const XMP_REJECTED_RATING: i8 = -1;
 
 pub fn xmp_subject_bag<S: AsRef<str>>(items: &[S]) -> String {
-    let mut bag = String::from("<dc:subject>\n    <rdf:Bag>\n");
-    for item in items {
-        bag.push_str(&format!("     <rdf:li>{}</rdf:li>\n", item.as_ref()));
-    }
-    bag.push_str("    </rdf:Bag>\n   </dc:subject>");
-    bag
+    format!(
+        "<dc:subject>\n    <rdf:Bag>\n{}    </rdf:Bag>\n   </dc:subject>",
+        items
+            .iter()
+            .map(|item| format!("     <rdf:li>{}</rdf:li>\n", item.as_ref()))
+            .collect::<String>()
+    )
 }
