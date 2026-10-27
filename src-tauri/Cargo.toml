@@ -129,6 +129,10 @@ harness = false
 name = "ai_ops"
 harness = false
 
+[[bench]]
+name = "pipeline_ops"
+harness = false
+
 
 [lints.rust]
 unexpected_cfgs = { level = "warn", check-cfg = ['cfg(feature, values("cargo-clippy"))'] }

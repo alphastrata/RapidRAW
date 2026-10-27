@@ -84,7 +84,7 @@ fn srgb_to_linear_simd(b: Bencher) {
 
 #[divan::bench]
 fn srgb_to_linear_scalar(b: Bencher) {
-    b.bench(|| with_buf(|buf| srgb_scalar_ref(buf)));
+    b.bench(|| with_buf(srgb_scalar_ref));
 }
 
 #[divan::bench]
@@ -94,7 +94,7 @@ fn linear_to_srgb_simd(b: Bencher) {
 
 #[divan::bench]
 fn linear_to_srgb_scalar(b: Bencher) {
-    b.bench(|| with_buf(|buf| linear_srgb_scalar_ref(buf)));
+    b.bench(|| with_buf(linear_srgb_scalar_ref));
 }
 
 #[divan::bench]

@@ -69,3 +69,27 @@ Deterministic replay for comparing UI smoothness before/after a change.
   cross-platform self-measurement approach above for a Linux/Windows-only automation
   path. If you need unattended/CI runs, that trade-off is worth revisiting, but it's out
   of scope for this same-machine before/after tool.
+
+# Engine Benchmarks
+
+CPU and AI benchmarks (`divan`) live in `src-tauri/benches/`:
+
+```bash
+cargo bench --bench image_ops      # colour, geometry, histogram, focus stacking
+cargo bench --bench pipeline_ops   # masks, guided perspective, LUT, export encoders, hashes
+cargo bench --bench ai_ops         # ONNX model inference
+```
+
+AI benches need model weights and the runtime dylib. Fetch the weights first:
+
+```bash
+hf download CyberTimon/RapidRAW-Models --local-dir ~/.local/share/io.github.CyberTimon.RapidRAW/models
+```
+
+Then run with the bundled ONNX Runtime:
+
+```bash
+ORT_DYLIB_PATH=src-tauri/resources/libonnxruntime.so cargo bench --bench ai_ops
+```
+
+Custom weights directory: `RAPIDRAW_MODELS_DIR=/path/to/models`.
