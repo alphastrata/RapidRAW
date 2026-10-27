@@ -799,6 +799,10 @@ pub struct PooledReadback {
     pool: ReadbackPool,
 }
 
+// SAFETY: wgpu buffers and mapped views are Send + Sync on the native wgpu backends.
+unsafe impl Send for PooledReadback {}
+unsafe impl Sync for PooledReadback {}
+
 impl std::ops::Deref for PooledReadback {
     type Target = [u8];
 
