@@ -1802,24 +1802,24 @@ fn export_xmp_description(xmp: &ExportXmp, keywords: &[String]) -> String {
     )
 }
 
-fn is_replaced_xmp_property(name: &[u8], xmp: &ExportXmp) -> bool {
-    name.starts_with(b"crs:")
+fn is_replaced_xmp_property(name: &str, xmp: &ExportXmp) -> bool {
+    name.starts_with("crs:")
         || matches!(
             name,
-            b"dc:subject"
-                | b"tiff:Orientation"
-                | b"tiff:ImageWidth"
-                | b"tiff:ImageLength"
-                | b"exif:PixelXDimension"
-                | b"exif:PixelYDimension"
-                | b"xmpNote:HasExtendedXMP"
+            "dc:subject"
+                | "tiff:Orientation"
+                | "tiff:ImageWidth"
+                | "tiff:ImageLength"
+                | "exif:PixelXDimension"
+                | "exif:PixelYDimension"
+                | "xmpNote:HasExtendedXMP"
         )
-        || (xmp.rating.is_some() && name == b"xmp:Rating")
-        || (xmp.label.is_some() && name == b"xmp:Label")
+        || (xmp.rating.is_some() && name == "xmp:Rating")
+        || (xmp.label.is_some() && name == "xmp:Label")
 }
 
 fn without_replaced_attributes(element: &BytesStart, xmp: &ExportXmp) -> BytesStart<'static> {
-    let mut kept = BytesStart::new(String::from_utf8_lossy(element.name().as_ref()).into_owned());
+    let mut kept = BytesStart::new(element.name().as_ref().to_string());
     for attribute in element.attributes().with_checks(false).flatten() {
         if !is_replaced_xmp_property(attribute.key.as_ref(), xmp) {
             kept.push_attribute(attribute);
@@ -1846,7 +1846,7 @@ fn merge_source_xmp(source: &str, description: &str, xmp: &ExportXmp) -> Option<
             Event::Empty(e) => writer
                 .write_event(Event::Empty(without_replaced_attributes(&e, xmp)))
                 .ok()?,
-            Event::End(e) if e.name().as_ref() == b"rdf:RDF" => {
+            Event::End(e) if e.name().as_ref() == "rdf:RDF" => {
                 writer
                     .write_event(Event::Text(BytesText::from_escaped(description)))
                     .ok()?;

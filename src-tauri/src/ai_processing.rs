@@ -524,7 +524,7 @@ pub async fn get_or_init_ai_models(
     )
     .await?;
 
-    let _ = ort::init().with_name("AI").commit();
+    let env = ort::init().with_name("AI").build()?;
 
     let encoder_path = models_dir.join(ENCODER_FILENAME);
     let decoder_path = models_dir.join(DECODER_FILENAME);
@@ -532,11 +532,11 @@ pub async fn get_or_init_ai_models(
     let sky_seg_path = models_dir.join(SKYSEG_FILENAME);
     let depth_path = models_dir.join(DEPTH_FILENAME);
 
-    let sam_encoder = Session::builder()?.commit_from_file(encoder_path)?;
-    let sam_decoder = Session::builder()?.commit_from_file(decoder_path)?;
-    let u2netp = Session::builder()?.commit_from_file(u2netp_path)?;
-    let sky_seg = Session::builder()?.commit_from_file(sky_seg_path)?;
-    let depth_anything = Session::builder()?.commit_from_file(depth_path)?;
+    let sam_encoder = Session::builder(&env)?.commit_from_file(encoder_path)?;
+    let sam_decoder = Session::builder(&env)?.commit_from_file(decoder_path)?;
+    let u2netp = Session::builder(&env)?.commit_from_file(u2netp_path)?;
+    let sky_seg = Session::builder(&env)?.commit_from_file(sky_seg_path)?;
+    let depth_anything = Session::builder(&env)?.commit_from_file(depth_path)?;
 
     crate::register_exit_handler();
 
@@ -602,9 +602,9 @@ pub async fn get_or_init_denoise_model(
     )
     .await?;
 
-    let _ = ort::init().with_name("AI-Denoise").commit();
+    let env = ort::init().with_name("AI-Denoise").build()?;
     let model_path = models_dir.join(DENOISE_FILENAME);
-    let session = Session::builder()?.commit_from_file(model_path)?;
+    let session = Session::builder(&env)?.commit_from_file(model_path)?;
     let denoise_model = Arc::new(Mutex::new(session));
 
     crate::register_exit_handler();
@@ -672,9 +672,9 @@ pub async fn get_or_init_clip_models(
         download_result?;
     }
 
-    let _ = ort::init().with_name("AI-Tagging").commit();
+    let env = ort::init().with_name("AI-Tagging").build()?;
     let clip_model_path = models_dir.join(CLIP_MODEL_FILENAME);
-    let model = Mutex::new(Session::builder()?.commit_from_file(clip_model_path)?);
+    let model = Mutex::new(Session::builder(&env)?.commit_from_file(clip_model_path)?);
     let tokenizer =
         Tokenizer::from_file(clip_tokenizer_path).map_err(|e| anyhow::anyhow!(e.to_string()))?;
 
@@ -736,9 +736,9 @@ pub async fn get_or_init_lama_model(
     )
     .await?;
 
-    let _ = ort::init().with_name("AI-Inpainting").commit();
+    let env = ort::init().with_name("AI-Inpainting").build()?;
     let model_path = models_dir.join(LAMA_FILENAME);
-    let session = Session::builder()?.commit_from_file(model_path)?;
+    let session = Session::builder(&env)?.commit_from_file(model_path)?;
     let lama_model = Arc::new(Mutex::new(session));
 
     crate::register_exit_handler();
@@ -797,9 +797,9 @@ pub async fn get_or_init_normal_model(
     )
     .await?;
 
-    let _ = ort::init().with_name("AI-Normal").commit();
+    let env = ort::init().with_name("AI-Normal").build()?;
     let model_path = models_dir.join(NORMAL_FILENAME);
-    let session = Session::builder()?.commit_from_file(model_path)?;
+    let session = Session::builder(&env)?.commit_from_file(model_path)?;
     let normal_model = Arc::new(Mutex::new(session));
 
     crate::register_exit_handler();

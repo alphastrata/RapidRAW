@@ -137,7 +137,7 @@ impl WgpuDisplay {
                 }
             }
             queue.submit(Some(encoder.finish()));
-            output.present();
+            queue.present(output);
         }
     }
 }
@@ -489,7 +489,7 @@ fn read_texture_data_roi(
         .map_err(|e| format!("Failed receiving GPU map result: {}", e))?;
     map_result.map_err(|e| e.to_string())?;
 
-    let padded_data = buffer_slice.get_mapped_range().to_vec();
+    let padded_data = buffer_slice.get_mapped_range().unwrap().to_vec();
     output_buffer.unmap();
 
     if padded_bytes_per_row == unpadded_bytes_per_row {
@@ -2468,7 +2468,7 @@ fn process_and_get_dynamic_image_inner(
                 }
 
                 if let Ok(Ok(())) = rx.recv() {
-                    let padded_data = buffer_slice.get_mapped_range().to_vec();
+                    let padded_data = buffer_slice.get_mapped_range().unwrap().to_vec();
                     output_buffer.unmap();
 
                     let mut unpadded_data =
