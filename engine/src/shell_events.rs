@@ -3,7 +3,6 @@ use std::sync::Mutex;
 use crate::app_state::AppState;
 use crate::settings::AppSettings;
 
-fn no_op() {}
 fn no_str_op(_: &str) {}
 
 static REGISTER_EXIT: Mutex<Option<fn()>> = Mutex::new(None);

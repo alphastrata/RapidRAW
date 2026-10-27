@@ -210,20 +210,7 @@ pub struct StorageUsage {
     pub logs: u64,
 }
 
-struct StorageDirs {
-    cache: PathBuf,
-    data: PathBuf,
-    logs: PathBuf,
-}
 
-fn storage_dirs(app_handle: &AppHandle) -> Result<StorageDirs, String> {
-    let path = app_handle.path();
-    Ok(StorageDirs {
-        cache: path.app_cache_dir().map_err(|e| e.to_string())?,
-        data: path.app_data_dir().map_err(|e| e.to_string())?,
-        logs: path.app_log_dir().map_err(|e| e.to_string())?,
-    })
-}
 
 fn dir_size(path: &Path) -> u64 {
     WalkDir::new(path)
