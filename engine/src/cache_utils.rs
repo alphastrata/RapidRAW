@@ -687,10 +687,11 @@ impl DecodeFlights {
             return FlightRole::Follower(Arc::clone(flight));
         }
         let flight = Arc::new(Flight::default());
-        inflight.insert(path.to_string(), Arc::clone(&flight));
+        let path_key = path.to_string();
+        inflight.insert(path_key.clone(), Arc::clone(&flight));
         FlightRole::Leader(FlightGuard {
             flights: self,
-            path: path.to_string(),
+            path: path_key,
             flight,
         })
     }

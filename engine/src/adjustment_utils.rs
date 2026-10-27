@@ -31,12 +31,16 @@ pub fn hydrate_sub_masks(
             .and_then(|p| p.as_object_mut())
         {
             let keys_to_check = ["mask_data_base64", "maskDataBase64"];
-            for key in keys_to_check {
-                if params.contains_key(key) {
-                    let val = params.get(key).unwrap();
+            let present_keys: Vec<&str> = keys_to_check
+                .iter()
+                .map(|&key| key)
+                .filter(|&key| params.contains_key(key))
+                .collect::<Vec<&str>>();
+            for key in present_keys {
+                if let Some(val) = params.get(key) {
                     if val.is_null() {
                         if let Some(cached_data) = cache.get(&id) {
-                            params.insert(key.to_string(), cached_data.clone());
+                            params.insert(key.to_owned(), cached_data.clone());
                         }
                     } else {
                         cache.insert(id.clone(), val.clone());

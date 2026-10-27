@@ -1,3 +1,5 @@
+use std::path::PathBuf;
+
 pub use engine::lut_processing::*;
 
 use engine::app_state::AppState;
@@ -21,7 +23,7 @@ pub fn import_luts(
 }
 
 #[tauri::command]
-pub fn remove_lut(app_handle: tauri::AppHandle, path: String) -> Result<Vec<LutEntry>, String> {
+pub fn remove_lut(app_handle: tauri::AppHandle, path: PathBuf) -> Result<Vec<LutEntry>, String> {
     engine::lut_processing::remove_lut_impl(&*crate::host::TauriHost::host(app_handle), path)
 }
 

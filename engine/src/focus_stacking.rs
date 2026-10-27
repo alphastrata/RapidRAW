@@ -15,6 +15,7 @@ use crate::formats::is_raw_file;
 use crate::image_processing::apply_cpu_default_raw_processing;
 
 const MEMORY_BUDGET_BYTES: u64 = 2 * 1024 * 1024 * 1024;
+const F64_SANITY_CEILING: f64 = 4.294_967_3e9;
 
 #[derive(Clone, Debug)]
 pub struct Plane {
@@ -855,7 +856,11 @@ fn solve_level(
     }
 
     let px_total = w * h;
-    let stride = ((px_total as f64 / cfg.target_samples as f64).sqrt().ceil() as usize).max(1);
+    let stride = (px_total as f64 / cfg.target_samples as f64)
+        .sqrt()
+        .ceil()
+        .clamp(1.0, F64_SANITY_CEILING) as usize;
+
 
     let tmpl_mean = lvl.tmpl.mean();
     let tmpl_var: f64 = lvl
@@ -1637,8 +1642,8 @@ fn fit_dims(w: usize, h: usize, max_dim: usize) -> (usize, usize) {
     }
     let s = max_dim as f64 / long as f64;
     (
-        ((w as f64 * s).round() as usize).max(1),
-        ((h as f64 * s).round() as usize).max(1),
+        ((w as f64 * s).round().clamp(1.0, F64_SANITY_CEILING) as usize).max(1),
+        ((h as f64 * s).round().clamp(1.0, F64_SANITY_CEILING) as usize).max(1),
     )
 }
 
@@ -1856,10 +1861,10 @@ pub fn run_focus_stack<S: FrameSource + ?Sized>(
     let (cx, cy, cw, ch) = valid_bounds(&masks, cfg.crop_coverage);
     let sx = w as f64 / dw as f64;
     let sy = h as f64 / dh as f64;
-    let x0 = ((cx as f64 * sx).ceil() as usize).min(w.saturating_sub(1));
-    let y0 = ((cy as f64 * sy).ceil() as usize).min(h.saturating_sub(1));
-    let cw = ((cw as f64 * sx).floor() as usize).min(w - x0).max(1);
-    let ch = ((ch as f64 * sy).floor() as usize).min(h - y0).max(1);
+    let x0 = ((cx as f64 * sx).ceil().clamp(0.0, F64_SANITY_CEILING) as usize).min(w.saturating_sub(1));
+    let y0 = ((cy as f64 * sy).ceil().clamp(0.0, F64_SANITY_CEILING) as usize).min(h.saturating_sub(1));
+    let cw = ((cw as f64 * sx).floor().clamp(1.0, F64_SANITY_CEILING) as usize).min(w - x0).max(1);
+    let ch = ((ch as f64 * sy).floor().clamp(1.0, F64_SANITY_CEILING) as usize).min(h - y0).max(1);
 
     let image = if x0 == 0 && y0 == 0 && cw == w && ch == h {
         merged

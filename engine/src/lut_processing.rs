@@ -459,7 +459,7 @@ pub fn get_or_load_lut(state: &AppState, path: &str) -> Result<Arc<Lut>, String>
 
     let lut = parse_lut_file(path).map_err(|e| e.to_string())?;
     let arc_lut = Arc::new(lut);
-    cache.insert(path.to_string(), arc_lut.clone());
+    cache.insert(path.to_owned(), arc_lut.clone());
     Ok(arc_lut)
 }
 
@@ -553,10 +553,10 @@ pub fn import_luts_impl(
     list_luts_impl(host)
 }
 
-pub fn remove_lut_impl(host: &dyn Host, path: String) -> Result<Vec<LutEntry>, String> {
+pub fn remove_lut_impl(host: &dyn Host, path: PathBuf) -> Result<Vec<LutEntry>, String> {
     let data_dir = host.app_data_dir();
     let luts_dir = strip_verbatim(&get_luts_dir(&data_dir).map_err(|e| e.to_string())?);
-    let target_path = strip_verbatim(Path::new(&path));
+    let target_path = strip_verbatim(&path);
 
     if let Some(resource_path) = film_luts_dir(host)
         && target_path.starts_with(&resource_path)

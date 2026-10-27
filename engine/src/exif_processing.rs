@@ -868,14 +868,17 @@ pub fn extract_metadata(file_bytes: &[u8]) -> Option<HashMap<String, String>> {
                         );
                     }
                 }
-                _ => if let exif::Value::Ascii(_) = &field.value {
-                    if let Some(val) = clean_ascii_value(&field.value) {
-                        map.insert(field.tag.to_string(), truncate_large_exif(&val));
-                    }
-                } else {
-                    let val = field.display_value().with_unit(&exif_obj).to_string();
-                    if !val.trim().is_empty() {
-                        map.insert(field.tag.to_string(), truncate_large_exif(&val));
+                _ => {
+                    let tag = field.tag.to_string();
+                    if let exif::Value::Ascii(_) = &field.value {
+                        if let Some(val) = clean_ascii_value(&field.value) {
+                            map.insert(tag, truncate_large_exif(&val));
+                        }
+                    } else {
+                        let val = field.display_value().with_unit(&exif_obj).to_string();
+                        if !val.trim().is_empty() {
+                            map.insert(tag, truncate_large_exif(&val));
+                        }
                     }
                 },
             }
@@ -914,7 +917,7 @@ pub fn extract_metadata(file_bytes: &[u8]) -> Option<HashMap<String, String>> {
     let mut insert_if_present = |key: &str, val: String| {
         let trimmed = val.trim();
         if !trimmed.is_empty() {
-            map.insert(key.to_string(), truncate_large_exif(trimmed));
+            map.insert(key.to_owned(), truncate_large_exif(trimmed));
         }
     };
 
@@ -2144,7 +2147,8 @@ pub fn read_exif_data_from_bytes(path: &str, file_bytes: &[u8]) -> HashMap<Strin
                 }
                 _ => field.display_value().with_unit(&exif).to_string(),
             };
-            exif_data.insert(field.tag.to_string(), truncate_large_exif(&raw_val));
+            let tag = field.tag.to_string();
+            exif_data.insert(tag, truncate_large_exif(&raw_val));
         }
     }
     exif_data

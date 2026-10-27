@@ -969,7 +969,7 @@ pub fn fast_color_guided_filter(
         a.par_iter().zip(b.par_iter()).map(|(x, y)| x * y).collect()
     };
 
-    let mean_i = guide.each_ref().map(|c| box_filter(c));
+    let mean_i = guide.each_ref().map(|c| box_filter(c.as_slice()));
     let mean_p = box_filter(&p);
     let mean_ip: [Vec<f32>; 3] = std::array::from_fn(|c| box_filter(&product(&guide[c], &p)));
     let mean_ii = [(0, 0), (0, 1), (0, 2), (1, 1), (1, 2), (2, 2)]

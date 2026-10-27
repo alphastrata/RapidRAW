@@ -13,7 +13,9 @@ use std::path::PathBuf;
 #[cfg(target_os = "android")]
 static INIT_NDK_CONTEXT: std::sync::Once = std::sync::Once::new();
 
-use crate::best_effort::best_effort;
+
+#[cfg(target_os = "android")]
+pub use crate::best_effort::best_effort;
 
 #[cfg(target_os = "android")]
 static INIT_RUSTLS_PLATFORM_VERIFIER: std::sync::Once = std::sync::Once::new();
@@ -92,14 +94,14 @@ pub fn get_android_cached_lut_path(uri: &str, extension: &str) -> anyhow::Result
         .and_then(|v| v.l())
         .map_err(|e| anyhow::anyhow!(map_android_jni_error(&mut env, e)))?;
 
-    let root_path_str: String = env
+    let root_path: PathBuf = env
         .get_string(&path_jstring.into())
         .map_err(|e| anyhow::anyhow!(map_android_jni_error(&mut env, e)))?
         .into();
 
     let hash = blake3::hash(uri.as_bytes());
 
-    let mut path = PathBuf::from(root_path_str);
+    let mut path = root_path;
     path.push(".lut_cache");
 
     if !path.exists() {
@@ -470,12 +472,10 @@ pub fn get_android_internal_library_root() -> Result<PathBuf, String> {
         .and_then(|v| v.l())
         .map_err(|e| map_android_jni_error(&mut env, e))?;
 
-    let path: String = env
+    let media_path: PathBuf = env
         .get_string(&path_jstring.into())
         .map_err(|e| map_android_jni_error(&mut env, e))?
         .into();
-
-    let media_path = PathBuf::from(path);
     let library_dir = media_path.join(".library");
 
     if !library_dir.exists() {

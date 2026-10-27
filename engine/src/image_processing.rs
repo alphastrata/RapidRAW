@@ -101,7 +101,7 @@ const BASELINE_EXPOSURE_KEY: &str = "baselineExposure";
 
 pub fn mark_baseline_exposure(adjustments: &mut Value) {
     if let Some(object) = adjustments.as_object_mut() {
-        object.insert(BASELINE_EXPOSURE_KEY.to_string(), Value::Bool(true));
+        object.insert(BASELINE_EXPOSURE_KEY.to_owned().into(), Value::Bool(true));
     }
 }
 

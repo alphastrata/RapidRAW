@@ -276,6 +276,7 @@ pub fn get_or_init_gpu_context(
 
     let instance = wgpu::Instance::new(instance_desc);
 
+    #[cfg_attr(any(target_os = "android", target_os = "linux"), allow(unused_variables))]
     let (surface_opt, inner_size) = match host.display_setup() {
         Some(setup) => ((setup.create_surface)(&instance).ok(), Some(setup.inner_size)),
         None => (None, None),
@@ -342,6 +343,7 @@ pub fn get_or_init_gpu_context(
         best_effort(std::fs::remove_file(p));
     }
 
+    #[cfg(not(any(target_os = "android", target_os = "linux")))]
     let display_opt = if let Some(surface) = surface_opt {
         let swapchain_caps = surface.get_capabilities(&adapter);
         let swapchain_format = swapchain_caps
@@ -809,9 +811,9 @@ fn analytics_readback_sender() -> &'static std::sync::mpsc::Sender<AnalyticsRead
                     recycle_readback_buffer(&readback.pool, readback.buffer);
                     readback = newer;
                 }
-                let _ = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+                drop(std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
                     complete_analytics_readback(readback);
-                }));
+                })));
             }
         });
         tx
