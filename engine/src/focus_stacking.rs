@@ -1,4 +1,5 @@
 use base64::{Engine as _, engine::general_purpose};
+use anyhow::{anyhow, bail};
 use image::{DynamicImage, ImageFormat, Rgb32FImage};
 use nalgebra::{DMatrix, DVector};
 use rayon::prelude::*;
@@ -52,8 +53,10 @@ impl Plane {
     #[inline(always)]
     #[must_use]
     pub fn clamped(&self, x: i64, y: i64) -> f32 {
-        let xc = x.clamp(0, self.w as i64 - 1) as usize;
-        let yc = y.clamp(0, self.h as i64 - 1) as usize;
+        let w = self.w as i64;
+        let h = self.h as i64;
+        let xc = x.clamp(0, w - 1) as usize;
+        let yc = y.clamp(0, h - 1) as usize;
         self.data[yc * self.w + xc]
     }
 
@@ -118,22 +121,25 @@ impl Plane {
     pub fn gradients(&self) -> (Plane, Plane) {
         let mut gx = Plane::new(self.w, self.h);
         let mut gy = Plane::new(self.w, self.h);
-        let (w, h) = (self.w, self.h);
+        let w = self.w;
         gx.data.par_chunks_mut(w).enumerate().for_each(|(y, row)| {
-            for (x, out_val) in row.iter_mut().enumerate() {
-                let a = self.clamped(x as i64 - 1, y as i64);
-                let b = self.clamped(x as i64 + 1, y as i64);
+            let yl = y as i64;
+            row.iter_mut().enumerate().for_each(|(x, out_val)| {
+                let xl = x as i64;
+                let a = self.clamped(xl - 1, yl);
+                let b = self.clamped(xl + 1, yl);
                 *out_val = 0.5 * (b - a);
-            }
+            });
         });
         gy.data.par_chunks_mut(w).enumerate().for_each(|(y, row)| {
-            for (x, out_val) in row.iter_mut().enumerate() {
-                let a = self.clamped(x as i64, y as i64 - 1);
-                let b = self.clamped(x as i64, y as i64 + 1);
+            let yl = y as i64;
+            row.iter_mut().enumerate().for_each(|(x, out_val)| {
+                let xl = x as i64;
+                let a = self.clamped(xl, yl - 1);
+                let b = self.clamped(xl, yl + 1);
                 *out_val = 0.5 * (b - a);
-            }
+            });
         });
-        drop(h);
         (gx, gy)
     }
 }
@@ -154,12 +160,13 @@ fn catmull_weights(t: f32) -> [f32; 4] {
 pub fn gaussian_kernel(sigma: f32) -> Vec<f32> {
     let sigma = sigma.max(1e-3);
     let radius = (sigma * 3.0).ceil().max(1.0) as usize;
-    let mut k = Vec::with_capacity(2 * radius + 1);
     let denom = 2.0 * sigma * sigma;
-    for i in 0..=(2 * radius) {
-        let d = i as f32 - radius as f32;
-        k.push((-d * d / denom).exp());
-    }
+    let mut k: Vec<f32> = (0..=(2 * radius))
+        .map(|i| {
+            let d = i as f32 - radius as f32;
+            (-d * d / denom).exp()
+        })
+        .collect();
     let sum: f32 = k.iter().sum();
     for v in &mut k {
         *v /= sum;
@@ -211,14 +218,14 @@ pub fn box_filter(src: &Plane, radius: usize) -> Plane {
     out.data.par_chunks_mut(w).enumerate().for_each(|(y, row)| {
         let y0 = y.saturating_sub(radius);
         let y1 = (y + radius + 1).min(h);
-        for (x, out_val) in row.iter_mut().enumerate() {
+        row.iter_mut().enumerate().for_each(|(x, out_val)| {
             let x0 = x.saturating_sub(radius);
             let x1 = (x + radius + 1).min(w);
             let s = sat[y1 * stride + x1] - sat[y0 * stride + x1] - sat[y1 * stride + x0]
                 + sat[y0 * stride + x0];
             let n = ((y1 - y0) * (x1 - x0)) as f64;
             *out_val = (s / n) as f32;
-        }
+        });
     });
     out
 }
@@ -235,10 +242,10 @@ pub fn downsample(src: &Plane) -> Plane {
         .enumerate()
         .for_each(|(y, row)| {
             let sy = (2 * y).min(src.h.saturating_sub(1));
-            for (x, out_val) in row.iter_mut().enumerate() {
+            row.iter_mut().enumerate().for_each(|(x, out_val)| {
                 let sx = (2 * x).min(src.w.saturating_sub(1));
                 *out_val = blurred.data[sy * src.w + sx];
-            }
+            });
         });
     out
 }
@@ -249,14 +256,18 @@ pub fn upsample_to(src: &Plane, w: usize, h: usize) -> Plane {
     if src.w == 0 || src.h == 0 || w == 0 || h == 0 {
         return out;
     }
-    let sx_ratio = src.w as f32 / w as f32;
-    let sy_ratio = src.h as f32 / h as f32;
+    let swf = src.w as f32;
+    let shf = src.h as f32;
+    let wf = w as f32;
+    let hf = h as f32;
+    let sx_ratio = swf / wf;
+    let sy_ratio = shf / hf;
     out.data.par_chunks_mut(w).enumerate().for_each(|(y, row)| {
         let sy = ((y as f32 + 0.5) * sy_ratio - 0.5).max(0.0);
-        for (x, out_val) in row.iter_mut().enumerate() {
+        row.iter_mut().enumerate().for_each(|(x, out_val)| {
             let sx = ((x as f32 + 0.5) * sx_ratio - 0.5).max(0.0);
             *out_val = src.sample_bilinear(sx, sy);
-        }
+        });
     });
     out
 }
@@ -310,13 +321,16 @@ impl PlanarRgb {
         let h = img.height() as usize;
         let raw = img.as_raw();
         let mut out = PlanarRgb::new(w, h);
-        for (ch, plane) in out.c.iter_mut().enumerate() {
-            plane
-                .data
-                .par_iter_mut()
-                .enumerate()
-                .for_each(|(i, v)| *v = raw[i * 3 + ch]);
-        }
+        out.c
+            .iter_mut()
+            .enumerate()
+            .for_each(|(ch, plane)| {
+                plane
+                    .data
+                    .par_iter_mut()
+                    .enumerate()
+                    .for_each(|(i, v)| *v = raw[i * 3 + ch]);
+            });
         out
     }
 
@@ -348,17 +362,20 @@ impl PlanarRgb {
     #[must_use]
     pub fn crop(&self, x0: usize, y0: usize, w: usize, h: usize) -> PlanarRgb {
         let mut out = PlanarRgb::new(w, h);
-        for (ch, out_plane) in out.c.iter_mut().enumerate() {
-            let src = &self.c[ch];
-            out_plane
-                .data
-                .par_chunks_mut(w)
-                .enumerate()
-                .for_each(|(y, row)| {
-                    let sy = y + y0;
-                    row.copy_from_slice(&src.data[sy * src.w + x0..sy * src.w + x0 + w]);
-                });
-        }
+        out.c
+            .iter_mut()
+            .enumerate()
+            .for_each(|(ch, out_plane)| {
+                let src = &self.c[ch];
+                out_plane
+                    .data
+                    .par_chunks_mut(w)
+                    .enumerate()
+                    .for_each(|(y, row)| {
+                        let sy = y + y0;
+                        row.copy_from_slice(&src.data[sy * src.w + x0..sy * src.w + x0 + w]);
+                    });
+            });
         out
     }
 }
@@ -377,13 +394,9 @@ pub fn level_count(w: usize, h: usize, max_levels: usize) -> usize {
 
 #[must_use]
 pub fn gaussian_pyramid(base: &Plane, levels: usize) -> Vec<Plane> {
-    let mut v = Vec::with_capacity(levels);
-    v.push(base.clone());
-    for _ in 1..levels {
-        let next = downsample(v.last().unwrap());
-        v.push(next);
-    }
-    v
+    std::iter::successors(Some(base.clone()), |p| Some(downsample(p)))
+        .take(levels.max(1))
+        .collect()
 }
 
 #[derive(Clone, Debug)]
@@ -395,13 +408,18 @@ pub struct LaplacianPyramid {
 #[must_use]
 pub fn laplacian_pyramid(base: &Plane, levels: usize) -> LaplacianPyramid {
     let g = gaussian_pyramid(base, levels);
-    let mut details = Vec::with_capacity(g.len().saturating_sub(1));
-    for i in 0..g.len() - 1 {
-        let up = upsample_to(&g[i + 1], g[i].w, g[i].h);
-        details.push(plane_sub(&g[i], &up));
-    }
+    let details: Vec<Plane> = g
+        .windows(2)
+        .map(|pair| {
+            let up = upsample_to(&pair[1], pair[0].w, pair[0].h);
+            plane_sub(&pair[0], &up)
+        })
+        .collect();
     LaplacianPyramid {
-        residual: g.last().unwrap().clone(),
+        residual: g
+            .last()
+            .unwrap_or_else(|| unreachable!("gaussian_pyramid always yields at least one plane"))
+            .clone(),
         details,
     }
 }
@@ -552,16 +570,14 @@ impl LensWarp {
 
     #[must_use]
     pub fn max_displacement(&self, w: usize, h: usize) -> f64 {
-        let mut m: f64 = 0.0;
-        for gy in 0..5 {
-            for gx in 0..5 {
+        (0..5)
+            .flat_map(|gy| (0..5).map(move |gx| (gy, gx)))
+            .fold(0.0f64, |m, (gy, gx)| {
                 let x = f64::from(gx) * (w.max(2) - 1) as f64 / 4.0;
                 let y = f64::from(gy) * (h.max(2) - 1) as f64 / 4.0;
                 let (u, v) = self.apply(x, y);
-                m = m.max(((u - x).powi(2) + (v - y).powi(2)).sqrt());
-            }
-        }
-        m
+                m.max(((u - x).powi(2) + (v - y).powi(2)).sqrt())
+            })
     }
 
     #[inline]
@@ -602,13 +618,13 @@ impl LensWarp {
                 jv[2] = px;
                 jv[3] = py;
                 jv[5] = 1.0;
-                for m in 0..7 {
+                (0..7).for_each(|m| {
                     let b = basis[m] * self.norm;
                     ju[6 + m] = self.a[0] * b;
                     jv[6 + m] = self.a[2] * b;
                     ju[13 + m] = self.a[1] * b;
                     jv[13 + m] = self.a[3] * b;
-                }
+                });
                 let r2 = qx * qx + qy * qy;
                 let q4x = qx * r2 * r2 * self.norm;
                 let q4y = qy * r2 * r2 * self.norm;
@@ -653,10 +669,10 @@ impl LensWarp {
                 self.a[3] += d[3];
                 self.t[0] += d[4];
                 self.t[1] += d[5];
-                for m in 0..7 {
+                (0..7).for_each(|m| {
                     self.pu[m] += d[6 + m];
                     self.pv[m] += d[13 + m];
-                }
+                });
                 self.k2 += d[20];
             }
         }
@@ -775,17 +791,20 @@ pub fn build_align_pyramids(
     let tp = gaussian_pyramid(&tmpl_s, n);
     let sp = gaussian_pyramid(&src_s, n);
 
-    let mut levels = Vec::with_capacity(tp.len());
-    for i in 0..tp.len() {
-        let (gx, gy) = sp[i].gradients();
-        levels.push(LevelData {
-            tmpl: tp[i].clone(),
-            src: sp[i].clone(),
-            gx,
-            gy,
-            scale: start_scale * 0.5f64.powi(i as i32),
-        });
-    }
+    let levels: Vec<LevelData> = tp
+        .iter()
+        .enumerate()
+        .map(|(i, t)| {
+            let (gx, gy) = sp[i].gradients();
+            LevelData {
+                tmpl: t.clone(),
+                src: sp[i].clone(),
+                gx,
+                gy,
+                scale: start_scale * 0.5f64.powi(i as i32),
+            }
+        })
+        .collect();
     AlignPyramids { levels }
 }
 
@@ -817,7 +836,7 @@ pub fn solve_alignment(pyr: &AlignPyramids, init: LensWarp, cfg: &AlignConfig) -
     let mut bias = 0.0f64;
     let mut quality = 0.0f64;
 
-    for li in (0..pyr.levels.len()).rev() {
+    (0..pyr.levels.len()).rev().for_each(|li| {
         let lvl = &pyr.levels[li];
         let model = model_for_level(lvl.tmpl.w.min(lvl.tmpl.h), cfg);
 
@@ -830,7 +849,7 @@ pub fn solve_alignment(pyr: &AlignPyramids, init: LensWarp, cfg: &AlignConfig) -
             warp_full = w.rescaled(1.0 / lvl.scale);
             quality = q;
         }
-    }
+    });
 
     FramePose {
         warp: warp_full,
@@ -886,7 +905,9 @@ fn solve_level(
 
         let mut abs_res: Vec<f64> = samples.iter().map(|s| s.residual.abs()).collect();
         let mid = abs_res.len() / 2;
-        abs_res.select_nth_unstable_by(mid, |a, b| a.partial_cmp(b).unwrap());
+        abs_res.select_nth_unstable_by(mid, |a, b| {
+            a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal)
+        });
         let mad = abs_res[mid].max(1e-6);
         let huber = 1.5 * 1.4826 * mad;
 
@@ -902,17 +923,20 @@ fn solve_level(
                         huber / r.abs()
                     };
                     let mut j = [0f64; 23];
-                    for (p, jp) in j.iter_mut().enumerate().take(np) {
-                        *jp = *gain * (s.gx * s.ju[p] + s.gy * s.jv[p]);
-                    }
+                    j.iter_mut()
+                        .enumerate()
+                        .take(np)
+                        .for_each(|(p, jp)| *jp = *gain * (s.gx * s.ju[p] + s.gy * s.jv[p]));
                     j[np] = s.val;
                     j[np + 1] = 1.0;
-                    for a in 0..n {
+                    (0..n).for_each(|a| {
                         acc.1[a] += wgt * j[a] * r;
-                        for b in a..n {
-                            acc.0[a * n + b] += wgt * j[a] * j[b];
-                        }
-                    }
+                        acc.0[a * n..]
+                            .iter_mut()
+                            .take(n - a)
+                            .enumerate()
+                            .for_each(|(bo, cell)| *cell += wgt * j[a] * j[a + bo]);
+                    });
                     acc.2 += wgt * r * r;
                     acc.3 += wgt;
                     acc
@@ -921,12 +945,8 @@ fn solve_level(
             .reduce(
                 || (vec![0f64; n * n], vec![0f64; n], 0f64, 0f64),
                 |mut a, b| {
-                    for i in 0..n * n {
-                        a.0[i] += b.0[i];
-                    }
-                    for i in 0..n {
-                        a.1[i] += b.1[i];
-                    }
+                    a.0.iter_mut().zip(b.0.iter()).for_each(|(x, &y)| *x += y);
+                    a.1.iter_mut().zip(b.1.iter()).for_each(|(x, &y)| *x += y);
                     a.2 += b.2;
                     a.3 += b.3;
                     a
@@ -946,19 +966,19 @@ fn solve_level(
         prev_cost = prev_cost.min(cost);
 
         let mut hm = DMatrix::<f64>::zeros(n, n);
-        for a in 0..n {
-            for b in a..n {
+        (0..n).for_each(|a| {
+            (a..n).for_each(|b| {
                 let v = hess[a * n + b];
                 hm[(a, b)] = v;
                 hm[(b, a)] = v;
-            }
-        }
+            });
+        });
         let trace: f64 = (0..n).map(|a| hm[(a, a)]).sum::<f64>() / n as f64;
-        for a in 0..n {
+        (0..n).for_each(|a| {
             let d = hm[(a, a)];
             let prior = if a < np { model.prior(a) } else { 0.0 };
             hm[(a, a)] = d + lambda * d.max(1e-9) + prior * trace;
-        }
+        });
         let gv = DVector::<f64>::from_iterator(n, grad.iter().map(|&v| -v));
 
         let delta = match hm.lu().solve(&gv) {
@@ -1005,16 +1025,21 @@ fn collect_samples(
             let mut local = Vec::with_capacity(w / stride + 1);
             let mut ju = [0f64; 21];
             let mut jv = [0f64; 21];
+            let y_f = f64::from(y as u32);
             let mut x = 0usize;
             while x < w {
-                let (u, v) = warp.apply(x as f64, y as f64);
-                if u >= 1.0 && v >= 1.0 && u < (lvl.src.w - 2) as f64 && v < (lvl.src.h - 2) as f64
-                {
-                    let val = f64::from(lvl.src.sample_bilinear(u as f32, v as f32));
-                    let gx = f64::from(lvl.gx.sample_bilinear(u as f32, v as f32));
-                    let gy = f64::from(lvl.gy.sample_bilinear(u as f32, v as f32));
+                let x_f = f64::from(x as u32);
+                let (u, v) = warp.apply(x_f, y_f);
+                let w_lim = (lvl.src.w - 2) as f64;
+                let h_lim = (lvl.src.h - 2) as f64;
+                if u >= 1.0 && v >= 1.0 && u < w_lim && v < h_lim {
+                    let uf = u as f32;
+                    let vf = v as f32;
+                    let val = f64::from(lvl.src.sample_bilinear(uf, vf));
+                    let gx = f64::from(lvl.gx.sample_bilinear(uf, vf));
+                    let gy = f64::from(lvl.gy.sample_bilinear(uf, vf));
                     if gx * gx + gy * gy > 1e-10 {
-                        warp.jacobian(x as f64, y as f64, model, &mut ju, &mut jv);
+                        warp.jacobian(x_f, y_f, model, &mut ju, &mut jv);
                         let t = f64::from(lvl.tmpl.at(x, y));
                         local.push(Sample {
                             ju,
@@ -1041,23 +1066,19 @@ fn erode_mask(mask: &Plane, radius: usize) -> Plane {
     let r = radius as i64;
     let mut tmp = Plane::new(w, h);
     tmp.data.par_chunks_mut(w).enumerate().for_each(|(y, row)| {
-        for (x, out_val) in row.iter_mut().enumerate() {
-            let mut m = f32::INFINITY;
-            for d in -r..=r {
-                m = m.min(mask.clamped(x as i64 + d, y as i64));
-            }
-            *out_val = m;
-        }
+        let yl = y as i64;
+        row.iter_mut().enumerate().for_each(|(x, out_val)| {
+            let xl = x as i64;
+            *out_val = (-r..=r).fold(f32::INFINITY, |m, d| m.min(mask.clamped(xl + d, yl)));
+        });
     });
     let mut out = Plane::new(w, h);
     out.data.par_chunks_mut(w).enumerate().for_each(|(y, row)| {
-        for (x, out_val) in row.iter_mut().enumerate() {
-            let mut m = f32::INFINITY;
-            for d in -r..=r {
-                m = m.min(tmp.clamped(x as i64, y as i64 + d));
-            }
-            *out_val = m;
-        }
+        let yl = y as i64;
+        row.iter_mut().enumerate().for_each(|(x, out_val)| {
+            let xl = x as i64;
+            *out_val = (-r..=r).fold(f32::INFINITY, |m, d| m.min(tmp.clamped(xl, yl + d)));
+        });
     });
     out
 }
@@ -1076,13 +1097,16 @@ pub fn warp_frame(
 
     let coords: Vec<(f32, f32, bool)> = {
         let mut v = vec![(0f32, 0f32, false); out_w * out_h];
+        let w3 = (src.w - 3) as f64;
+        let h3 = (src.h - 3) as f64;
         v.par_chunks_mut(out_w).enumerate().for_each(|(y, row)| {
-            for (x, r) in row.iter_mut().enumerate() {
-                let (u, vv) = warp.apply(x as f64, y as f64);
-                let ok =
-                    u >= 2.0 && vv >= 2.0 && u <= (src.w - 3) as f64 && vv <= (src.h - 3) as f64;
+            row.iter_mut().enumerate().for_each(|(x, r)| {
+                let xf = x as f64;
+                let yf = y as f64;
+                let (u, vv) = warp.apply(xf, yf);
+                let ok = u >= 2.0 && vv >= 2.0 && u <= w3 && vv <= h3;
                 *r = (u as f32, vv as f32, ok);
-            }
+            });
         });
         v
     };
@@ -1092,17 +1116,20 @@ pub fn warp_frame(
     });
     let mask = erode_mask(&mask, 2);
 
-    for (ch, out_plane) in out.c.iter_mut().enumerate() {
-        let s = &src.c[ch];
-        out_plane
-            .data
-            .par_iter_mut()
-            .enumerate()
-            .for_each(|(i, o)| {
-                let (u, v, _) = coords[i];
-                *o = (s.sample_catmull_rom(u, v) * gain + bias).max(0.0);
-            });
-    }
+    out.c
+        .iter_mut()
+        .enumerate()
+        .for_each(|(ch, out_plane)| {
+            let s = &src.c[ch];
+            out_plane
+                .data
+                .par_iter_mut()
+                .enumerate()
+                .for_each(|(i, o)| {
+                    let (u, v, _) = coords[i];
+                    *o = (s.sample_catmull_rom(u, v) * gain + bias).max(0.0);
+                });
+        });
 
     (out, mask)
 }
@@ -1157,13 +1184,17 @@ pub fn guided_filter(guide: &Plane, input: &Plane, radius: usize, eps: f32) -> P
 
     let mut a = Plane::new(guide.w, guide.h);
     let mut b = Plane::new(guide.w, guide.h);
-    for i in 0..a.data.len() {
-        let var_i = corr_i.data[i] - mean_i.data[i] * mean_i.data[i];
-        let cov_ip = corr_ip.data[i] - mean_i.data[i] * mean_p.data[i];
-        let ai = cov_ip / (var_i + eps);
-        a.data[i] = ai;
-        b.data[i] = mean_p.data[i] - ai * mean_i.data[i];
-    }
+    a.data
+        .par_iter_mut()
+        .zip(b.data.par_iter_mut())
+        .enumerate()
+        .for_each(|(i, (ai, bi))| {
+            let var_i = corr_i.data[i] - mean_i.data[i] * mean_i.data[i];
+            let cov_ip = corr_ip.data[i] - mean_i.data[i] * mean_p.data[i];
+            let a_i = cov_ip / (var_i + eps);
+            *ai = a_i;
+            *bi = mean_p.data[i] - a_i * mean_i.data[i];
+        });
 
     let mean_a = box_filter(&a, radius);
     let mean_b = box_filter(&b, radius);
@@ -1183,13 +1214,13 @@ fn focus_domain(luma: &Plane) -> Plane {
 pub fn focus_scores(luma: &Plane, levels: usize, cfg: &FusionConfig) -> Vec<Plane> {
     let fd = focus_domain(luma);
     let lp = laplacian_pyramid(&fd, levels);
-    let mut out = Vec::with_capacity(lp.details.len());
-    for d in &lp.details {
-        let sq = d.map(|v| v * v);
-        let pooled = gaussian_blur(&sq, cfg.pool_sigma);
-        out.push(pooled.map(|v| v.max(0.0).sqrt()));
-    }
-    out
+    lp.details
+        .iter()
+        .map(|d| {
+            let sq = d.map(|v| v * v);
+            gaussian_blur(&sq, cfg.pool_sigma).map(|v| v.max(0.0).sqrt())
+        })
+        .collect()
 }
 
 pub struct DecisionMaps {
@@ -1240,21 +1271,28 @@ pub fn decide_labels(
     {
         let mut median = vec![0f32; npx];
         let mut buf = vec![0f32; n];
-        for (p, med) in median.iter_mut().enumerate() {
-            let mut cnt = 0usize;
-            for (i, mask_i) in masks.iter().enumerate().take(n) {
-                if mask_i.data[p] > 0.5 {
-                    buf[cnt] = base[i].data[p];
-                    cnt += 1;
+        median
+            .iter_mut()
+            .enumerate()
+            .for_each(|(p, med)| {
+                let mut cnt = 0usize;
+                masks
+                    .iter()
+                    .enumerate()
+                    .take(n)
+                    .for_each(|(i, mask_i)| {
+                        if mask_i.data[p] > 0.5 {
+                            buf[cnt] = base[i].data[p];
+                            cnt += 1;
+                        }
+                    });
+                if cnt == 0 {
+                    return;
                 }
-            }
-            if cnt == 0 {
-                continue;
-            }
-            let slice = &mut buf[..cnt];
-            slice.sort_by(|a, b| a.partial_cmp(b).unwrap());
-            *med = slice[cnt / 2];
-        }
+                let slice = &mut buf[..cnt];
+                slice.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
+                *med = slice[cnt / 2];
+            });
         let thr = cfg.consistency_threshold.max(1e-4);
         for i in 0..n {
             let b = &base[i];
@@ -1273,14 +1311,16 @@ pub fn decide_labels(
 
     let mut guide = Plane::new(w, h);
     guide.data.par_iter_mut().enumerate().for_each(|(p, g)| {
-        let mut best = f32::NEG_INFINITY;
-        let mut bi = 0usize;
-        for (i, comb) in combined.iter().enumerate() {
-            if comb.data[p] > best {
-                best = comb.data[p];
-                bi = i;
-            }
-        }
+        let (bi, _best) = combined
+            .iter()
+            .enumerate()
+            .fold((0usize, f32::NEG_INFINITY), |(bi, best), (i, comb)| {
+                if comb.data[p] > best {
+                    (i, comb.data[p])
+                } else {
+                    (bi, best)
+                }
+            });
         *g = base[bi].data[p];
     });
     let guide = gaussian_blur(&guide, 0.8);
@@ -1297,19 +1337,19 @@ pub fn decide_labels(
         .zip(any_valid.par_iter_mut())
         .enumerate()
         .for_each(|(p, (l, av))| {
-            let mut best = f32::NEG_INFINITY;
-            let mut bi = 0usize;
-            let mut found = false;
-            for i in 0..n {
-                if masks[i].data[p] < 0.5 {
-                    continue;
-                }
-                found = true;
-                if aggregated[i].data[p] > best {
-                    best = aggregated[i].data[p];
-                    bi = i;
-                }
-            }
+            let (bi, _best, found) = (0..n).fold(
+                (0usize, f32::NEG_INFINITY, false),
+                |(bi, best, found), i| {
+                    if masks[i].data[p] < 0.5 {
+                        return (bi, best, found);
+                    }
+                    if aggregated[i].data[p] > best {
+                        (i, aggregated[i].data[p], true)
+                    } else {
+                        (bi, best, true)
+                    }
+                },
+            );
             *l = bi as u16;
             *av = found;
         });
@@ -1350,7 +1390,7 @@ pub fn decide_labels(
             .zip(wi.data.par_iter())
             .for_each(|(t, &v)| *t += v);
     }
-    for wi in &mut weights {
+    weights.iter_mut().for_each(|wi| {
         wi.data.par_iter_mut().enumerate().for_each(|(p, v)| {
             *v = if totals[p] > 1e-6 {
                 *v / totals[p]
@@ -1358,7 +1398,7 @@ pub fn decide_labels(
                 0.0
             };
         });
-    }
+    });
 
     DecisionMaps {
         weights,
@@ -1430,13 +1470,14 @@ impl MergeAccumulator {
     #[must_use]
     pub fn new(w: usize, h: usize, cfg: &FusionConfig) -> Self {
         let levels = level_count(w, h, cfg.max_levels);
-        let mut dims = Vec::with_capacity(levels);
-        let (mut cw, mut ch) = (w, h);
-        for _ in 0..levels {
-            dims.push((cw, ch));
-            cw = cw.div_ceil(2);
-            ch = ch.div_ceil(2);
-        }
+        let dims: Vec<(usize, usize)> = (0..levels)
+            .scan((w, h), |st, _| {
+                let d = *st;
+                st.0 = st.0.div_ceil(2);
+                st.1 = st.1.div_ceil(2);
+                Some(d)
+            })
+            .collect();
         let mk = |from: usize| -> Vec<Plane> {
             (from..levels - 1)
                 .map(|k| Plane::new(dims[k].0, dims[k].1))
@@ -1566,28 +1607,15 @@ pub fn valid_bounds(masks: &[Plane], min_coverage: f32) -> (usize, usize, usize,
     }
     let need = (n * min_coverage).max(1.0);
 
-    let mut x0 = w;
-    let mut x1 = 0usize;
-    let mut y0 = h;
-    let mut y1 = 0usize;
-    for y in 0..h {
-        for x in 0..w {
-            if cov[y * w + x] >= need {
-                if x < x0 {
-                    x0 = x;
-                }
-                if x > x1 {
-                    x1 = x;
-                }
-                if y < y0 {
-                    y0 = y;
-                }
-                if y > y1 {
-                    y1 = y;
-                }
-            }
-        }
-    }
+    let (x0, x1, y0, y1) = cov
+        .iter()
+        .enumerate()
+        .filter(|(_, c)| **c >= need)
+        .fold((w, 0usize, h, 0usize), |(x0, x1, y0, y1), (idx, _)| {
+            let x = idx % w;
+            let y = idx / w;
+            (x0.min(x), x1.max(x), y0.min(y), y1.max(y))
+        });
     if x0 > x1 || y0 > y1 {
         return (0, 0, w, h);
     }
@@ -1600,7 +1628,7 @@ pub trait FrameSource: Sync {
         self.len() == 0
     }
     fn dims(&self) -> (usize, usize);
-    fn get(&self, index: usize) -> Result<PlanarRgb, String>;
+    fn get(&self, index: usize) -> anyhow::Result<PlanarRgb>;
 }
 
 #[derive(Clone, Copy, Debug)]
@@ -1640,10 +1668,12 @@ fn fit_dims(w: usize, h: usize, max_dim: usize) -> (usize, usize) {
     if long <= max_dim {
         return (w, h);
     }
-    let s = max_dim as f64 / long as f64;
+    let wf = w as f64;
+    let hf = h as f64;
+    let s = max_dim as f64 / wf.max(hf);
     (
-        ((w as f64 * s).round().clamp(1.0, F64_SANITY_CEILING) as usize).max(1),
-        ((h as f64 * s).round().clamp(1.0, F64_SANITY_CEILING) as usize).max(1),
+        ((wf * s).round().clamp(1.0, F64_SANITY_CEILING) as usize).max(1),
+        ((hf * s).round().clamp(1.0, F64_SANITY_CEILING) as usize).max(1),
     )
 }
 
@@ -1661,17 +1691,17 @@ fn regularize_poses(poses: &mut [FramePose], cfg: &StackConfig, reference: usize
     }
 
     let center = (n as f64 - 1.0) / 2.0;
-    let mut ata = [[0f64; 3]; 3];
-    for &i in &good {
-        let t = (i as f64 - center) / (n as f64).max(1.0);
-        let w = poses[i].quality * poses[i].quality;
-        let basis = [1.0, t, t * t];
-        for a in 0..3 {
-            for b in 0..3 {
-                ata[a][b] += w * basis[a] * basis[b];
-            }
-        }
-    }
+    let ata = good
+        .iter()
+        .fold([[0f64; 3]; 3], |mut ata, &i| {
+            let t = (i as f64 - center) / (n as f64).max(1.0);
+            let wgt = poses[i].quality * poses[i].quality;
+            let basis = [1.0, t, t * t];
+            (0..3).for_each(|a| {
+                (0..3).for_each(|b| ata[a][b] += wgt * basis[a] * basis[b]);
+            });
+            ata
+        });
     let m = nalgebra::Matrix3::new(
         ata[0][0], ata[0][1], ata[0][2], ata[1][0], ata[1][1], ata[1][2], ata[2][0], ata[2][1],
         ata[2][2],
@@ -1694,43 +1724,43 @@ fn regularize_poses(poses: &mut [FramePose], cfg: &StackConfig, reference: usize
         *coeff = [c[0], c[1], c[2]];
     }
 
-    for (i, pose) in poses.iter_mut().enumerate().take(n) {
-        if i == reference {
-            continue;
-        }
-        let t = (i as f64 - center) / (n as f64).max(1.0);
-        let mut fitted = [0f64; 22];
-        for (p, fit_val) in fitted.iter_mut().enumerate() {
-            *fit_val = coeffs[p][0] + coeffs[p][1] * t + coeffs[p][2] * t * t;
-        }
+    poses
+        .iter_mut()
+        .enumerate()
+        .take(n)
+        .for_each(|(i, pose)| {
+            if i == reference {
+                return;
+            }
+            let t = (i as f64 - center) / (n as f64).max(1.0);
+            let fitted: [f64; 22] =
+                std::array::from_fn(|p| coeffs[p][0] + coeffs[p][1] * t + coeffs[p][2] * t * t);
 
-        let failed = pose.quality < cfg.align.min_quality || !pose.warp.is_plausible();
-        let s = if failed { 1.0 } else { cfg.pose_smoothing };
+            let failed = pose.quality < cfg.align.min_quality || !pose.warp.is_plausible();
+            let s = if failed { 1.0 } else { cfg.pose_smoothing };
 
-        let cur = pose.warp.to_vector();
-        let mut blended = [0f64; 22];
-        for (p, bl) in blended.iter_mut().enumerate() {
-            *bl = cur[p] * (1.0 - s) + fitted[p] * s;
-        }
-        let candidate = pose.warp.with_vector(&blended);
-        if candidate.is_plausible() {
-            pose.warp = candidate;
-        }
-    }
+            let cur = pose.warp.to_vector();
+            let blended: [f64; 22] =
+                std::array::from_fn(|p| cur[p] * (1.0 - s) + fitted[p] * s);
+            let candidate = pose.warp.with_vector(&blended);
+            if candidate.is_plausible() {
+                pose.warp = candidate;
+            }
+        });
 }
 
 pub fn run_focus_stack<S: FrameSource + ?Sized>(
     src: &S,
     cfg: &StackConfig,
     progress: &dyn Fn(&str),
-) -> Result<StackResult, String> {
+) -> anyhow::Result<StackResult> {
     let n = src.len();
     if n < 2 {
-        return Err("Focus stacking needs at least two frames.".into());
+        bail!("Focus stacking needs at least two frames.");
     }
     let (w, h) = src.dims();
     if w < 32 || h < 32 {
-        return Err("Frames are too small to stack.".into());
+        bail!("Frames are too small to stack.");
     }
 
     let reference = n / 2;
@@ -1749,21 +1779,22 @@ pub fn run_focus_stack<S: FrameSource + ?Sized>(
 
     if cfg.align_enabled {
         progress("Preparing alignment references...");
-        let mut align_luma: Vec<Plane> = Vec::with_capacity(n);
-        for i in 0..n {
-            let f = src.get(i)?;
-            if f.w != w || f.h != h {
-                return Err(format!(
-                    "Frame {} is {}x{} but the stack is {}x{}. All frames must share dimensions.",
-                    i + 1,
-                    f.w,
-                    f.h,
-                    w,
-                    h
-                ));
-            }
-            align_luma.push(resize_to(&f.luma(), aw, ah));
-        }
+        let align_luma: Vec<Plane> = (0..n)
+            .map(|i| {
+                let f = src.get(i)?;
+                if f.w != w || f.h != h {
+                    bail!(
+                        "Frame {} is {}x{} but the stack is {}x{}. All frames must share dimensions.",
+                        i + 1,
+                        f.w,
+                        f.h,
+                        w,
+                        h
+                    );
+                }
+                Ok(resize_to(&f.luma(), aw, ah))
+            })
+            .collect::<anyhow::Result<Vec<_>>>()?;
 
         let mut acfg = cfg.align;
         acfg.finest_dim = acfg.finest_dim.max(aw.max(ah));
@@ -1820,25 +1851,29 @@ pub fn run_focus_stack<S: FrameSource + ?Sized>(
     let (dw, dh) = fit_dims(w, h, cfg.fusion.decision_dim);
     let levels = level_count(w, h, cfg.fusion.max_levels);
 
-    let mut scores: Vec<Vec<Plane>> = Vec::with_capacity(n);
-    let mut bases: Vec<Plane> = Vec::with_capacity(n);
-    let mut masks: Vec<Plane> = Vec::with_capacity(n);
+    let (pairs, masks): (Vec<(Vec<Plane>, Plane)>, Vec<Plane>) = full_poses
+        .iter()
+        .enumerate()
+        .take(n)
+        .map(|(i, full_pose)| {
+            progress(&format!("Measuring focus in frame {} of {}...", i + 1, n));
+            let frame = src.get(i)?;
+            let (warped, mask) = warp_or_copy(&frame, full_pose, cfg.align_enabled, w, h);
+            drop(frame);
 
-    for (i, full_pose) in full_poses.iter().enumerate().take(n) {
-        progress(&format!("Measuring focus in frame {} of {}...", i + 1, n));
-        let frame = src.get(i)?;
-        let (warped, mask) = warp_or_copy(&frame, full_pose, cfg.align_enabled, w, h);
-        drop(frame);
+            let luma = warped.luma();
+            let raw_scores = focus_scores(&luma, levels, &cfg.fusion);
+            let scores = raw_scores.iter().map(|s| resize_to(s, dw, dh)).collect();
 
-        let luma = warped.luma();
-        let raw_scores = focus_scores(&luma, levels, &cfg.fusion);
-        scores.push(raw_scores.iter().map(|s| resize_to(s, dw, dh)).collect());
-
-        let compressed = luma.map(|v| (v.max(0.0) * 8.0).ln_1p());
-        bases.push(gaussian_blur(&resize_to(&compressed, dw, dh), 3.0));
-
-        masks.push(resize_to(&mask, dw, dh).map(|v| if v > 0.98 { 1.0 } else { 0.0 }));
-    }
+            let compressed = luma.map(|v| (v.max(0.0) * 8.0).ln_1p());
+            let base = gaussian_blur(&resize_to(&compressed, dw, dh), 3.0);
+            let mask = resize_to(&mask, dw, dh).map(|v| if v > 0.98 { 1.0 } else { 0.0 });
+            Ok(((scores, base), mask))
+        })
+        .collect::<anyhow::Result<Vec<_>>>()?
+        .into_iter()
+        .unzip();
+    let (scores, bases): (Vec<Vec<Plane>>, Vec<Plane>) = pairs.into_iter().unzip();
 
     progress("Solving depth labels...");
     let decision = decide_labels(&scores, &bases, &masks, &cfg.fusion);
@@ -1846,25 +1881,38 @@ pub fn run_focus_stack<S: FrameSource + ?Sized>(
     drop(bases);
 
     let mut acc = MergeAccumulator::new(w, h, &cfg.fusion);
-    for (i, full_pose) in full_poses.iter().enumerate().take(n) {
-        progress(&format!("Blending frame {} of {}...", i + 1, n));
-        let frame = src.get(i)?;
-        let (warped, _) = warp_or_copy(&frame, full_pose, cfg.align_enabled, w, h);
-        drop(frame);
-        let wf = weight_to_full(&decision.weights[i], w, h);
-        acc.add_frame(&warped, &wf);
-    }
+    full_poses
+        .iter()
+        .enumerate()
+        .take(n)
+        .try_for_each(|(i, full_pose)| -> anyhow::Result<()> {
+            progress(&format!("Blending frame {} of {}...", i + 1, n));
+            let frame = src.get(i)?;
+            let (warped, _) = warp_or_copy(&frame, full_pose, cfg.align_enabled, w, h);
+            drop(frame);
+            let wf = weight_to_full(&decision.weights[i], w, h);
+            acc.add_frame(&warped, &wf);
+            Ok(())
+        })?;
 
     progress("Reconstructing...");
     let merged = acc.finish();
 
     let (cx, cy, cw, ch) = valid_bounds(&masks, cfg.crop_coverage);
-    let sx = w as f64 / dw as f64;
-    let sy = h as f64 / dh as f64;
-    let x0 = ((cx as f64 * sx).ceil().clamp(0.0, F64_SANITY_CEILING) as usize).min(w.saturating_sub(1));
-    let y0 = ((cy as f64 * sy).ceil().clamp(0.0, F64_SANITY_CEILING) as usize).min(h.saturating_sub(1));
-    let cw = ((cw as f64 * sx).floor().clamp(1.0, F64_SANITY_CEILING) as usize).min(w - x0).max(1);
-    let ch = ((ch as f64 * sy).floor().clamp(1.0, F64_SANITY_CEILING) as usize).min(h - y0).max(1);
+    let wf = w as f64;
+    let hf = h as f64;
+    let dwf = dw as f64;
+    let dhf = dh as f64;
+    let sx = wf / dwf;
+    let sy = hf / dhf;
+    let cxf = cx as f64;
+    let cyf = cy as f64;
+    let cwf = cw as f64;
+    let chf = ch as f64;
+    let x0 = ((cxf * sx).ceil().clamp(0.0, F64_SANITY_CEILING) as usize).min(w.saturating_sub(1));
+    let y0 = ((cyf * sy).ceil().clamp(0.0, F64_SANITY_CEILING) as usize).min(h.saturating_sub(1));
+    let cw = ((cwf * sx).floor().clamp(1.0, F64_SANITY_CEILING) as usize).min(w - x0).max(1);
+    let ch = ((chf * sy).floor().clamp(1.0, F64_SANITY_CEILING) as usize).min(h - y0).max(1);
 
     let image = if x0 == 0 && y0 == 0 && cw == w && ch == h {
         merged
@@ -1917,7 +1965,7 @@ impl FrameSource for MemorySource {
     fn dims(&self) -> (usize, usize) {
         (self.frames[0].w, self.frames[0].h)
     }
-    fn get(&self, index: usize) -> Result<PlanarRgb, String> {
+    fn get(&self, index: usize) -> anyhow::Result<PlanarRgb> {
         Ok(self.frames[index].clone())
     }
 }
@@ -1930,7 +1978,7 @@ struct DiskSource {
 }
 
 impl DiskSource {
-    fn create(n: usize, w: usize, h: usize) -> Result<Self, String> {
+    fn create(n: usize, w: usize, h: usize) -> anyhow::Result<Self> {
         let dir = std::env::temp_dir().join(format!(
             "rr-focusstack-{}-{}",
             std::process::id(),
@@ -1938,7 +1986,7 @@ impl DiskSource {
                 .duration_since(std::time::UNIX_EPOCH)
                 .map_or(0, |d| d.as_millis())
         ));
-        fs::create_dir_all(&dir).map_err(|e| format!("Failed to create scratch dir: {e}"))?;
+        fs::create_dir_all(&dir).map_err(|e| anyhow!("Failed to create scratch dir: {e}"))?;
         Ok(DiskSource { dir, n, w, h })
     }
 
@@ -1946,13 +1994,13 @@ impl DiskSource {
         self.dir.join(format!("frame_{i:05}.f32"))
     }
 
-    fn write(&self, i: usize, img: &PlanarRgb) -> Result<(), String> {
+    fn write(&self, i: usize, img: &PlanarRgb) -> anyhow::Result<()> {
         let mut f =
-            fs::File::create(self.path(i)).map_err(|e| format!("Scratch write failed: {e}"))?;
-        for plane in &img.c {
+            fs::File::create(self.path(i)).map_err(|e| anyhow!("Scratch write failed: {e}"))?;
+        img.c.iter().try_for_each(|plane| {
             f.write_all(as_bytes(&plane.data))
-                .map_err(|e| format!("Scratch write failed: {e}"))?;
-        }
+                .map_err(|e| anyhow!("Scratch write failed: {e}"))
+        })?;
         Ok(())
     }
 }
@@ -1964,14 +2012,14 @@ impl FrameSource for DiskSource {
     fn dims(&self) -> (usize, usize) {
         (self.w, self.h)
     }
-    fn get(&self, index: usize) -> Result<PlanarRgb, String> {
+    fn get(&self, index: usize) -> anyhow::Result<PlanarRgb> {
         let mut f =
-            fs::File::open(self.path(index)).map_err(|e| format!("Scratch read failed: {e}"))?;
+            fs::File::open(self.path(index)).map_err(|e| anyhow!("Scratch read failed: {e}"))?;
         let mut out = PlanarRgb::new(self.w, self.h);
-        for plane in &mut out.c {
+        out.c.iter_mut().try_for_each(|plane| {
             f.read_exact(as_bytes_mut(&mut plane.data))
-                .map_err(|e| format!("Scratch read failed: {e}"))?;
-        }
+                .map_err(|e| anyhow!("Scratch read failed: {e}"))
+        })?;
         Ok(out)
     }
 }
@@ -1993,9 +2041,9 @@ pub async fn stitch_focus_stack_impl(
     paths: Vec<String>,
     state: &AppState,
     host: Arc<dyn Host>,
-) -> Result<(), String> {
+) -> anyhow::Result<()> {
     if paths.len() < 2 {
-        return Err("Please select at least two images to stack.".to_string());
+        bail!("Please select at least two images to stack.");
     }
 
     let source_paths: Vec<String> = paths
@@ -2005,7 +2053,7 @@ pub async fn stitch_focus_stack_impl(
 
     let focus_result_handle = state.focus_stack_result.clone();
 
-    let task = tokio::task::spawn_blocking(move || -> Result<(), String> {
+    let task = tokio::task::spawn_blocking(move || -> anyhow::Result<()> {
         let progress = {
             let host = host.clone();
             move |msg: &str| {
@@ -2060,49 +2108,63 @@ pub async fn stitch_focus_stack_impl(
     match task.await {
         Ok(Ok(())) => Ok(()),
         Ok(Err(e)) => Err(e),
-        Err(e) => Err(format!("Task failed: {e}")),
+        Err(e) => Err(anyhow!("Task failed: {e}")),
     }
 }
 
 fn load_frames(
     paths: &[String],
     progress: &dyn Fn(&str),
-) -> Result<Box<dyn FrameSource>, String> {
+) -> anyhow::Result<Box<dyn FrameSource>> {
     let settings = crate::settings::AppSettings::default();
     let n = paths.len();
 
     progress(&format!("Loading frame 1 of {n}..."));
     let first = decode_frame(&paths[0], &settings)?;
     let (w, h) = (first.w, first.h);
-    let estimated = (n as u64) * (w as u64) * (h as u64) * 3 * 4;
+    let nu = n as u64;
+    let wu = w as u64;
+    let hu = h as u64;
+    let estimated = nu * wu * hu * 3 * 4;
 
     if estimated <= MEMORY_BUDGET_BYTES {
-        let mut frames = Vec::with_capacity(n);
+        let rest: Vec<PlanarRgb> = paths
+            .iter()
+            .enumerate()
+            .skip(1)
+            .map(|(i, p)| {
+                progress(&format!("Loading frame {} of {}...", i + 1, n));
+                let f = decode_frame(p, &settings)?;
+                check_dims(i, &f, w, h)?;
+                Ok(f)
+            })
+            .collect::<anyhow::Result<_>>()?;
+        let mut frames = Vec::with_capacity(paths.len());
         frames.push(first);
-        for (i, p) in paths.iter().enumerate().skip(1) {
-            progress(&format!("Loading frame {} of {}...", i + 1, n));
-            let f = decode_frame(p, &settings)?;
-            check_dims(i, &f, w, h)?;
-            frames.push(f);
-        }
+        frames.extend(rest);
         Ok(Box::new(MemorySource { frames }))
     } else {
         let disk = DiskSource::create(n, w, h)?;
         disk.write(0, &first)?;
         drop(first);
-        for (i, p) in paths.iter().enumerate().skip(1) {
-            progress(&format!("Loading frame {} of {}...", i + 1, n));
-            let f = decode_frame(p, &settings)?;
-            check_dims(i, &f, w, h)?;
-            disk.write(i, &f)?;
-        }
+        paths
+            .iter()
+            .enumerate()
+            .skip(1)
+            .try_for_each(|(i, p)| -> anyhow::Result<()> {
+                progress(&format!("Loading frame {} of {}...", i + 1, n));
+                let f = decode_frame(p, &settings)?;
+                check_dims(i, &f, w, h)?;
+                disk.write(i, &f)?;
+                Ok(())
+            })?;
         Ok(Box::new(disk))
     }
 }
 
-fn check_dims(i: usize, f: &PlanarRgb, w: usize, h: usize) -> Result<(), String> {
+fn check_dims(i: usize, f: &PlanarRgb, w: usize, h: usize) -> anyhow::Result<()> {
     if f.w != w || f.h != h {
-        return Err(format!(
+        bail!(
             "Frame {} is {}x{} but the first frame is {}x{}. \
              All frames in a stack must have the same dimensions and orientation.",
             i + 1,
@@ -2110,7 +2172,7 @@ fn check_dims(i: usize, f: &PlanarRgb, w: usize, h: usize) -> Result<(), String>
             f.h,
             w,
             h
-        ));
+        );
     }
     Ok(())
 }
@@ -2118,23 +2180,25 @@ fn check_dims(i: usize, f: &PlanarRgb, w: usize, h: usize) -> Result<(), String>
 fn decode_frame(
     path: &str,
     settings: &crate::settings::AppSettings,
-) -> Result<PlanarRgb, String> {
-    let bytes = fs::read(path).map_err(|e| format!("Failed to read {path}: {e}"))?;
+) -> anyhow::Result<PlanarRgb> {
+    let bytes = fs::read(path).map_err(|e| anyhow!("Failed to read {path}: {e}"))?;
     let mut dyn_img =
         crate::image_loader::load_base_image_from_bytes(&bytes, path, false, settings, None)
-            .map_err(|e| format!("Failed to decode {path}: {e}"))?;
+            .map_err(|e| anyhow!("Failed to decode {path}: {e}"))?;
     if is_raw_file(path) {
         apply_cpu_default_raw_processing(&mut dyn_img);
     }
     Ok(PlanarRgb::from_rgb32f(&dyn_img.to_rgb32f()))
 }
 
-fn make_preview(img: &image::Rgb32FImage, max_dim: u32) -> Result<String, String> {
+fn make_preview(img: &image::Rgb32FImage, max_dim: u32) -> anyhow::Result<String> {
     let (w, h) = (img.width(), img.height());
     let scale = (max_dim as f32 / w.max(h) as f32).min(1.0);
+    let wf = w as f32;
+    let hf = h as f32;
     let (nw, nh) = (
-        ((w as f32 * scale).round() as u32).max(1),
-        ((h as f32 * scale).round() as u32).max(1),
+        ((wf * scale).round() as u32).max(1),
+        ((hf * scale).round() as u32).max(1),
     );
     let small = crate::image_processing::downscale_f32_image(
         &DynamicImage::ImageRgb32F(img.clone()),
@@ -2145,22 +2209,24 @@ fn make_preview(img: &image::Rgb32FImage, max_dim: u32) -> Result<String, String
     small
         .to_rgb8()
         .write_to(&mut buf, ImageFormat::Png)
-        .map_err(|e| format!("Failed to encode preview: {e}"))?;
+        .map_err(|e| anyhow!("Failed to encode preview: {e}"))?;
     Ok(format!(
         "data:image/png;base64,{}",
         general_purpose::STANDARD.encode(buf.get_ref())
     ))
 }
 
-fn make_depth_preview(result: &StackResult, n_frames: usize) -> Result<String, String> {
+fn make_depth_preview(result: &StackResult, n_frames: usize) -> anyhow::Result<String> {
     let p: Plane = depth_preview_plane(result, n_frames);
     let mut img = image::GrayImage::new(p.w as u32, p.h as u32);
-    for (i, px) in img.pixels_mut().enumerate() {
-        *px = image::Luma([(p.data[i].clamp(0.0, 1.0) * 255.0) as u8]);
-    }
+    img.pixels_mut()
+        .enumerate()
+        .for_each(|(i, px)| {
+            *px = image::Luma([(p.data[i].clamp(0.0, 1.0) * 255.0) as u8]);
+        });
     let mut buf = Cursor::new(Vec::new());
     img.write_to(&mut buf, ImageFormat::Png)
-        .map_err(|e| format!("Failed to encode depth map: {e}"))?;
+        .map_err(|e| anyhow!("Failed to encode depth map: {e}"))?;
     Ok(format!(
         "data:image/png;base64,{}",
         general_purpose::STANDARD.encode(buf.get_ref())
@@ -2170,18 +2236,18 @@ fn make_depth_preview(result: &StackResult, n_frames: usize) -> Result<String, S
 pub fn save_focus_stack_impl(
     first_path_str: String,
     state: &AppState,
-) -> Result<String, String> {
+) -> anyhow::Result<String> {
     let focus_image = state
         .focus_stack_result
         .lock()
         .unwrap_or_else(std::sync::PoisonError::into_inner)
         .take()
-        .ok_or_else(|| "No focus stack image found in memory.".to_string())?;
+        .ok_or_else(|| anyhow!("No focus stack image found in memory."))?;
 
     let (first_path, _) = parse_virtual_path(&first_path_str);
     let parent_dir = first_path
         .parent()
-        .ok_or_else(|| "Could not determine output directory.".to_string())?;
+        .ok_or_else(|| anyhow!("Could not determine output directory."))?;
     let stem = first_path.file_stem().unwrap_or_default().to_string_lossy();
 
     let output_path = parent_dir.join(format!("{stem}_Stacked.tiff"));
@@ -2189,7 +2255,7 @@ pub fn save_focus_stack_impl(
     let rgb16 = focus_image.to_rgb16();
     rgb16
         .save_with_format(&output_path, ImageFormat::Tiff)
-        .map_err(|e| format!("Failed to save {}: {}", output_path.display(), e))?;
+        .map_err(|e| anyhow!("Failed to save {}: {}", output_path.display(), e))?;
 
     crate::exif_processing::write_rrexif_sidecar(&first_path_str, &output_path).ok();
 
