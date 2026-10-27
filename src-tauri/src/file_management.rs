@@ -1,10 +1,8 @@
-use memmap2::{Mmap, MmapOptions};
-pub use engine::paths::{parse_virtual_path, read_file_mapped, ReadFileError, write_file_atomic};
+pub use engine::paths::{parse_virtual_path, read_file_mapped, write_file_atomic};
 
 use std::borrow::Cow;
 use std::collections::hash_map::DefaultHasher;
 use std::collections::{HashMap, HashSet};
-use std::fmt;
 use std::fs;
 use std::hash::{Hash, Hasher};
 use std::io::Cursor;

@@ -2,7 +2,6 @@ use std::fmt;
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::thread;
-use std::time::Duration;
 
 use memmap2::{Mmap, MmapOptions};
 
