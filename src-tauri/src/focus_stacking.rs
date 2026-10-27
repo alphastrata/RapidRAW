@@ -1902,8 +1902,8 @@ impl DiskSource {
     fn write(&self, i: usize, img: &PlanarRgb) -> Result<(), String> {
         let mut f =
             fs::File::create(self.path(i)).map_err(|e| format!("Scratch write failed: {}", e))?;
-        for ch in 0..3 {
-            f.write_all(as_bytes(&img.c[ch].data))
+        for plane in img.c.iter() {
+            f.write_all(as_bytes(&plane.data))
                 .map_err(|e| format!("Scratch write failed: {}", e))?;
         }
         Ok(())
@@ -1921,8 +1921,8 @@ impl FrameSource for DiskSource {
         let mut f =
             fs::File::open(self.path(index)).map_err(|e| format!("Scratch read failed: {}", e))?;
         let mut out = PlanarRgb::new(self.w, self.h);
-        for ch in 0..3 {
-            f.read_exact(as_bytes_mut(&mut out.c[ch].data))
+        for plane in out.c.iter_mut() {
+            f.read_exact(as_bytes_mut(&mut plane.data))
                 .map_err(|e| format!("Scratch read failed: {}", e))?;
         }
         Ok(out)
