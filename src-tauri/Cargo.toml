@@ -122,6 +122,10 @@ sha2 = "0.11"
 reqwest = { version = "0.13", default-features = false, features = ["blocking", "rustls"] }
 hex = "0.4"
 
+[[bench]]
+name = "image_ops"
+harness = false
+
 [profile.dev]
 opt-level = 2
 debug = 1
@@ -137,3 +141,6 @@ strip = true
 
 [lints.rust]
 unexpected_cfgs = { level = "warn", check-cfg = ['cfg(feature, values("cargo-clippy"))'] }
+
+[dev-dependencies]
+divan = "0.1.21"
