@@ -139,34 +139,40 @@ fn build_coc_field(
         .enumerate()
         .for_each(|(y, row)| {
             let base = y * w * 3;
-            for (x, out) in row.iter_mut().enumerate() {
+            row.iter_mut().enumerate().for_each(|(x, out)| {
                 let i = base + x * 3;
                 *out = (0.2126 * raw[i] + 0.7152 * raw[i + 1] + 0.0722 * raw[i + 2])
                     .max(0.0)
                     .sqrt();
-            }
+            });
         });
     dof_box_filter(&mut luma_full, w, h, 1, 2);
 
-    let scale = (1024.0 / w.max(h) as f32).min(1.0);
-    let gw = ((w as f32 * scale).round() as usize).clamp(4, w);
-    let gh = ((h as f32 * scale).round() as usize).clamp(4, h);
+    let wf = w as f32;
+    let hf = h as f32;
+    let scale = (1024.0 / wf.max(hf)).min(1.0);
+    let gw = ((wf * scale).round() as usize).clamp(4, w);
+    let gh = ((hf * scale).round() as usize).clamp(4, h);
 
-    let x_ratio = w as f32 / gw as f32;
-    let y_ratio = h as f32 / gh as f32;
+    let gwf = gw as f32;
+    let ghf = gh as f32;
+    let x_ratio = wf / gwf;
+    let y_ratio = hf / ghf;
 
     let mut guide = vec![0.0f32; gw * gh];
     guide
         .par_chunks_exact_mut(gw)
         .enumerate()
         .for_each(|(gy, row)| {
-            let sy0 = (gy as f32 * y_ratio).floor() as usize;
-            let sy1 = ((((gy + 1) as f32) * y_ratio).ceil() as usize)
+            let gyf = gy as f32;
+            let sy0 = (gyf * y_ratio).floor() as usize;
+            let sy1 = (((gyf + 1.0) * y_ratio).ceil() as usize)
                 .min(h)
                 .max(sy0 + 1);
-            for (gx, out) in row.iter_mut().enumerate() {
-                let sx0 = (gx as f32 * x_ratio).floor() as usize;
-                let sx1 = ((((gx + 1) as f32) * x_ratio).ceil() as usize)
+            row.iter_mut().enumerate().for_each(|(gx, out)| {
+                let gxf = gx as f32;
+                let sx0 = (gxf * x_ratio).floor() as usize;
+                let sx1 = (((gxf + 1.0) * x_ratio).ceil() as usize)
                     .min(w)
                     .max(sx0 + 1);
                 let mut acc = 0.0f32;
@@ -179,7 +185,7 @@ fn build_coc_field(
                     }
                 }
                 *out = acc / cnt.max(1.0);
-            }
+            });
         });
 
     let depth_small = dof_depth_to_f32(depth, gw, gh);
@@ -187,13 +193,16 @@ fn build_coc_field(
     let packed = build_guided_model(&guide, &depth_small, gw, gh, radius);
 
     let mut coc = vec![0.0f32; w * h];
-    let gx_scale = gw as f32 / w as f32;
-    let gy_scale = gh as f32 / h as f32;
+    let gx_scale = gwf / wf;
+    let gy_scale = ghf / hf;
+    let gx_max = gwf - 1.0;
+    let gy_max = ghf - 1.0;
 
     coc.par_chunks_exact_mut(w)
         .enumerate()
         .for_each(|(y, row)| {
-            let fy = ((y as f32 + 0.5) * gy_scale - 0.5).clamp(0.0, (gh - 1) as f32);
+            let yf = y as f32;
+            let fy = ((yf + 0.5) * gy_scale - 0.5).clamp(0.0, gy_max);
             let gy0 = fy.floor() as usize;
             let gy1 = (gy0 + 1).min(gh - 1);
             let wy = fy - gy0 as f32;
@@ -201,8 +210,9 @@ fn build_coc_field(
             let r1 = gy1 * gw;
             let lrow = y * w;
 
-            for (x, out) in row.iter_mut().enumerate() {
-                let fx = ((x as f32 + 0.5) * gx_scale - 0.5).clamp(0.0, (gw - 1) as f32);
+            row.iter_mut().enumerate().for_each(|(x, out)| {
+                let xf = x as f32;
+                let fx = ((xf + 0.5) * gx_scale - 0.5).clamp(0.0, gx_max);
                 let gx0 = fx.floor() as usize;
                 let gx1 = (gx0 + 1).min(gw - 1);
                 let wx = fx - gx0 as f32;
@@ -213,16 +223,16 @@ fn build_coc_field(
                 let i11 = (r1 + gx1) * 4;
 
                 let mut m = [0.0f32; 4];
-                for (c, mc) in m.iter_mut().enumerate() {
+                m.iter_mut().enumerate().for_each(|(c, mc)| {
                     let top = packed[i00 + c] + (packed[i10 + c] - packed[i00 + c]) * wx;
                     let bot = packed[i01 + c] + (packed[i11 + c] - packed[i01 + c]) * wx;
                     *mc = top + (bot - top) * wy;
-                }
+                });
 
                 let luma = luma_full[lrow + x];
                 let d = (m[0] * luma + m[1]).clamp(m[2], m[3]).clamp(0.0, 1.0);
                 *out = depth_to_signed_coc(d, min_depth, max_depth, min_fade, max_fade, max_radius);
-            }
+            });
         });
 
     dof_despeckle(&mut coc, w, h);
@@ -254,12 +264,12 @@ fn build_guided_model(guide: &[f32], p: &[f32], w: usize, h: usize, radius: usiz
             let yc = y * w;
             let yu = y.saturating_sub(1) * w;
             let yd = (y + 1).min(h - 1) * w;
-            for x in 0..w {
+            (0..w).for_each(|x| {
                 let xl = x.saturating_sub(1);
                 let xr = (x + 1).min(w - 1);
                 rx[x] = (guide[yc + xr] - guide[yc + xl]) * 0.5;
                 ry[x] = (guide[yd + x] - guide[yu + x]) * 0.5;
-            }
+            });
         });
     dof_box_filter(&mut gx, w, h, 1, radius);
     dof_box_filter(&mut gy, w, h, 1, radius);
@@ -272,7 +282,7 @@ fn build_guided_model(guide: &[f32], p: &[f32], w: usize, h: usize, radius: usiz
     let mut lo = vec![0.0f32; n];
     let mut hi = vec![0.0f32; n];
 
-    for i in 0..n {
+    (0..n).for_each(|i| {
         let var = (corr_ii[i] - mean_i[i] * mean_i[i]).max(0.0);
         let cov = corr_ip[i] - mean_i[i] * mean_p[i];
 
@@ -286,7 +296,7 @@ fn build_guided_model(guide: &[f32], p: &[f32], w: usize, h: usize, radius: usiz
         let band = 1.1 * sd + 0.004;
         lo[i] = mean_p[i] - band;
         hi[i] = mean_p[i] + band;
-    }
+    });
 
     dof_box_filter(&mut a, w, h, 1, radius);
     dof_box_filter(&mut b, w, h, 1, radius);
@@ -315,9 +325,13 @@ fn dof_despeckle(buf: &mut [f32], w: usize, h: usize) {
         .for_each(|(y, row)| {
             let base = y * w;
             row[0] = buf[base];
-            for x in 1..w - 1 {
-                row[x] = dof_med3(buf[base + x - 1], buf[base + x], buf[base + x + 1]);
-            }
+            row[1..w - 1]
+                .iter_mut()
+                .enumerate()
+                .for_each(|(j, v)| {
+                    let x = j + 1;
+                    *v = dof_med3(buf[base + x - 1], buf[base + x], buf[base + x + 1]);
+                });
             row[w - 1] = buf[base + w - 1];
         });
 
@@ -331,9 +345,9 @@ fn dof_despeckle(buf: &mut [f32], w: usize, h: usize) {
             let up = (y - 1) * w;
             let cc = y * w;
             let dn = (y + 1) * w;
-            for x in 0..w {
-                row[x] = dof_med3(tmp[up + x], tmp[cc + x], tmp[dn + x]);
-            }
+            row.iter_mut().enumerate().for_each(|(x, v)| {
+                *v = dof_med3(tmp[up + x], tmp[cc + x], tmp[dn + x]);
+            });
         });
 }
 
@@ -379,9 +393,10 @@ fn render_depth_of_field(
     let (base, coc_small) = dof_downsample_fused(raw, coc, w, h, ww, wh);
 
     let mut radii = [0.0f32; 5];
-    for (k, r) in radii.iter_mut().enumerate() {
-        *r = max_radius * (k as f32 / 4.0).powf(1.7);
-    }
+    radii
+        .iter_mut()
+        .enumerate()
+        .for_each(|(k, r)| *r = max_radius * (k as f32 / 4.0).powf(1.7));
 
     let (far_rgb, far_a) = dof_composite_stack(
         &base, &coc_small, ww, wh, &radii, ds, shape, diffusion, false,
@@ -423,13 +438,13 @@ fn render_depth_of_field(
             let a = far_a[i].clamp(0.0, 1.0);
             if a > 1.0e-4 {
                 let inv_a = 1.0 / a;
-                for c in 0..3 {
+                (0..3).for_each(|c| {
                     px[c] = (far_rgb[i * 3 + c] * inv_a).max(0.0).sqrt();
-                }
+                });
             } else {
-                for c in 0..3 {
+                (0..3).for_each(|c| {
                     px[c] = base[i * 3 + c].max(0.0).sqrt();
-                }
+                });
             }
             px[3] = dof_tent(coc_small[i].abs(), &radii, 0);
         });
@@ -442,22 +457,29 @@ fn render_depth_of_field(
             let a = near_a[i].clamp(0.0, 1.0);
             if a > 1.0e-4 {
                 let inv_a = 1.0 / a;
-                for c in 0..3 {
+                (0..3).for_each(|c| {
                     px[c] = (near_rgb[i * 3 + c] * inv_a).max(0.0).sqrt() * a;
-                }
+                });
             }
             px[3] = a;
         });
 
     let mut out = vec![0.0f32; n * 3];
-    let sx = ww as f32 / w as f32;
-    let sy = wh as f32 / h as f32;
+    let wwf = ww as f32;
+    let whf = wh as f32;
+    let wf = w as f32;
+    let hf = h as f32;
+    let sx = wwf / wf;
+    let sy = whf / hf;
+    let fx_max = wwf - 1.0;
+    let fy_max = whf - 1.0;
     let veil = 0.75 * diffusion;
 
     out.par_chunks_exact_mut(w * 3)
         .enumerate()
         .for_each(|(y, row)| {
-            let fy = ((y as f32 + 0.5) * sy - 0.5).clamp(0.0, (wh - 1) as f32);
+            let yf = y as f32;
+            let fy = ((yf + 0.5) * sy - 0.5).clamp(0.0, fy_max);
             let y0 = fy.floor() as usize;
             let y1 = (y0 + 1).min(wh - 1);
             let wy = fy - y0 as f32;
@@ -466,8 +488,9 @@ fn render_depth_of_field(
             let coc_row = y * w;
             let src_row = coc_row * 3;
 
-            for x in 0..w {
-                let fx = ((x as f32 + 0.5) * sx - 0.5).clamp(0.0, (ww - 1) as f32);
+            (0..w).for_each(|x| {
+                let xf = x as f32;
+                let fx = ((xf + 0.5) * sx - 0.5).clamp(0.0, fx_max);
                 let x0 = fx.floor() as usize;
                 let x1 = (x0 + 1).min(ww - 1);
                 let wx = fx - x0 as f32;
@@ -479,7 +502,7 @@ fn render_depth_of_field(
 
                 let mut fs = [0.0f32; 4];
                 let mut ns = [0.0f32; 4];
-                for c in 0..4 {
+                (0..4).for_each(|c| {
                     let ft = far_lin[i00 + c] + (far_lin[i10 + c] - far_lin[i00 + c]) * wx;
                     let fb = far_lin[i01 + c] + (far_lin[i11 + c] - far_lin[i01 + c]) * wx;
                     fs[c] = ft + (fb - ft) * wy;
@@ -487,7 +510,7 @@ fn render_depth_of_field(
                     let nt = near_lin[i00 + c] + (near_lin[i10 + c] - near_lin[i00 + c]) * wx;
                     let nb = near_lin[i01 + c] + (near_lin[i11 + c] - near_lin[i01 + c]) * wx;
                     ns[c] = nt + (nb - nt) * wy;
-                }
+                });
 
                 let fa = dof_tent(coc[coc_row + x].abs(), &radii, 0).min(fs[3]);
                 let na = ns[3].clamp(0.0, 1.0);
@@ -502,7 +525,7 @@ fn render_depth_of_field(
                     let mut bv = [0.0f32; 3];
                     let mut b_mask = 0.0f32;
 
-                    for c in 0..4 {
+                    (0..4).for_each(|c| {
                         let bt = bloom[j00 + c] + (bloom[j10 + c] - bloom[j00 + c]) * wx;
                         let bb = bloom[j01 + c] + (bloom[j11 + c] - bloom[j01 + c]) * wx;
                         let val = bt + (bb - bt) * wy;
@@ -511,31 +534,34 @@ fn render_depth_of_field(
                         } else {
                             b_mask = val;
                         }
-                    }
+                    });
 
                     let final_mask = dof_smoothstep(0.0, 1.0, b_mask.clamp(0.0, 1.0));
 
                     let local_veil = veil * final_mask;
                     let local_keep = 1.0 - (0.55 * diffusion * final_mask);
 
-                    for c in 0..3 {
+                    (0..3).for_each(|c| {
                         let sharp = raw[src_row + x * 3 + c];
                         let mid = sharp * fa + fs[c] * (1.0 - fa);
                         let base_px = ns[c] + mid * inv_na;
 
                         row[x * 3 + c] = (base_px * local_keep + bv[c] * local_veil).max(0.0);
-                    }
+                    });
                 } else {
-                    for c in 0..3 {
+                    (0..3).for_each(|c| {
                         let sharp = raw[src_row + x * 3 + c];
                         let mid = sharp * fa + fs[c] * (1.0 - fa);
                         row[x * 3 + c] = (ns[c] + mid * inv_na).max(0.0);
-                    }
+                    });
                 }
-            }
+            });
         });
 
-    Rgb32FImage::from_raw(w as u32, h as u32, out).expect("dof buffer size mismatch")
+    let Some(img) = Rgb32FImage::from_raw(w as u32, h as u32, out) else {
+        unreachable!("dof output buffer matches {w}x{h}")
+    };
+    img
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -560,7 +586,7 @@ fn dof_composite_stack(
         (1..5).rev().collect()
     };
 
-    for k in order {
+    order.into_iter().for_each(|k| {
         let mut layer = vec![0.0f32; np * 4];
         let row_bounds: Vec<(usize, usize)> = layer
             .par_chunks_exact_mut(ww * 4)
@@ -568,14 +594,14 @@ fn dof_composite_stack(
             .map(|(y, row)| {
                 let mut min_x = usize::MAX;
                 let mut max_x = 0usize;
-                for x in 0..ww {
+                (0..ww).for_each(|x| {
                     let c = coc[y * ww + x];
                     if (near_side && c >= 0.0) || (!near_side && c <= 0.0) {
-                        continue;
+                        return;
                     }
                     let wgt = dof_tent(c.abs(), radii, k);
                     if wgt <= 1.0e-4 {
-                        continue;
+                        return;
                     }
                     let si = (y * ww + x) * 3;
                     let di = x * 4;
@@ -585,13 +611,13 @@ fn dof_composite_stack(
                     row[di + 3] = wgt;
                     min_x = min_x.min(x);
                     max_x = max_x.max(x);
-                }
+                });
                 (min_x, max_x)
             })
             .collect();
 
         if row_bounds.iter().all(|&(mn, _)| mn == usize::MAX) {
-            continue;
+            return;
         }
 
         let r_work = (radii[k] / ds as f32) * (1.0 + 0.3 * diffusion);
@@ -614,20 +640,20 @@ fn dof_composite_stack(
                 if xs == usize::MAX {
                     return;
                 }
-                for x in xs..=xe {
+                (xs..=xe).for_each(|x| {
                     let si = (y * ww + x) * 4;
                     let sa = blurred[si + 3];
                     if sa <= 1.0e-5 {
-                        continue;
+                        return;
                     }
                     let inv = 1.0 - sa.min(1.0);
-                    for c in 0..3 {
+                    (0..3).for_each(|c| {
                         rgb_row[x * 3 + c] = blurred[si + c] + rgb_row[x * 3 + c] * inv;
-                    }
+                    });
                     a_row[x] = (sa + a_row[x] * inv).min(1.0);
-                }
+                });
             });
-    }
+    });
 
     (acc_rgb, acc_a)
 }
@@ -640,22 +666,19 @@ fn dof_dilate_spans(
 ) -> Vec<(usize, usize)> {
     let pad = ext + 1;
     let mut spans = vec![(usize::MAX, 0usize); wh];
-    for (y, span) in spans.iter_mut().enumerate() {
+    spans.iter_mut().enumerate().for_each(|(y, span)| {
         let y0 = y.saturating_sub(pad);
         let y1 = (y + pad).min(wh - 1);
-        let mut mn = usize::MAX;
-        let mut mx = 0usize;
-        for &(a, b) in &row_bounds[y0..=y1] {
-            if a == usize::MAX {
-                continue;
-            }
-            mn = mn.min(a);
-            mx = mx.max(b);
-        }
+        let (mn, mx) = row_bounds[y0..=y1]
+            .iter()
+            .filter(|&&(a, _)| a != usize::MAX)
+            .fold((usize::MAX, 0usize), |(mn, mx), &(a, b)| {
+                (mn.min(a), mx.max(b))
+            });
         if mn != usize::MAX {
             *span = (mn.saturating_sub(pad), (mx + pad).min(ww - 1));
         }
-    }
+    });
     spans
 }
 
@@ -698,18 +721,17 @@ fn build_bokeh_kernel(radius: f32, shape: &str, diffusion: f32) -> (Vec<BokehTap
             for x in -ri..=ri {
                 let d = ((x * x + y * y) as f32).sqrt();
                 let cov = (r + 0.5 - d).clamp(0.0, 1.0);
-                if cov <= 0.0 {
-                    continue;
+                if cov > 0.0 {
+                    let wgt = cov * dof_aperture_intensity((d / r).min(1.0), shape, diffusion);
+                    sum += wgt;
+                    taps.push(BokehTap {
+                        x,
+                        y,
+                        ux: x as f32 / r,
+                        uy: y as f32 / r,
+                        weight: wgt,
+                    });
                 }
-                let wgt = cov * dof_aperture_intensity((d / r).min(1.0), shape, diffusion);
-                sum += wgt;
-                taps.push(BokehTap {
-                    x,
-                    y,
-                    ux: x as f32 / r,
-                    uy: y as f32 / r,
-                    weight: wgt,
-                });
             }
         }
     } else {
@@ -775,6 +797,8 @@ fn blur_layer_bokeh(
     let mut out = vec![0.0f32; ww * wh * 4];
     let inv_ww = 1.0 / ww as f32;
     let inv_wh = 1.0 / wh as f32;
+    let wwi = ww as i32;
+    let whi = wh as i32;
     let cat_eye = 0.38f32 * (1.0 - 0.7 * diffusion);
     let use_cat = cat_eye > 0.02;
 
@@ -798,21 +822,21 @@ fn blur_layer_bokeh(
 
                 if y_safe && x >= ext && x + ext < ww {
                     let center = (y * ww + x) as i32;
-                    for t in taps {
+                    taps.iter().for_each(|t| {
                         let mut wgt = t.weight;
                         if use_cat {
                             let ox = t.ux - ccx;
                             let oy = t.uy - ccy;
                             let d2 = ox * ox + oy * oy;
                             if d2 >= 1.0 {
-                                continue;
+                                return;
                             }
                             if d2 > 0.82 {
                                 wgt *= 1.0 - (d2 - 0.82) / 0.18;
                             }
                         }
 
-                        let si = ((center + t.y * ww as i32 + t.x) as usize) * 4;
+                        let si = ((center + t.y * wwi + t.x) as usize) * 4;
                         unsafe {
                             acc[0] += layer.get_unchecked(si) * wgt;
                             acc[1] += layer.get_unchecked(si + 1) * wgt;
@@ -820,13 +844,13 @@ fn blur_layer_bokeh(
                             acc[3] += layer.get_unchecked(si + 3) * wgt;
                         }
                         wsum += wgt;
-                    }
+                    });
                 } else {
-                    for t in taps {
+                    taps.iter().for_each(|t| {
                         let sx = x as i32 + t.x;
                         let sy = y as i32 + t.y;
-                        if sx < 0 || sy < 0 || sx >= ww as i32 || sy >= wh as i32 {
-                            continue;
+                        if !(0..wwi).contains(&sx) || !(0..whi).contains(&sy) {
+                            return;
                         }
                         let mut wgt = t.weight;
                         if use_cat {
@@ -834,7 +858,7 @@ fn blur_layer_bokeh(
                             let oy = t.uy - ccy;
                             let d2 = ox * ox + oy * oy;
                             if d2 >= 1.0 {
-                                continue;
+                                return;
                             }
                             if d2 > 0.82 {
                                 wgt *= 1.0 - (d2 - 0.82) / 0.18;
@@ -847,7 +871,7 @@ fn blur_layer_bokeh(
                         acc[2] += layer[si + 2] * wgt;
                         acc[3] += layer[si + 3] * wgt;
                         wsum += wgt;
-                    }
+                    });
                 }
 
                 if wsum > 1.0e-8 {
@@ -887,14 +911,15 @@ pub(crate) fn dof_box_filter(buf: &mut [f32], w: usize, h: usize, ch: usize, rad
             }
         }
         for x in 0..w {
-            for (c, s) in sums.iter().enumerate() {
+            let xi = x as isize;
+            sums.iter().enumerate().for_each(|(c, s)| {
                 row[x * ch + c] = *s * inv;
-            }
-            let add = ((x as isize + r + 1).clamp(0, wi - 1)) as usize;
-            let sub = ((x as isize - r).clamp(0, wi - 1)) as usize;
-            for (c, s) in sums.iter_mut().enumerate() {
+            });
+            let add = (xi + r + 1).clamp(0, wi - 1) as usize;
+            let sub = (xi - r).clamp(0, wi - 1) as usize;
+            sums.iter_mut().enumerate().for_each(|(c, s)| {
                 *s += src[add * ch + c] - src[sub * ch + c];
-            }
+            });
         }
     });
 
@@ -917,16 +942,16 @@ pub(crate) fn dof_box_filter(buf: &mut [f32], w: usize, h: usize, ch: usize, rad
             }
 
             for yy in 0..rows_here {
-                let y = y_start + yy;
+                let yi = (y_start + yy) as isize;
                 let base = yy * stride;
-                for (j, s) in sums.iter().enumerate() {
+                sums.iter().enumerate().for_each(|(j, s)| {
                     block[base + j] = *s * inv;
-                }
-                let add = ((y as isize + r + 1).clamp(0, hi - 1)) as usize * stride;
-                let sub = ((y as isize - r).clamp(0, hi - 1)) as usize * stride;
-                for (j, s) in sums.iter_mut().enumerate() {
+                });
+                let add = (yi + r + 1).clamp(0, hi - 1) as usize * stride;
+                let sub = (yi - r).clamp(0, hi - 1) as usize * stride;
+                sums.iter_mut().enumerate().for_each(|(j, s)| {
                     *s += src[add + j] - src[sub + j];
-                }
+                });
             }
         });
 }
@@ -941,20 +966,24 @@ fn dof_downsample_fused(
 ) -> (Vec<f32>, Vec<f32>) {
     let mut base = vec![0.0f32; dw * dh * 3];
     let mut coc_small = vec![0.0f32; dw * dh];
-    let x_ratio = sw as f32 / dw as f32;
-    let y_ratio = sh as f32 / dh as f32;
+    let dwf = dw as f32;
+    let dhf = dh as f32;
+    let x_ratio = sw as f32 / dwf;
+    let y_ratio = sh as f32 / dhf;
 
     base.par_chunks_exact_mut(dw * 3)
         .zip(coc_small.par_chunks_exact_mut(dw))
         .enumerate()
         .for_each(|(dy, (brow, crow))| {
-            let sy0 = (dy as f32 * y_ratio).floor() as usize;
-            let sy1 = ((((dy + 1) as f32) * y_ratio).ceil() as usize)
+            let dyf = dy as f32;
+            let sy0 = (dyf * y_ratio).floor() as usize;
+            let sy1 = (((dyf + 1.0) * y_ratio).ceil() as usize)
                 .min(sh)
                 .max(sy0 + 1);
             for dx in 0..dw {
-                let sx0 = (dx as f32 * x_ratio).floor() as usize;
-                let sx1 = ((((dx + 1) as f32) * x_ratio).ceil() as usize)
+                let dxf = dx as f32;
+                let sx0 = (dxf * x_ratio).floor() as usize;
+                let sx1 = (((dxf + 1.0) * x_ratio).ceil() as usize)
                     .min(sw)
                     .max(sx0 + 1);
 
@@ -991,19 +1020,26 @@ fn dof_depth_to_f32(depth: &image::GrayImage, dw: usize, dh: usize) -> Vec<f32> 
     let sw = depth.width() as usize;
     let sh = depth.height() as usize;
     let raw = depth.as_raw();
+    let swf = sw as f32;
+    let shf = sh as f32;
+    let swf1 = swf - 1.0;
+    let shf1 = shf - 1.0;
+    let dwf = dw as f32;
+    let dhf = dh as f32;
     let mut out = vec![0.0f32; dw * dh];
 
     out.par_chunks_exact_mut(dw)
         .enumerate()
         .for_each(|(y, row)| {
-            let fy = (((y as f32 + 0.5) / dh as f32) * sh as f32 - 0.5).clamp(0.0, (sh - 1) as f32);
+            let yf = y as f32;
+            let fy = (((yf + 0.5) / dhf) * shf - 0.5).clamp(0.0, shf1);
             let y0 = fy.floor() as usize;
             let y1 = (y0 + 1).min(sh - 1);
             let wy = fy - y0 as f32;
 
-            for (x, out_px) in row.iter_mut().enumerate() {
-                let fx =
-                    (((x as f32 + 0.5) / dw as f32) * sw as f32 - 0.5).clamp(0.0, (sw - 1) as f32);
+            row.iter_mut().enumerate().for_each(|(x, out_px)| {
+                let xf = x as f32;
+                let fx = (((xf + 0.5) / dwf) * swf - 0.5).clamp(0.0, swf1);
                 let x0 = fx.floor() as usize;
                 let x1 = (x0 + 1).min(sw - 1);
                 let wx = fx - x0 as f32;
@@ -1015,7 +1051,7 @@ fn dof_depth_to_f32(depth: &image::GrayImage, dw: usize, dh: usize) -> Vec<f32> 
                 let top = p00 + (p10 - p00) * wx;
                 let bot = p01 + (p11 - p01) * wx;
                 *out_px = (top + (bot - top) * wy) / 255.0;
-            }
+            });
         });
     out
 }
