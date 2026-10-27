@@ -1,5 +1,5 @@
-use crate::AppState;
-use crate::app_settings::AppSettings;
+use crate::app_state::AppState;
+use crate::settings::AppSettings;
 use half::f16;
 use half::slice::HalfFloatSliceExt;
 use image::{DynamicImage, GenericImageView, Rgb32FImage, Rgba32FImage};

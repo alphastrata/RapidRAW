@@ -109,3 +109,37 @@ pub fn write_file_atomic(path: &Path, contents: &[u8]) -> std::io::Result<()> {
         }
     }
 }
+
+pub fn parse_sidecar_name(file_name: &str) -> Option<(&str, Option<&str>)> {
+    let base = file_name.strip_suffix(".rrdata")?;
+    if base.len() >= 7 && base.as_bytes()[base.len() - 7] == b'.' {
+        let id = &base[base.len() - 6..];
+        if id.chars().all(|c| matches!(c, '0'..='9' | 'a'..='f')) {
+            return Some((&base[..base.len() - 7], Some(id)));
+        }
+    }
+    Some((base, None))
+}
+
+#[cfg(target_os = "macos")]
+pub fn is_cloud_placeholder(path: &Path) -> bool {
+    use std::os::unix::ffi::OsStrExt;
+    const SF_DATALESS: u32 = 0x4000_0000;
+
+    if crate::immich::registry::is_placeholder(path) {
+        return true;
+    }
+
+    let c_path = match std::ffi::CString::new(path.as_os_str().as_bytes()) {
+        Ok(p) => p,
+        Err(_) => return false,
+    };
+    let mut stat_buf: libc::stat = unsafe { std::mem::zeroed() };
+    let ret = unsafe { libc::lstat(c_path.as_ptr(), &mut stat_buf) };
+    ret == 0 && (stat_buf.st_flags & SF_DATALESS) != 0
+}
+
+#[cfg(not(target_os = "macos"))]
+pub fn is_cloud_placeholder(path: &Path) -> bool {
+    crate::immich::registry::is_placeholder(path)
+}

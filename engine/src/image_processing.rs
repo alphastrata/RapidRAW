@@ -21,7 +21,8 @@ pub use crate::gpu_processing::{
     RenderOutputPrecision, RenderRequest, get_or_init_gpu_context, process_and_get_dynamic_image,
     process_and_get_dynamic_image_with_analytics, process_and_get_dynamic_image_with_precision,
 };
-use crate::{AppState, mask_generation::MaskDefinition};
+use crate::app_state::AppState;
+use crate::mask_generation::MaskDefinition;
 
 pub trait IntoCowImage<'a> {
     fn into_cow(self) -> Cow<'a, DynamicImage>;
@@ -2185,7 +2186,7 @@ fn calculate_agx_matrices() -> (GpuMat3, GpuMat3) {
     )
 }
 
-pub fn resolve_tonemapper_override(settings: &crate::AppSettings, is_raw: bool) -> Option<u32> {
+pub fn resolve_tonemapper_override(settings: &crate::settings::AppSettings, is_raw: bool) -> Option<u32> {
     if !settings.tonemapper_override_enabled.unwrap_or(false) {
         return None;
     }
@@ -2207,7 +2208,7 @@ pub struct RenderOptions {
     pub baseline: BaselineOptions,
 }
 
-pub fn resolve_render_options(settings: &crate::AppSettings, is_raw: bool) -> RenderOptions {
+pub fn resolve_render_options(settings: &crate::settings::AppSettings, is_raw: bool) -> RenderOptions {
     RenderOptions {
         tonemapper_override: resolve_tonemapper_override(settings, is_raw),
         non_raw_tonemapper_override: resolve_tonemapper_override(settings, false),
@@ -2216,10 +2217,10 @@ pub fn resolve_render_options(settings: &crate::AppSettings, is_raw: bool) -> Re
 }
 
 pub fn resolve_render_options_from_handle(
-    app_handle: &tauri::AppHandle,
+    _app_handle: &tauri::AppHandle,
     is_raw: bool,
 ) -> RenderOptions {
-    let settings = crate::app_settings::load_settings(app_handle.clone()).unwrap_or_default();
+    let settings = crate::settings::AppSettings::default();
     resolve_render_options(&settings, is_raw)
 }
 

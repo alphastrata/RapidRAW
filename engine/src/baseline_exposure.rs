@@ -1,4 +1,4 @@
-use crate::app_settings::AppSettings;
+use crate::settings::AppSettings;
 use rawler::bits::Endian;
 use rawler::decoders::{Decoder, FormatHint, WellKnownIFD};
 use rawler::formats::bmff::Bmff;

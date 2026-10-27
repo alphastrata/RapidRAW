@@ -1,6 +1,6 @@
-use crate::android_integration::is_android_content_uri;
+use crate::android::is_android_content_uri;
 #[cfg(target_os = "android")]
-use crate::android_integration::{
+use crate::android::{
     get_android_cached_lut_path, read_android_content_uri, resolve_android_content_uri_name,
 };
 use anyhow::anyhow;
@@ -15,7 +15,7 @@ use base64::{Engine as _, engine::general_purpose};
 use mozjpeg_rs::{Encoder, Preset};
 use tauri::{AppHandle, Manager, State};
 
-use crate::AppState;
+use crate::app_state::AppState;
 use crate::cache_utils::calculate_transform_hash;
 use crate::image_processing::{
     RenderRequest, get_all_adjustments_from_json, mark_baseline_exposure,
@@ -678,7 +678,7 @@ pub async fn generate_lut_previews(
 
         let base_json = serde_json::json!({});
         let (base_image, _scale, _offset) =
-            crate::generate_transformed_preview(&state, &loaded_image, &base_json, size)?;
+            crate::preview_cache::generate_transformed_preview(&state, &loaded_image, &base_json, size)?;
 
         let render = resolve_render_options_from_handle(&app_handle, is_raw);
         let transform_hash = calculate_transform_hash(&base_json);

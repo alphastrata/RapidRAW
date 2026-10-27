@@ -632,9 +632,9 @@ fn build_session(
     create_session(model_path, kind, None, None)
 }
 
-pub fn gpu_acceleration_enabled(app_handle: &tauri::AppHandle) -> bool {
+pub fn gpu_acceleration_enabled(_app_handle: &tauri::AppHandle) -> bool {
     GPU_STATUS.load(Ordering::Acquire) < GPU_FAILED
-        && crate::app_settings::load_settings(app_handle.clone())
+        && Ok::<_, String>(crate::settings::AppSettings::default()).ok()
             .map(|settings| settings.ai_gpu_acceleration)
             .unwrap_or(true)
 }
@@ -1196,7 +1196,7 @@ pub async fn get_or_init_ai_models(
         Some(models) => models,
         None => {
             let _ = ort::init().with_name("AI").commit();
-            crate::register_exit_handler();
+            crate::shell_events::register_exit_handler();
 
             let models = Arc::new(AiModels {
                 models_dir: get_models_dir(app_handle)?,
@@ -1266,7 +1266,7 @@ pub async fn get_or_init_denoise_model(
     )?;
     let denoise_model = Arc::new(Mutex::new(session));
 
-    crate::register_exit_handler();
+    crate::shell_events::register_exit_handler();
 
     ai_state_mutex
         .lock()
@@ -1309,7 +1309,7 @@ pub async fn get_or_init_clip_models(
     let tokenizer =
         Tokenizer::from_file(clip_tokenizer_path).map_err(|e| anyhow::anyhow!(e.to_string()))?;
 
-    crate::register_exit_handler();
+    crate::shell_events::register_exit_handler();
 
     let clip_models = Arc::new(ClipModels { model, tokenizer });
 
@@ -1345,7 +1345,7 @@ pub async fn get_or_init_lama_model(
     let session = build_session(&model_path, SessionKind::OneShot, false, None)?;
     let lama_model = Arc::new(Mutex::new(session));
 
-    crate::register_exit_handler();
+    crate::shell_events::register_exit_handler();
 
     ai_state_mutex
         .lock()
@@ -1386,7 +1386,7 @@ pub async fn get_or_init_normal_model(
     )?;
     let normal_model = Arc::new(Mutex::new(session));
 
-    crate::register_exit_handler();
+    crate::shell_events::register_exit_handler();
 
     ai_state_mutex
         .lock()

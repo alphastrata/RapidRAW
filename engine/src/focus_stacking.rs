@@ -7,9 +7,9 @@ use std::io::{Cursor, Read, Write};
 use std::path::PathBuf;
 use tauri::{AppHandle, Emitter};
 
-use crate::app_settings::load_settings;
+
 use crate::app_state::AppState;
-use engine::paths::parse_virtual_path;
+use crate::paths::parse_virtual_path;
 use crate::formats::is_raw_file;
 use crate::image_processing::apply_cpu_default_raw_processing;
 
@@ -290,8 +290,8 @@ impl PlanarRgb {
         let h = img.height() as usize;
         let raw = img.as_raw();
         let mut out = PlanarRgb::new(w, h);
-        for ch in 0..3 {
-            out.c[ch]
+        for (ch, plane) in out.c.iter_mut().enumerate() {
+            plane
                 .data
                 .par_iter_mut()
                 .enumerate()
@@ -325,9 +325,9 @@ impl PlanarRgb {
 
     pub fn crop(&self, x0: usize, y0: usize, w: usize, h: usize) -> PlanarRgb {
         let mut out = PlanarRgb::new(w, h);
-        for ch in 0..3 {
+        for (ch, out_plane) in out.c.iter_mut().enumerate() {
             let src = &self.c[ch];
-            out.c[ch]
+            out_plane
                 .data
                 .par_chunks_mut(w)
                 .enumerate()
@@ -1050,9 +1050,9 @@ pub fn warp_frame(
     });
     let mask = erode_mask(&mask, 2);
 
-    for ch in 0..3 {
+    for (ch, out_plane) in out.c.iter_mut().enumerate() {
         let s = &src.c[ch];
-        out.c[ch]
+        out_plane
             .data
             .par_iter_mut()
             .enumerate()
@@ -1442,8 +1442,8 @@ impl MergeAccumulator {
                 .for_each(|(d, &s)| *d += s);
         }
 
-        for ch in 0..3 {
-            let lp = laplacian_pyramid(&frame.c[ch], self.levels);
+        for (ch, frame_plane) in frame.c.iter().enumerate() {
+            let lp = laplacian_pyramid(frame_plane, self.levels);
             for (k, det) in lp.details.iter().enumerate() {
                 let wk = &wpow[k];
                 self.num_details[ch][k]
@@ -1476,10 +1476,10 @@ impl MergeAccumulator {
         let mut num_details = num_details;
         let mut num_residual = num_residual;
 
-        for ch in 0..3 {
+        for (ch, num_details_ch) in num_details.iter_mut().enumerate() {
             let mut details = Vec::with_capacity(den_details.len());
             for (k, den) in den_details.iter().enumerate() {
-                let mut d = std::mem::replace(&mut num_details[ch][k], Plane::new(1, 1));
+                let mut d = std::mem::replace(&mut num_details_ch[k], Plane::new(1, 1));
                 d.data
                     .par_iter_mut()
                     .zip(den.data.par_iter())
@@ -2023,7 +2023,7 @@ fn load_frames(
     app_handle: &AppHandle,
     progress: &dyn Fn(&str),
 ) -> Result<Box<dyn FrameSource>, String> {
-    let settings = load_settings(app_handle.clone()).unwrap_or_default();
+    let settings = { let _ = &app_handle; crate::settings::AppSettings::default() };
     let n = paths.len();
 
     progress(&format!("Loading frame 1 of {}...", n));
@@ -2072,7 +2072,7 @@ fn check_dims(i: usize, f: &PlanarRgb, w: usize, h: usize) -> Result<(), String>
 
 fn decode_frame(
     path: &str,
-    settings: &crate::app_settings::AppSettings,
+    settings: &crate::settings::AppSettings,
 ) -> Result<PlanarRgb, String> {
     let bytes = fs::read(path).map_err(|e| format!("Failed to read {}: {}", path, e))?;
     let mut dyn_img =

@@ -8,10 +8,8 @@ use std::path::{Path, PathBuf};
 use std::sync::{Mutex, MutexGuard, OnceLock, PoisonError};
 use std::time::Duration;
 
-use crate::file_management;
 use crate::formats::is_raw_file;
-use crate::image_processing::{ImageFlag, ImageMetadata};
-use crate::tagging::{COLOR_TAG_PREFIX, USER_TAG_PREFIX};
+use crate::image_processing::{ImageFlag, ImageMetadata};use crate::tagging::{COLOR_TAG_PREFIX, USER_TAG_PREFIX};
 use chrono::{DateTime, Local, LocalResult, NaiveDateTime, TimeZone, Utc};
 use exif::{Exif, In, Value};
 use image::ImageDecoder;
@@ -97,7 +95,7 @@ pub fn flush_all_dirty_caches() {
 
     for (path, map) in to_write {
         if let Ok(json) = serde_json::to_string(&map) {
-            let _ = file_management::write_file_atomic(&path, json.as_bytes());
+            let _ = crate::paths::write_file_atomic(&path, json.as_bytes());
         }
     }
     drop(state);
@@ -312,7 +310,7 @@ fn read_sidecar(sidecar_path: &Path) -> std::io::Result<(ImageMetadata, bool)> {
 
 fn write_sidecar_json(sidecar_path: &Path, metadata: &ImageMetadata) -> std::io::Result<()> {
     let json = serde_json::to_string_pretty(metadata).map_err(std::io::Error::other)?;
-    file_management::write_file_atomic(sidecar_path, json.as_bytes())
+    crate::paths::write_file_atomic(sidecar_path, json.as_bytes())
 }
 
 pub fn load_sidecar(sidecar_path: &Path) -> ImageMetadata {
@@ -342,7 +340,7 @@ pub fn fill_missing_exif(meta: &mut ImageMetadata, source_path: &Path) {
 
     let exif = read_rrexif_sidecar(source_path).or_else(|| {
         let source_path_str = source_path.to_string_lossy();
-        let extracted = if let Ok(mmap) = file_management::read_file_mapped(source_path) {
+        let extracted = if let Ok(mmap) = crate::paths::read_file_mapped(source_path) {
             read_exif_data_from_bytes(&source_path_str, &mmap)
         } else {
             read_exif_data_from_bytes(&source_path_str, &fs::read(source_path).ok()?)
@@ -381,7 +379,7 @@ pub fn update_sidecar(
     let _guard = lock_sidecar(sidecar_path);
     let (mut metadata, _) = read_sidecar(sidecar_path)?;
     update(&mut metadata);
-    if crate::immich::is_placeholder(source_path)
+    if crate::immich::registry::is_placeholder(source_path)
         && let Some(parent) = sidecar_path.parent()
     {
         fs::create_dir_all(parent)?;
@@ -403,7 +401,7 @@ fn has_virtual_copy_sidecars(source_path: &Path) -> bool {
         let name = entry.file_name();
         let name = name.to_string_lossy();
         matches!(
-            file_management::parse_sidecar_name(&name),
+            crate::paths::parse_sidecar_name(&name),
             Some((source, Some(_))) if source == file_name
         )
     })
@@ -425,11 +423,11 @@ fn is_default_sidecar(sidecar_path: &Path, source_path: &Path, metadata: &ImageM
         return true;
     };
 
-    if file_management::is_cloud_placeholder(source_path) {
+    if crate::paths::is_cloud_placeholder(source_path) {
         return false;
     }
     let source_path_str = source_path.to_string_lossy();
-    let file_exif = if let Ok(mmap) = file_management::read_file_mapped(source_path) {
+    let file_exif = if let Ok(mmap) = crate::paths::read_file_mapped(source_path) {
         read_exif_data_from_bytes(&source_path_str, &mmap)
     } else if let Ok(bytes) = fs::read(source_path) {
         read_exif_data_from_bytes(&source_path_str, &bytes)
@@ -1785,8 +1783,8 @@ impl ExportXmp {
         Self {
             keywords,
             rating: (metadata.rating > 0 || metadata.flag == Some(ImageFlag::Reject))
-                .then(|| file_management::xmp_rating(metadata)),
-            label: file_management::xmp_label(tags),
+                .then(|| xmp_rating(metadata)),
+            label: xmp_label(tags),
         }
     }
 }
@@ -1835,7 +1833,7 @@ fn read_source_xmp(path: &Path) -> Option<String> {
 fn build_export_xmp(xmp: &ExportXmp, source_xmp: Option<&str>) -> Option<String> {
     let mut keywords = xmp.keywords.clone();
     for tag in source_xmp
-        .map(file_management::extract_xmp_tags)
+        .map(extract_xmp_tags)
         .unwrap_or_default()
     {
         push_keyword(
@@ -1879,7 +1877,7 @@ fn export_xmp_description(xmp: &ExportXmp, keywords: &[String]) -> String {
         let escaped: Vec<Cow<str>> = keywords.iter().map(|k| escape(k.as_str())).collect();
         properties.push_str(&format!(
             "   {}\n",
-            file_management::xmp_subject_bag(&escaped)
+            xmp_subject_bag(&escaped)
         ));
     }
     if properties.is_empty() {
@@ -2209,4 +2207,56 @@ pub fn write_rrexif_sidecar(source_path_str: &str, target_image_path: &Path) -> 
         metadata.exif = Some(exif_data);
     })
     .map_err(|e| format!("Failed to write sidecar: {}", e))
+}
+
+pub fn xmp_rating(metadata: &crate::image_processing::ImageMetadata) -> String {
+    if metadata.flag == Some(ImageFlag::Reject) {
+        XMP_REJECTED_RATING.to_string()
+    } else {
+        metadata.rating.to_string()
+    }
+}
+
+pub fn xmp_label(tags: &[String]) -> Option<String> {
+    tags.iter()
+        .rev()
+        .find_map(|t| t.strip_prefix(COLOR_TAG_PREFIX))
+        .map(|color| {
+            let mut c = color.chars();
+            match c.next() {
+                None => String::new(),
+                Some(f) => f.to_uppercase().collect::<String>() + c.as_str(),
+            }
+        })
+}
+
+pub fn extract_xmp_tags(content: &str) -> Vec<String> {
+    let mut tags = Vec::new();
+    if let Some(start_idx) = content.find("<dc:subject>")
+        && let Some(end_idx) = content[start_idx..].find("</dc:subject>")
+    {
+        let subject_block = &content[start_idx..start_idx + end_idx];
+        let mut current_idx = 0;
+        while let Some(li_start) = subject_block[current_idx..].find("<rdf:li>") {
+            let val_start = current_idx + li_start + 8;
+            if let Some(li_end) = subject_block[val_start..].find("</rdf:li>") {
+                tags.push(subject_block[val_start..val_start + li_end].to_string());
+                current_idx = val_start + li_end + 9;
+            } else {
+                break;
+            }
+        }
+    }
+    tags
+}
+
+const XMP_REJECTED_RATING: i8 = -1;
+
+pub fn xmp_subject_bag<S: AsRef<str>>(items: &[S]) -> String {
+    let mut bag = String::from("<dc:subject>\n    <rdf:Bag>\n");
+    for item in items {
+        bag.push_str(&format!("     <rdf:li>{}</rdf:li>\n", item.as_ref()));
+    }
+    bag.push_str("    </rdf:Bag>\n   </dc:subject>");
+    bag
 }

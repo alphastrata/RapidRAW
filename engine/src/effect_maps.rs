@@ -92,7 +92,7 @@ pub fn store_source_map(
     let mut buf = std::io::Cursor::new(Vec::new());
     map.write_to(&mut buf, image::ImageFormat::Png)
         .map_err(|e| e.to_string())?;
-    crate::file_management::write_file_atomic(&path, buf.get_ref()).map_err(|e| e.to_string())?;
+    crate::paths::write_file_atomic(&path, buf.get_ref()).map_err(|e| e.to_string())?;
     if let Some(dir) = path.parent() {
         evict_map_disk_cache(dir, Some(&path));
     }

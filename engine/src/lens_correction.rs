@@ -1,4 +1,4 @@
-use crate::AppState;
+use crate::app_state::AppState;
 use fuzzy_matcher::FuzzyMatcher;
 #[cfg(target_os = "android")]
 use include_dir::{Dir, include_dir};

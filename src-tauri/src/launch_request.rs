@@ -1,29 +1,11 @@
-use serde::{Deserialize, Serialize};
+use serde::Serialize;
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicI32, Ordering};
 use tauri::Emitter;
 
-use crate::export_processing::TiffBitDepth;
+pub use engine::launch_request::{ExternalEditSession, HeadlessExportSession, TiffBitDepth};
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct ExternalEditSession {
-    pub source: String,
-    pub output: String,
-    pub format: String,
-    pub jpeg_quality: u8,
-}
 
-#[derive(Clone, Debug)]
-pub struct HeadlessExportSession {
-    pub source: String,
-    pub output: String,
-    pub format: String,
-    pub quality: u8,
-    pub tiff_bit_depth: TiffBitDepth,
-    pub keep_metadata: bool,
-    pub adjustments_override: Option<String>,
-}
 
 #[derive(Clone, Debug)]
 pub enum LaunchRequest {

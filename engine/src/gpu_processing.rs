@@ -15,7 +15,7 @@ use crate::image_processing::{
     AllAdjustments, AnalyticsFrame, AnalyticsPixels, GpuContext, MAX_MASKS, MaskAdjustments,
 };
 use crate::lut_processing::Lut;
-use crate::{AppState, GpuImageCache, GpuImageEntry};
+use crate::app_state::{AppState, GpuImageCache, GpuImageEntry};
 
 #[derive(Clone, Copy, Debug)]
 pub struct Roi {
@@ -821,7 +821,7 @@ struct AnalyticsReadback {
     buffer: wgpu::Buffer,
     pool: ReadbackPool,
     submission: wgpu::SubmissionIndex,
-    analytics: crate::AnalyticsConfig,
+    analytics: crate::app_state::AnalyticsConfig,
     width: u32,
     height: u32,
     row_stride: usize,
@@ -866,7 +866,7 @@ fn complete_analytics_readback(readback: AnalyticsReadback) {
 
     if let Ok(Ok(())) = rx.recv() {
         let analytics = readback.analytics;
-        let _ = analytics.sender.send(crate::AnalyticsJob {
+        let _ = analytics.sender.send(crate::app_state::AnalyticsJob {
             path: analytics.path,
             frame: AnalyticsFrame {
                 data: AnalyticsPixels::Mapped(PooledReadback {
@@ -2892,7 +2892,7 @@ pub fn process_and_get_dynamic_image_with_analytics(
     request: RenderRequest,
     caller_id: &str,
     display_layer: Option<DisplayLayer>,
-    analytics_config: Option<crate::AnalyticsConfig>,
+    analytics_config: Option<crate::app_state::AnalyticsConfig>,
 ) -> Result<DynamicImage, String> {
     process_and_get_dynamic_image_inner(
         context,
@@ -2917,7 +2917,7 @@ fn process_and_get_dynamic_image_inner(
     caller_id: &str,
     output_precision: RenderOutputPrecision,
     display_layer: Option<DisplayLayer>,
-    analytics_config: Option<crate::AnalyticsConfig>,
+    analytics_config: Option<crate::app_state::AnalyticsConfig>,
 ) -> Result<DynamicImage, String> {
     let start_time = Instant::now();
     let output_to_display = display_layer.is_some();
@@ -2994,7 +2994,7 @@ fn process_and_get_dynamic_image_inner(
 
         let new_processor = GpuProcessor::new(context.clone(), new_width, new_height)?;
 
-        *processor_lock = Some(crate::GpuProcessorState {
+        *processor_lock = Some(crate::app_state::GpuProcessorState {
             processor: new_processor,
             width: new_width,
             height: new_height,
@@ -3174,7 +3174,7 @@ fn process_and_get_dynamic_image_inner(
             });
         } else {
             if let RenderedPixels::U8(pixels) = &processed_pixels {
-                let _ = analytics.sender.send(crate::AnalyticsJob {
+                let _ = analytics.sender.send(crate::app_state::AnalyticsJob {
                     path: analytics.path,
                     frame: AnalyticsFrame {
                         data: AnalyticsPixels::Owned(pixels.clone()),

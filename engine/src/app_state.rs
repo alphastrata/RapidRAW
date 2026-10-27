@@ -15,7 +15,7 @@ use wgpu::{Texture, TextureView};
 use crate::ai_processing::AiState;
 use crate::as_shot::AsShot;
 use crate::cache_utils::{DecodeFlights, DecodedImageCache};
-use crate::camera_tethering::CameraSession;
+use crate::tethering::CameraSession;
 use crate::gpu_processing::{DisplayLayer, GpuProcessor};
 use crate::image_processing::GpuContext;
 use crate::launch_request::ExternalEditSession;

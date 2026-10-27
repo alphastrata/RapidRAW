@@ -1,6 +1,6 @@
-#![allow(unused_variables)]
+pub use engine::tethering::{CameraConfigChoice, CameraSession};
 
-use serde::Serialize;
+
 use std::collections::HashMap;
 use tauri::ipc::Response;
 
@@ -9,40 +9,7 @@ use crate::AppState;
 #[cfg(feature = "tethering")]
 use tauri::Manager;
 
-#[derive(Serialize)]
-pub struct CameraConfigChoice {
-    pub name: String,
-    pub current_value: String,
-    pub choices: Vec<String>,
-}
 
-#[cfg(feature = "tethering")]
-pub struct CameraSession {
-    pub context: Option<gphoto2::Context>,
-    pub camera: Option<gphoto2::Camera>,
-}
-
-#[cfg(not(feature = "tethering"))]
-pub struct CameraSession {}
-
-impl CameraSession {
-    pub fn new() -> Self {
-        #[cfg(feature = "tethering")]
-        {
-            Self {
-                context: gphoto2::Context::new().ok(),
-                camera: None,
-            }
-        }
-        #[cfg(not(feature = "tethering"))]
-        {
-            Self {}
-        }
-    }
-}
-
-unsafe impl Send for CameraSession {}
-unsafe impl Sync for CameraSession {}
 
 #[tauri::command]
 pub async fn tether_list_cameras() -> Result<Vec<String>, String> {
@@ -65,7 +32,7 @@ pub async fn tether_list_cameras() -> Result<Vec<String>, String> {
 }
 
 #[tauri::command]
-pub async fn tether_connect(app_handle: tauri::AppHandle) -> Result<String, String> {
+pub async fn tether_connect(_app_handle: tauri::AppHandle) -> Result<String, String> {
     #[cfg(feature = "tethering")]
     {
         tauri::async_runtime::spawn_blocking(move || {
@@ -149,7 +116,7 @@ pub async fn tether_connect(app_handle: tauri::AppHandle) -> Result<String, Stri
 
 #[tauri::command]
 pub async fn tether_get_settings(
-    app_handle: tauri::AppHandle,
+    _app_handle: tauri::AppHandle,
 ) -> Result<HashMap<String, CameraConfigChoice>, String> {
     #[cfg(feature = "tethering")]
     {
@@ -272,9 +239,9 @@ pub async fn tether_get_settings(
 
 #[tauri::command]
 pub async fn tether_set_setting(
-    app_handle: tauri::AppHandle,
-    setting_name: String,
-    value: String,
+    _app_handle: tauri::AppHandle,
+    _setting_name: String,
+    _value: String,
 ) -> Result<(), String> {
     #[cfg(feature = "tethering")]
     {
@@ -375,7 +342,7 @@ pub async fn tether_set_setting(
 }
 
 #[tauri::command]
-pub async fn tether_autofocus(app_handle: tauri::AppHandle) -> Result<(), String> {
+pub async fn tether_autofocus(_app_handle: tauri::AppHandle) -> Result<(), String> {
     #[cfg(feature = "tethering")]
     {
         tauri::async_runtime::spawn_blocking(move || {
@@ -430,7 +397,7 @@ pub async fn tether_autofocus(app_handle: tauri::AppHandle) -> Result<(), String
 }
 
 #[tauri::command]
-pub async fn tether_get_preview(app_handle: tauri::AppHandle) -> Result<Response, String> {
+pub async fn tether_get_preview(_app_handle: tauri::AppHandle) -> Result<Response, String> {
     #[cfg(feature = "tethering")]
     {
         tauri::async_runtime::spawn_blocking(move || {
@@ -456,8 +423,8 @@ pub async fn tether_get_preview(app_handle: tauri::AppHandle) -> Result<Response
 
 #[tauri::command]
 pub async fn tether_capture(
-    app_handle: tauri::AppHandle,
-    destination_folder: Option<String>,
+    _app_handle: tauri::AppHandle,
+    _destination_folder: Option<String>,
 ) -> Result<String, String> {
     #[cfg(feature = "tethering")]
     {
