@@ -720,7 +720,7 @@ pub fn clear_image_caches(state: &AppState) {
     if let Ok(mut warped_cache) = state.full_warped_cache.lock() {
         *warped_cache = None;
     }
-    clear_preview_stage_caches(&state);
+    clear_preview_stage_caches(state);
 }
 
 pub fn clear_session_caches(state: &AppState) {

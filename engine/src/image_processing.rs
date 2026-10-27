@@ -4524,7 +4524,7 @@ pub fn sample_white_balance(
         .ok_or("No original image loaded")?;
     let adjustments = js_adjustments.unwrap_or_default();
     let converted = crate::negative_conversion::is_enabled(&adjustments)
-        .then(|| crate::cached_patched_image(&state, &loaded_image.image, &adjustments))
+        .then(|| crate::cached_patched_image(state, &loaded_image.image, &adjustments))
         .flatten();
 
     let image = match &converted {

@@ -1,12 +1,13 @@
-use crate::app_state::AppState;
 use fuzzy_matcher::FuzzyMatcher;
 #[cfg(target_os = "android")]
 use include_dir::{Dir, include_dir};
 use serde::{Deserialize, Serialize};
 use std::cmp::Ordering;
 use std::fs;
-use tauri::{Manager, State};
+use std::path::Path;
 use walkdir::WalkDir;
+
+use crate::app_state::AppState;
 #[cfg(target_os = "android")]
 static LENS_DB_DIR: Dir<'_> = include_dir!("$CARGO_MANIFEST_DIR/lensfun_db");
 
@@ -550,7 +551,7 @@ fn lenses_for_maker<'a>(db: &'a LensDatabase, maker: &str) -> Vec<&'a Lens> {
         .collect()
 }
 
-pub fn load_lensfun_db(app_handle: &tauri::AppHandle) -> LensDatabase {
+pub fn load_lensfun_db(resource_dir: &Path) -> LensDatabase {
     let mut combined_db = LensDatabase {
         cameras: Vec::new(),
         lenses: Vec::new(),
@@ -585,10 +586,7 @@ pub fn load_lensfun_db(app_handle: &tauri::AppHandle) -> LensDatabase {
     }
     #[cfg(not(target_os = "android"))]
     {
-        let resource_path = app_handle
-            .path()
-            .resolve("lensfun_db", tauri::path::BaseDirectory::Resource)
-            .expect("failed to resolve lensfun_db directory");
+        let resource_path = resource_dir.join("lensfun_db");
 
         if !resource_path.exists() {
             log::error!("Lensfun DB directory not found at: {:?}", resource_path);
@@ -625,8 +623,7 @@ pub fn load_lensfun_db(app_handle: &tauri::AppHandle) -> LensDatabase {
     combined_db
 }
 
-#[tauri::command]
-pub fn get_lensfun_makers(state: State<AppState>) -> Result<Vec<String>, String> {
+pub fn get_lensfun_makers_impl(state: &AppState) -> Result<Vec<String>, String> {
     let db_guard = state
         .lens_db
         .lock()
@@ -641,10 +638,9 @@ pub fn get_lensfun_makers(state: State<AppState>) -> Result<Vec<String>, String>
     }
 }
 
-#[tauri::command]
-pub fn get_lensfun_lenses_for_maker(
+pub fn get_lensfun_lenses_for_maker_impl(
     maker: String,
-    state: State<AppState>,
+    state: &AppState,
 ) -> Result<Vec<String>, String> {
     let db_guard = state
         .lens_db
@@ -826,12 +822,11 @@ fn find_lens_by_fuzzy_model(
     None
 }
 
-#[tauri::command]
-pub fn autodetect_lens(
+pub fn autodetect_lens_impl(
     maker: String,
     model: String,
     camera_model: Option<String>,
-    state: tauri::State<AppState>,
+    state: &AppState,
 ) -> Result<Option<(String, String)>, String> {
     let db_guard = state
         .lens_db
@@ -849,14 +844,13 @@ pub fn autodetect_lens(
     }
 }
 
-#[tauri::command]
-pub fn get_lens_distortion_params(
+pub fn get_lens_distortion_params_impl(
     maker: String,
     model: String,
     focal_length: f32,
     aperture: Option<f32>,
     distance: Option<f32>,
-    state: State<AppState>,
+    state: &AppState,
 ) -> Result<Option<LensDistortionParams>, String> {
     let db_guard = state
         .lens_db

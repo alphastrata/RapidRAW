@@ -1405,7 +1405,7 @@ pub fn generate_mask_overlay(
     state: &AppState,
 ) -> Result<Option<Vec<u8>>, String> {
     if let Some(ref mut adj) = js_adjustments {
-        crate::adjustment_utils::hydrate_adjustments(&state, adj);
+        crate::adjustment_utils::hydrate_adjustments(state, adj);
     }
 
     if let Some(sub_masks) = mask_def.get_mut("subMasks").and_then(|v| v.as_array_mut()) {
@@ -1419,7 +1419,7 @@ pub fn generate_mask_overlay(
     let scaled_crop_offset = (crop_offset.0 * scale, crop_offset.1 * scale);
 
     let warped_image = js_adjustments.as_ref().and_then(|adj| {
-        resolve_warped_image_for_masks(&state, adj, std::slice::from_ref(&parsed_mask_def))
+        resolve_warped_image_for_masks(state, adj, std::slice::from_ref(&parsed_mask_def))
     });
 
     if let Some(gray_mask) = generate_mask_bitmap(

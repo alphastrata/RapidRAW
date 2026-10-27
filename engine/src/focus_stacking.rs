@@ -5,10 +5,10 @@ use rayon::prelude::*;
 use std::fs;
 use std::io::{Cursor, Read, Write};
 use std::path::PathBuf;
-use tauri::{AppHandle, Emitter};
-
+use std::sync::Arc;
 
 use crate::app_state::AppState;
+use crate::host::Host;
 use crate::paths::parse_virtual_path;
 use crate::formats::is_raw_file;
 use crate::image_processing::apply_cpu_default_raw_processing;
@@ -1942,11 +1942,10 @@ fn as_bytes_mut(v: &mut [f32]) -> &mut [u8] {
     unsafe { std::slice::from_raw_parts_mut(v.as_mut_ptr() as *mut u8, std::mem::size_of_val(v)) }
 }
 
-#[tauri::command]
-pub async fn stitch_focus_stack(
+pub async fn stitch_focus_stack_impl(
     paths: Vec<String>,
-    app_handle: AppHandle,
-    state: tauri::State<'_, AppState>,
+    state: &AppState,
+    host: Arc<dyn Host>,
 ) -> Result<(), String> {
     if paths.len() < 2 {
         return Err("Please select at least two images to stack.".to_string());
@@ -1961,13 +1960,13 @@ pub async fn stitch_focus_stack(
 
     let task = tokio::task::spawn_blocking(move || -> Result<(), String> {
         let progress = {
-            let ah = app_handle.clone();
+            let host = host.clone();
             move |msg: &str| {
-                let _ = ah.emit("focus-stack-progress", msg);
+                host.emit_str("focus-stack-progress", msg);
             }
         };
 
-        let source = load_frames(&source_paths, &app_handle, &progress)?;
+        let source = load_frames(&source_paths, &progress)?;
         let n = source.len();
 
         let cfg = StackConfig::default();
@@ -1997,14 +1996,14 @@ pub async fn stitch_focus_stack(
                 })
             })
             .collect();
-        let _ = app_handle.emit(
+        host.emit_json(
             "focus-stack-report",
             serde_json::json!({ "frames": report }),
         );
 
         *focus_result_handle.lock().unwrap() = Some(DynamicImage::ImageRgb32F(final_image));
 
-        let _ = app_handle.emit(
+        host.emit_json(
             "focus-stack-complete",
             serde_json::json!({ "base64": preview, "depthMap": depth_preview }),
         );
@@ -2020,10 +2019,9 @@ pub async fn stitch_focus_stack(
 
 fn load_frames(
     paths: &[String],
-    app_handle: &AppHandle,
     progress: &dyn Fn(&str),
 ) -> Result<Box<dyn FrameSource>, String> {
-    let settings = { let _ = &app_handle; crate::settings::AppSettings::default() };
+    let settings = crate::settings::AppSettings::default();
     let n = paths.len();
 
     progress(&format!("Loading frame 1 of {}...", n));
@@ -2122,10 +2120,9 @@ fn make_depth_preview(result: &StackResult, n_frames: usize) -> Result<String, S
     ))
 }
 
-#[tauri::command]
-pub async fn save_focus_stack(
+pub fn save_focus_stack_impl(
     first_path_str: String,
-    state: tauri::State<'_, AppState>,
+    state: &AppState,
 ) -> Result<String, String> {
     let focus_image = state
         .focus_stack_result

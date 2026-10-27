@@ -1862,7 +1862,6 @@ dependencies = [
  "sha2 0.11.1",
  "simd_kernels",
  "sysinfo",
- "tauri",
  "tempfile",
  "tokenizers",
  "tokio",

@@ -284,6 +284,8 @@ pub type ThumbnailGeometryEntry = (u64, Arc<DynamicImage>, f32);
 pub type TransformedImageCache = (u64, Arc<DynamicImage>, f32, (f32, f32));
 pub type TransformedPreview = (Arc<DynamicImage>, f32, (f32, f32));
 
+pub type AnalyticsSink = Arc<dyn Fn(Vec<u8>) + Send + Sync>;
+
 pub struct AppState {
     pub window_setup_complete: AtomicBool,
     pub gpu_crash_flag_path: Mutex<Option<PathBuf>>,
@@ -307,7 +309,7 @@ pub struct AppState {
     pub thumbnail_progress: Mutex<ThumbnailProgressTracker>,
     pub preview_worker_tx: Mutex<Option<Sender<PreviewJob>>>,
     pub analytics_worker_tx: Mutex<Option<Sender<AnalyticsJob>>>,
-    pub analytics_channel: Mutex<Option<tauri::ipc::Channel>>,
+    pub analytics_channel: Mutex<Option<AnalyticsSink>>,
     pub mask_cache: Mutex<HashMap<u64, GrayImage>>,
     pub patch_cache: Mutex<HashMap<String, serde_json::Value>>,
     pub geometry_cache: Mutex<HashMap<u64, DynamicImage>>,

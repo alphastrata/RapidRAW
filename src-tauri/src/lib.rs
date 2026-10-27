@@ -22,8 +22,10 @@ macro_rules! cli_eprintln {
 
 mod ai_commands;
 pub mod cache_utils;
+pub mod focus_stacking;
 pub mod host;
 pub mod image_processing;
+pub mod lens_correction;
 pub mod lut_processing;
 pub mod mask_generation;
 pub use engine::ai_connector;
@@ -958,7 +960,7 @@ fn start_analytics_worker(app_handle: tauri::AppHandle) {
                         histogram_data.as_ref(),
                         waveform_data.as_ref(),
                     );
-                    let _ = channel.send(InvokeResponseBody::Raw(packet));
+                    (channel)(packet);
                 }
             }
         }
@@ -967,7 +969,10 @@ fn start_analytics_worker(app_handle: tauri::AppHandle) {
 
 #[tauri::command]
 fn subscribe_analytics(channel: Channel, state: tauri::State<AppState>) {
-    *state.analytics_channel.lock().unwrap() = Some(channel);
+    let packet_tx = move |packet: Vec<u8>| {
+        let _ = channel.send(InvokeResponseBody::Raw(packet));
+    };
+    *state.analytics_channel.lock().unwrap() = Some(Arc::new(packet_tx));
 }
 
 fn start_preview_worker(app_handle: tauri::AppHandle) {
@@ -2182,7 +2187,9 @@ pub fn run() {
                 let _ = std::fs::remove_file(&crash_flag_path);
             }
 
-            let lens_db = lens_correction::load_lensfun_db(&app_handle);
+            let lens_db = lens_correction::load_lensfun_db(
+                &app_handle.path().resource_dir().unwrap_or_default(),
+            );
             {
                 let state = app.state::<AppState>();
                 *state.lens_db.lock().unwrap() = Some(Arc::new(lens_db));
@@ -2689,12 +2696,12 @@ pub use engine::baseline_exposure;
 pub use engine::effect_maps;
 pub use engine::exif_processing;
 pub use engine::face_masking;
-pub use engine::focus_stacking;
+
 pub use engine::fog;
 pub use engine::gpu_processing;
 pub mod image_loader;
 pub use engine::lens_blur;
-pub use engine::lens_correction;
+
 
 
 pub use engine::memory_budget;
