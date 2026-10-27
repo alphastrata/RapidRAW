@@ -1841,6 +1841,7 @@ dependencies = [
  "half",
  "hex",
  "image",
+ "image_hasher",
  "imageproc",
  "imgref",
  "kamadak-exif",
@@ -1858,6 +1859,7 @@ dependencies = [
  "quick-xml 0.42.0",
  "rawler",
  "rayon",
+ "regex",
  "reqwest",
  "rgb",
  "serde",
@@ -1868,6 +1870,7 @@ dependencies = [
  "tempfile",
  "tokenizers",
  "tokio",
+ "uuid",
  "walkdir",
  "wgpu",
 ]
