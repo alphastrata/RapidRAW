@@ -617,7 +617,7 @@ fn process_preview_job(
     active_waveform_channel: Option<&str>,
 ) -> Result<Vec<u8>, String> {
     let fn_start = std::time::Instant::now();
-    let context = get_or_init_gpu_context(&state, &*crate::host::TauriHost::host(app_handle.clone()))?;
+    let context = get_or_init_gpu_context(&state, &*crate::host::TauriHost::host(app_handle.clone())).map_err(|e| e.to_string())?;
     hydrate_adjustments(&state, &mut adjustments_json);
     let adjustments_clone = adjustments_json;
 
@@ -675,7 +675,7 @@ fn process_preview_job(
             .lock()
             .unwrap_or_else(|e| e.into_inner()) = None;
 
-        generate_transformed_preview(&state, &loaded_image, &adjustments_clone, preview_dim)?
+        generate_transformed_preview(&state, &loaded_image, &adjustments_clone, preview_dim).map_err(|e| e.to_string())?
     };
 
     let small_preview_base = if small_valid {
@@ -1075,7 +1075,7 @@ async fn generate_uncropped_preview(
     state: tauri::State<'_, AppState>,
     app_handle: tauri::AppHandle,
 ) -> Result<Response, String> {
-    let context = get_or_init_gpu_context(&state, &*crate::host::TauriHost::host(app_handle.clone()))?;
+    let context = get_or_init_gpu_context(&state, &*crate::host::TauriHost::host(app_handle.clone())).map_err(|e| e.to_string())?;
     let mut adjustments_clone = js_adjustments.clone();
     hydrate_adjustments(&state, &mut adjustments_clone);
 
@@ -1232,7 +1232,7 @@ async fn generate_preset_preview(
 ) -> Result<Response, String> {
     tauri::async_runtime::spawn_blocking(move || {
         let state = app_handle.state::<AppState>();
-        let context = get_or_init_gpu_context(&state, &*crate::host::TauriHost::host(app_handle.clone()))?;
+        let context = get_or_init_gpu_context(&state, &*crate::host::TauriHost::host(app_handle.clone())).map_err(|e| e.to_string())?;
 
         let loaded_image = state
             .original_image
@@ -1310,7 +1310,7 @@ async fn generate_preset_preview(
                 roi: None,
             },
             "generate_preset_preview",
-        )?;
+        ).map_err(|e| e.to_string())?;
 
         let mut buf = Cursor::new(Vec::new());
         processed_image
@@ -1362,7 +1362,7 @@ async fn generate_all_community_previews(
 
     tauri::async_runtime::spawn_blocking(move || {
         let state = app_handle.state::<AppState>();
-        let context = get_or_init_gpu_context(&state, &*crate::host::TauriHost::host(app_handle.clone()))?;
+        let context = get_or_init_gpu_context(&state, &*crate::host::TauriHost::host(app_handle.clone())).map_err(|e| e.to_string())?;
 
         const TILE_DIM: u32 = 360;
         const PROCESSING_DIM: u32 = TILE_DIM * 2;
@@ -1503,7 +1503,7 @@ async fn generate_all_community_previews(
                             roi: None,
                         },
                         "generate_all_community_previews",
-                    )?;
+                    ).map_err(|e| e.to_string())?;
 
                 let processed_image = processed_image_dynamic.to_rgb8();
 
@@ -1718,7 +1718,7 @@ async fn generate_preview_for_path(
 ) -> Result<Response, String> {
     tokio::task::spawn_blocking(move || {
         let state = app_handle.state::<AppState>();
-        let context = get_or_init_gpu_context(&state, &*crate::host::TauriHost::host(app_handle.clone()))?;
+        let context = get_or_init_gpu_context(&state, &*crate::host::TauriHost::host(app_handle.clone())).map_err(|e| e.to_string())?;
         let (source_path, _) = parse_virtual_path(&path);
         let source_path_str = source_path.to_string_lossy().to_string();
         let is_raw = is_raw_file(&source_path_str);
@@ -1777,7 +1777,7 @@ async fn generate_preview_for_path(
                 roi: None,
             },
             "generate_preview_for_path",
-        )?;
+        ).map_err(|e| e.to_string())?;
 
         let (width, height) = final_image.dimensions();
         let rgb_pixels = final_image.to_rgb8().into_vec();
