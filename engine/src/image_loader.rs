@@ -294,11 +294,9 @@ fn largest_tiff_jpeg_preview(buf: &[u8]) -> Option<DynamicImage> {
                         if count == 1 {
                             queue.push(val);
                         } else {
-                            (0..count.min(8)).for_each(|j| {
-                                if let Some(p) = rd32(val as usize + (j as usize) * 4) {
-                                    queue.push(p);
-                                }
-                            });
+                            (0..count.min(8))
+                                .filter_map(|j| rd32(val as usize + (j as usize) * 4))
+                                .for_each(|p| queue.push(p));
                         }
                     }
                     _ => {}
