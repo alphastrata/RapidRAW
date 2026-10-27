@@ -886,7 +886,7 @@ fn process_path(
                         outcome = Outcome::Deferred;
                         continue;
                     }
-                    result => result.map(|_| ()),
+                    result => result.map(|_| ()).map_err(|e| e.to_string()),
                 }
             }
             Job::EffectMap(map) => {
