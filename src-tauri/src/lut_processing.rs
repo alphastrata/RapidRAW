@@ -5,7 +5,10 @@ pub use engine::lut_processing::*;
 use engine::app_state::AppState;
 
 #[tauri::command]
-pub fn load_and_parse_lut(path: String, state: tauri::State<'_, AppState>) -> Result<LutParseResult, String> {
+pub fn load_and_parse_lut(
+    path: String,
+    state: tauri::State<'_, AppState>,
+) -> Result<LutParseResult, String> {
     engine::lut_processing::load_and_parse_lut_impl(path, &state).map_err(|e| e.to_string())
 }
 
@@ -19,7 +22,10 @@ pub fn import_luts(
     app_handle: tauri::AppHandle,
     source_paths: Vec<String>,
 ) -> Result<Vec<LutEntry>, String> {
-    engine::lut_processing::import_luts_impl(&*crate::host::TauriHost::host(app_handle), source_paths)
+    engine::lut_processing::import_luts_impl(
+        &*crate::host::TauriHost::host(app_handle),
+        source_paths,
+    )
 }
 
 #[tauri::command]
@@ -33,5 +39,10 @@ pub async fn generate_lut_previews(
     luts: Vec<LutPreviewRequest>,
     size: u32,
 ) -> Result<Vec<LutPreview>, String> {
-    engine::lut_processing::generate_lut_previews_impl(crate::host::TauriHost::host(app_handle), luts, size).await
+    engine::lut_processing::generate_lut_previews_impl(
+        crate::host::TauriHost::host(app_handle),
+        luts,
+        size,
+    )
+    .await
 }

@@ -4,8 +4,8 @@ use std::sync::LazyLock;
 use divan::Bencher;
 use image::{DynamicImage, GrayImage, Rgb, RgbImage};
 use rapidraw_lib::focus_stacking::{LensWarp, PlanarRgb, Plane};
-use rayon::prelude::*;
 use rapidraw_lib::{ai_processing, focus_stacking, fog, image_processing};
+use rayon::prelude::*;
 use serde_json::json;
 
 const W: u32 = 1600;
@@ -20,10 +20,15 @@ fn pattern(x: u32, y: u32, seed: u32) -> u8 {
     ((wave * 64.0 + 128.0) as u32 + (s >> 24) % 32) as u8
 }
 
-static SAMPLE: LazyLock<DynamicImage> =
-    LazyLock::new(|| DynamicImage::ImageRgb8(RgbImage::from_fn(W, H, |x, y| {
-        Rgb([pattern(x, y, 0x1F), pattern(x, y, 0x2F), pattern(x, y, 0x3F)])
-    })));
+static SAMPLE: LazyLock<DynamicImage> = LazyLock::new(|| {
+    DynamicImage::ImageRgb8(RgbImage::from_fn(W, H, |x, y| {
+        Rgb([
+            pattern(x, y, 0x1F),
+            pattern(x, y, 0x2F),
+            pattern(x, y, 0x3F),
+        ])
+    }))
+});
 
 static SAMPLE_LUMA: LazyLock<GrayImage> =
     LazyLock::new(|| GrayImage::from_fn(W, H, |x, y| image::Luma([pattern(x, y, 0x7F)])));
@@ -31,20 +36,22 @@ static SAMPLE_LUMA: LazyLock<GrayImage> =
 static LOW_RES_LUMA: LazyLock<GrayImage> =
     LazyLock::new(|| GrayImage::from_fn(W / 4, H / 4, |x, y| image::Luma([pattern(x, y, 0x4F)])));
 
-static SAMPLE_PLANE: LazyLock<Plane> = LazyLock::new(|| {
-    Plane {
-        w: W as usize,
-        h: H as usize,
-        data: (0..(W as usize * H as usize))
-            .map(|i| (i % 255) as f32 / 255.0)
-            .collect(),
-    }
+static SAMPLE_PLANE: LazyLock<Plane> = LazyLock::new(|| Plane {
+    w: W as usize,
+    h: H as usize,
+    data: (0..(W as usize * H as usize))
+        .map(|i| (i % 255) as f32 / 255.0)
+        .collect(),
 });
 
-static SAMPLE_PLANAR: LazyLock<PlanarRgb> = LazyLock::new(|| PlanarRgb::from_rgb32f(&SAMPLE.to_rgb32f()));
+static SAMPLE_PLANAR: LazyLock<PlanarRgb> =
+    LazyLock::new(|| PlanarRgb::from_rgb32f(&SAMPLE.to_rgb32f()));
 
-static BUF32: LazyLock<Vec<f32>> =
-    LazyLock::new(|| (0..(W as usize * H as usize * 3)).map(|i| (i % 255) as f32 / 255.0).collect());
+static BUF32: LazyLock<Vec<f32>> = LazyLock::new(|| {
+    (0..(W as usize * H as usize * 3))
+        .map(|i| (i % 255) as f32 / 255.0)
+        .collect()
+});
 
 fn simd_chunked(buf: &mut [f32], f: fn(&mut [f32])) {
     buf.par_chunks_mut(32768).for_each(f);
@@ -52,8 +59,7 @@ fn simd_chunked(buf: &mut [f32], f: fn(&mut [f32])) {
 
 fn with_buf(f: impl Fn(&mut [f32])) {
     use std::sync::Mutex;
-    static BUF: LazyLock<Mutex<Vec<f32>>> =
-        LazyLock::new(|| Mutex::new(BUF32.clone()));
+    static BUF: LazyLock<Mutex<Vec<f32>>> = LazyLock::new(|| Mutex::new(BUF32.clone()));
     let mut buf = BUF.lock().unwrap();
     buf.copy_from_slice(&BUF32);
     f(&mut buf);
@@ -62,14 +68,22 @@ fn with_buf(f: impl Fn(&mut [f32])) {
 fn srgb_scalar_ref(buf: &mut [f32]) {
     buf.par_iter_mut().for_each(|c| {
         let x = c.max(0.0);
-        *c = if x <= 0.04045 { x / 12.92 } else { ((x + 0.055) / 1.055).powf(2.4) };
+        *c = if x <= 0.04045 {
+            x / 12.92
+        } else {
+            ((x + 0.055) / 1.055).powf(2.4)
+        };
     });
 }
 
 fn linear_srgb_scalar_ref(buf: &mut [f32]) {
     buf.par_iter_mut().for_each(|c| {
         let x = c.max(0.0);
-        *c = if x <= 0.0031308 { x * 12.92 } else { 1.055 * x.powf(1.0 / 2.4) - 0.055 };
+        *c = if x <= 0.0031308 {
+            x * 12.92
+        } else {
+            1.055 * x.powf(1.0 / 2.4) - 0.055
+        };
     });
 }
 
@@ -99,7 +113,12 @@ fn linear_to_srgb_scalar(b: Bencher) {
 
 #[divan::bench]
 fn exposure_scale_simd(b: Bencher) {
-    b.bench(|| with_buf(|buf| buf.par_chunks_mut(32768).for_each(|c| simd_kernels::ops::scale(c, 2.19))));
+    b.bench(|| {
+        with_buf(|buf| {
+            buf.par_chunks_mut(32768)
+                .for_each(|c| simd_kernels::ops::scale(c, 2.19))
+        })
+    });
 }
 
 #[divan::bench]
@@ -117,7 +136,10 @@ fn fog_adjustments() -> serde_json::Value {
         .write_to(&mut std::io::Cursor::new(&mut png), image::ImageFormat::Png)
         .expect("encode depth map");
     use base64::Engine as _;
-    let data_url = format!("data:image/png;base64,{}", base64::engine::general_purpose::STANDARD.encode(png));
+    let data_url = format!(
+        "data:image/png;base64,{}",
+        base64::engine::general_purpose::STANDARD.encode(png)
+    );
     json!({
         "fogEnabled": true,
         "fogDepthMap": data_url,
@@ -157,7 +179,11 @@ fn srgb_to_linear_dynamic_image(b: Bencher) {
 
 #[divan::bench]
 fn linear_to_srgb_dynamic_image(b: Bencher) {
-    b.bench(|| image_processing::apply_linear_to_srgb(black_box(DynamicImage::ImageRgb32F(SAMPLE.to_rgb32f()))));
+    b.bench(|| {
+        image_processing::apply_linear_to_srgb(black_box(DynamicImage::ImageRgb32F(
+            SAMPLE.to_rgb32f(),
+        )))
+    });
 }
 
 #[divan::bench]
@@ -235,7 +261,9 @@ fn histogram(b: Bencher) {
 
 #[divan::bench]
 fn waveform(b: Bencher) {
-    b.bench(|| image_processing::calculate_waveform(black_box(&*ANALYTICS_FRAME), black_box(None)).unwrap());
+    b.bench(|| {
+        image_processing::calculate_waveform(black_box(&*ANALYTICS_FRAME), black_box(None)).unwrap()
+    });
 }
 
 #[divan::bench]
@@ -248,14 +276,22 @@ fn apply_fog(b: Bencher) {
     let adjustments = fog_adjustments();
     b.bench(|| {
         let adj = adjustments.clone();
-        fog::apply_fog(black_box(std::borrow::Cow::Owned((*SAMPLE).clone())), black_box(&adj))
+        fog::apply_fog(
+            black_box(std::borrow::Cow::Owned((*SAMPLE).clone())),
+            black_box(&adj),
+        )
     });
 }
 
 #[divan::bench]
 fn fast_guided_filter(b: Bencher) {
     b.bench(|| {
-        ai_processing::fast_guided_filter(black_box(&*SAMPLE_LUMA), black_box(&*LOW_RES_LUMA), 32, 0.01)
+        ai_processing::fast_guided_filter(
+            black_box(&*SAMPLE_LUMA),
+            black_box(&*LOW_RES_LUMA),
+            32,
+            0.01,
+        )
     });
 }
 
@@ -304,7 +340,14 @@ fn box_filter_r4(b: Bencher) {
 
 #[divan::bench]
 fn guided_filter_focus(b: Bencher) {
-    b.bench(|| focus_stacking::guided_filter(black_box(&*SAMPLE_PLANE), black_box(&*SAMPLE_PLANE), 32, 0.01));
+    b.bench(|| {
+        focus_stacking::guided_filter(
+            black_box(&*SAMPLE_PLANE),
+            black_box(&*SAMPLE_PLANE),
+            32,
+            0.01,
+        )
+    });
 }
 
 #[divan::bench]
@@ -318,7 +361,11 @@ fn pyramid_downsample_upsample(b: Bencher) {
 #[divan::bench]
 fn focus_scores(b: Bencher) {
     b.bench(|| {
-        focus_stacking::focus_scores(black_box(&*SAMPLE_PLANE), 4, black_box(&focus_stacking::FusionConfig::default()))
+        focus_stacking::focus_scores(
+            black_box(&*SAMPLE_PLANE),
+            4,
+            black_box(&focus_stacking::FusionConfig::default()),
+        )
     });
 }
 
@@ -334,7 +381,14 @@ fn laplacian_pyramid_collapse(b: Bencher) {
 fn warp_frame_identity(b: Bencher) {
     b.bench(|| {
         let warp = LensWarp::identity(SAMPLE_PLANAR.w, SAMPLE_PLANAR.h);
-        focus_stacking::warp_frame(black_box(&*SAMPLE_PLANAR), black_box(&warp), 1.0, 0.0, SAMPLE_PLANAR.w, SAMPLE_PLANAR.h)
+        focus_stacking::warp_frame(
+            black_box(&*SAMPLE_PLANAR),
+            black_box(&warp),
+            1.0,
+            0.0,
+            SAMPLE_PLANAR.w,
+            SAMPLE_PLANAR.h,
+        )
     });
 }
 

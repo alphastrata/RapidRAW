@@ -1,6 +1,5 @@
 pub use engine::tethering::CameraConfigChoice;
 
-
 use std::collections::HashMap;
 use tauri::ipc::Response;
 
@@ -8,8 +7,6 @@ use tauri::ipc::Response;
 use crate::AppState;
 #[cfg(feature = "tethering")]
 use tauri::Manager;
-
-
 
 #[tauri::command]
 pub async fn tether_list_cameras() -> Result<Vec<String>, String> {

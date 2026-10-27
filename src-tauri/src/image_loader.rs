@@ -9,13 +9,12 @@ use std::sync::atomic::Ordering;
 use image::GenericImageView;
 use tauri::Manager;
 
+use engine::app_state::LoadedImage;
 use engine::baseline_exposure::BaselineOptions;
 use engine::formats::is_raw_file;
 use engine::image_processing::effective_baseline_exposure;
-use engine::app_state::LoadedImage;
 
 use engine::paths::parse_virtual_path;
-
 
 #[tauri::command]
 pub fn is_image_cached(

@@ -5,12 +5,12 @@ use divan::Bencher;
 use image::{DynamicImage, GrayImage, Luma, Rgb, RgbImage, codecs::jpeg::JpegEncoder};
 use rapidraw_lib::cache_utils;
 use rapidraw_lib::effect_maps;
+use rapidraw_lib::export_processing::{self, encode_image_to_bytes};
 use rapidraw_lib::guided_perspective;
 use rapidraw_lib::guided_perspective::{GuideLine, GuideOrientation, GuidePoint};
 use rapidraw_lib::image_loader;
 use rapidraw_lib::lut_processing;
 use rapidraw_lib::mask_generation::{self, MaskDefinition, SubMask};
-use rapidraw_lib::export_processing::{self, encode_image_to_bytes};
 use serde_json::json;
 
 const W: u32 = 1600;
@@ -23,7 +23,8 @@ static SAMPLE: LazyLock<DynamicImage> = LazyLock::new(|| {
 });
 
 fn pattern(x: u32, y: u32, s: u32) -> u8 {
-    ((x.wrapping_mul(1_664_525u32.wrapping_add(s)) ^ y.wrapping_mul(65539u32.wrapping_add(s))) % 255) as u8
+    ((x.wrapping_mul(1_664_525u32.wrapping_add(s)) ^ y.wrapping_mul(65539u32.wrapping_add(s)))
+        % 255) as u8
 }
 
 fn sub_mask(mask_type: &str, parameters: serde_json::Value) -> SubMask {
@@ -67,7 +68,12 @@ fn mask_radial(b: Bencher) {
 
 #[divan::bench]
 fn mask_linear(b: Bencher) {
-    b.bench(|| generate_mask("linear", json!({"startX": 0.1, "startY": 0.1, "endX": 0.9, "endY": 0.9})));
+    b.bench(|| {
+        generate_mask(
+            "linear",
+            json!({"startX": 0.1, "startY": 0.1, "endX": 0.9, "endY": 0.9}),
+        )
+    });
 }
 
 #[divan::bench]
@@ -85,7 +91,12 @@ fn mask_brush(b: Bencher) {
 
 #[divan::bench]
 fn mask_parametric_color(b: Bencher) {
-    b.bench(|| generate_mask("color", json!({"targetX": 800.0, "targetY": 600.0, "tolerance": 30.0})));
+    b.bench(|| {
+        generate_mask(
+            "color",
+            json!({"targetX": 800.0, "targetY": 600.0, "tolerance": 30.0}),
+        )
+    });
 }
 
 #[divan::bench]
@@ -105,9 +116,14 @@ fn guided_homography(b: Bencher) {
         },
     ];
     b.bench(|| {
-        let result = guided_perspective::compute_guided_homography(black_box(&lines), W as f64, H as f64);
+        let result =
+            guided_perspective::compute_guided_homography(black_box(&lines), W as f64, H as f64);
         if let Some(result) = result {
-            guided_perspective::compute_max_inscribed_crop(black_box(&result.forward_h), W as f64, H as f64);
+            guided_perspective::compute_max_inscribed_crop(
+                black_box(&result.forward_h),
+                W as f64,
+                H as f64,
+            );
         }
     });
 }
@@ -126,8 +142,14 @@ fn decode_jpeg(b: Bencher) {
     let encoded = encoded_jpeg();
     let settings: rapidraw_lib::AppSettings = serde_json::from_value(json!({})).unwrap();
     b.bench(|| {
-        image_loader::load_base_image_from_bytes(black_box(&encoded), "bench.jpg", false, black_box(&settings), None)
-            .unwrap()
+        image_loader::load_base_image_from_bytes(
+            black_box(&encoded),
+            "bench.jpg",
+            false,
+            black_box(&settings),
+            None,
+        )
+        .unwrap()
     });
 }
 
@@ -173,7 +195,9 @@ struct TempLut {
 
 impl TempLut {
     fn cube(size: u32) -> TempLut {
-        let mut cube = format!("TITLE bench\nDOMAIN_MIN 0.0 0.0 0.0\nDOMAIN_MAX 1.0 1.0 1.0\nLUT_3D_SIZE {size}\n");
+        let mut cube = format!(
+            "TITLE bench\nDOMAIN_MIN 0.0 0.0 0.0\nDOMAIN_MAX 1.0 1.0 1.0\nLUT_3D_SIZE {size}\n"
+        );
         for b in 0..size {
             for g in 0..size {
                 for r in 0..size {
@@ -207,7 +231,9 @@ fn lut_parse_cube_33(b: Bencher) {
 #[divan::bench]
 fn visual_hash(b: Bencher) {
     let adjustments = json!({"exposure": 0.3, "contrast": 12.0});
-    b.bench(|| cache_utils::calculate_full_job_hash(black_box("IMG_0001.CR2"), black_box(&adjustments)));
+    b.bench(|| {
+        cache_utils::calculate_full_job_hash(black_box("IMG_0001.CR2"), black_box(&adjustments))
+    });
 }
 
 #[divan::bench]
@@ -224,11 +250,13 @@ fn patch_and_effects_hash(b: Bencher) {
 fn effect_map_resolve(b: Bencher) {
     let map: GrayImage = GrayImage::from_fn(320, 240, |x, _| Luma([(x * 255 / 320) as u8]));
     let mut png = Vec::new();
-    map
-        .write_to(&mut std::io::Cursor::new(&mut png), image::ImageFormat::Png)
+    map.write_to(&mut std::io::Cursor::new(&mut png), image::ImageFormat::Png)
         .unwrap();
     use base64::Engine as _;
-    let data_url = format!("data:image/png;base64,{}", base64::engine::general_purpose::STANDARD.encode(png));
+    let data_url = format!(
+        "data:image/png;base64,{}",
+        base64::engine::general_purpose::STANDARD.encode(png)
+    );
     let adjustments = json!({"orientationSteps": 2u64});
     b.bench(|| effect_maps::resolve_luma_map(black_box(&data_url), black_box(&adjustments)));
 }

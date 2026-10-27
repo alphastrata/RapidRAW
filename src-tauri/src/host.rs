@@ -70,7 +70,9 @@ impl Host for TauriHost {
     fn models_dir(&self) -> PathBuf {
         let fallback = || {
             std::env::var("HOME")
-                .map(|home| PathBuf::from(home).join(".local/share/io.github.CyberTimon.RapidRAW/models"))
+                .map(|home| {
+                    PathBuf::from(home).join(".local/share/io.github.CyberTimon.RapidRAW/models")
+                })
                 .unwrap_or_else(|_| std::env::temp_dir().join("rapidraw-models"))
         };
         self.app_handle
@@ -90,7 +92,12 @@ impl Host for TauriHost {
 
     fn regenerate_thumbnails(&self, paths: Vec<String>, force: bool) {
         let settings = self.load_settings();
-        crate::file_management::regenerate_thumbnails(paths.into_iter(), &self.app_handle, &settings, force);
+        crate::file_management::regenerate_thumbnails(
+            paths.into_iter(),
+            &self.app_handle,
+            &settings,
+            force,
+        );
     }
 
     fn release_deferred(&self, path: &str) {

@@ -18,8 +18,8 @@ use crate::ai_processing::{AiDepthMaskParameters, AiMaskModel, get_or_init_ai_mo
 use crate::app_state::AppState;
 use crate::cache_utils::GEOMETRY_KEYS;
 use crate::effect_maps::{EffectMapKind, is_map_reference, is_map_valid_for};
-use engine::paths::{parse_virtual_path, read_file_mapped};
 use crate::image_processing::is_effect_enabled;
+use engine::paths::{parse_virtual_path, read_file_mapped};
 
 const JOURNAL_FILE: &str = "ai_jobs.json";
 const MAX_ATTEMPTS: u32 = 3;
@@ -881,7 +881,12 @@ fn process_path(
 
         let job_result = match &job {
             Job::Denoise(method) => {
-                match crate::ai_denoise::generate_for_base(&*TauriHost::host(app_handle.clone()), path, &base, *method) {
+                match crate::ai_denoise::generate_for_base(
+                    &*TauriHost::host(app_handle.clone()),
+                    path,
+                    &base,
+                    *method,
+                ) {
                     Ok(false) => {
                         outcome = Outcome::Deferred;
                         continue;

@@ -34,5 +34,12 @@ pub fn get_lens_distortion_params(
     distance: Option<f32>,
     state: tauri::State<'_, AppState>,
 ) -> Result<Option<engine::lens_correction::LensDistortionParams>, String> {
-    engine::lens_correction::get_lens_distortion_params_impl(maker, model, focal_length, aperture, distance, &state)
+    engine::lens_correction::get_lens_distortion_params_impl(
+        maker,
+        model,
+        focal_length,
+        aperture,
+        distance,
+        &state,
+    )
 }

@@ -8,7 +8,6 @@ use engine::immich::ImmichSettings;
 
 use super::secrets;
 
-
 #[derive(Serialize, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct ApiKeyInfo {

@@ -13,7 +13,8 @@ pub async fn stitch_focus_stack(
         &state,
         crate::host::TauriHost::host(app_handle),
     )
-    .await.map_err(|e| e.to_string())
+    .await
+    .map_err(|e| e.to_string())
 }
 
 #[tauri::command]

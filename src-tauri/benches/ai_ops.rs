@@ -68,15 +68,18 @@ static CLIP_TOKENIZER: LazyLock<Tokenizer> = LazyLock::new(|| {
 fn lama_inpaint_512(b: Bencher) {
     let img = image(SIZE, SIZE);
     let m = mask(SIZE, SIZE);
-    b.bench(|| ai_processing::run_lama_inpainting(black_box(&img), black_box(&m), black_box(&LAMA)).unwrap());
+    b.bench(|| {
+        ai_processing::run_lama_inpainting(black_box(&img), black_box(&m), black_box(&LAMA))
+            .unwrap()
+    });
 }
-
-
 
 #[divan::bench]
 fn depth_anything_512(b: Bencher) {
     let img = image(SIZE, SIZE);
-    b.bench(|| ai_processing::run_depth_anything_model(black_box(&img), black_box(&DEPTH)).unwrap());
+    b.bench(|| {
+        ai_processing::run_depth_anything_model(black_box(&img), black_box(&DEPTH)).unwrap()
+    });
 }
 
 #[divan::bench]
@@ -89,14 +92,17 @@ fn normal_moge_512(b: Bencher) {
 fn denoise_nind_256(b: Bencher) {
     let img = image(256, 256).to_rgb32f();
     b.bench(|| {
-        ai_processing::run_ai_denoise(black_box(&img), black_box(&DENOISE), black_box(&|_| {})).unwrap()
+        ai_processing::run_ai_denoise(black_box(&img), black_box(&DENOISE), black_box(&|_| {}))
+            .unwrap()
     });
 }
 
 #[divan::bench]
 fn sam_encoder_512(b: Bencher) {
     let img = image(SIZE, SIZE);
-    b.bench(|| ai_processing::generate_image_embeddings(black_box(&img), black_box(&SAM_ENCODER)).unwrap());
+    b.bench(|| {
+        ai_processing::generate_image_embeddings(black_box(&img), black_box(&SAM_ENCODER)).unwrap()
+    });
 }
 
 #[divan::bench]

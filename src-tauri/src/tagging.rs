@@ -16,11 +16,11 @@ use tokio::task::JoinHandle;
 use walkdir::WalkDir;
 
 use crate::file_management;
-use engine::paths::parse_virtual_path;
 use crate::formats::is_supported_image_file;
 use crate::hierarchy::TAG_HIERARCHY;
 use crate::image_processing::ImageMetadata;
 use crate::{AppState, candidates::TAG_CANDIDATES};
+use engine::paths::parse_virtual_path;
 
 pub const COLOR_TAG_PREFIX: &str = "color:";
 pub const USER_TAG_PREFIX: &str = "user:";
@@ -352,8 +352,11 @@ pub async fn start_background_indexing(
         );
 
         let state_clone = app_handle_clone.state::<AppState>();
-        let gpu_context =
-            crate::gpu_processing::get_or_init_gpu_context(&state_clone, &*crate::host::TauriHost::host(app_handle.clone())).ok();
+        let gpu_context = crate::gpu_processing::get_or_init_gpu_context(
+            &state_clone,
+            &*crate::host::TauriHost::host(app_handle.clone()),
+        )
+        .ok();
 
         let processed_count = Arc::new(Mutex::new(0));
         let custom_ai_tags_shared = Arc::new(custom_ai_tags);

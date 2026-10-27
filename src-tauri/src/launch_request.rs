@@ -5,8 +5,6 @@ use tauri::Emitter;
 
 pub use engine::launch_request::{ExternalEditSession, HeadlessExportSession, TiffBitDepth};
 
-
-
 #[derive(Clone, Debug)]
 pub enum LaunchRequest {
     None,

@@ -1,7 +1,7 @@
 use crate::app_settings::load_settings;
 use crate::app_state::AppState;
-use engine::paths::parse_virtual_path;
 use base64::{Engine as _, engine::general_purpose};
+use engine::paths::parse_virtual_path;
 use image::ImageFormat;
 use image::{DynamicImage, GenericImageView, GrayImage, Rgb32FImage};
 use nalgebra::Matrix3;

@@ -10,7 +10,8 @@ pub fn calculate_auto_adjustments(
     app_handle: tauri::AppHandle,
 ) -> Result<serde_json::Value, String> {
     let settings = crate::app_settings::load_settings(app_handle).unwrap_or_default();
-    engine::image_processing::calculate_auto_adjustments(js_adjustments, mode, &state, &settings).map_err(|e| e.to_string())
+    engine::image_processing::calculate_auto_adjustments(js_adjustments, mode, &state, &settings)
+        .map_err(|e| e.to_string())
 }
 
 #[tauri::command]
@@ -19,6 +20,6 @@ pub async fn sample_white_balance(
     js_adjustments: Option<serde_json::Value>,
     state: tauri::State<'_, AppState>,
 ) -> Result<engine::image_processing::WhiteBalanceSample, String> {
-    engine::image_processing::sample_white_balance(corners, js_adjustments, &state).map_err(|e| e.to_string())
+    engine::image_processing::sample_white_balance(corners, js_adjustments, &state)
+        .map_err(|e| e.to_string())
 }
-

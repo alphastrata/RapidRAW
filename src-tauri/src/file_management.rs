@@ -1,4 +1,7 @@
-pub use engine::paths::{is_cloud_placeholder, parse_sidecar_name, parse_virtual_path, read_file_mapped, write_file_atomic};
+pub use engine::paths::{
+    is_cloud_placeholder, parse_sidecar_name, parse_virtual_path, read_file_mapped,
+    write_file_atomic,
+};
 
 use std::borrow::Cow;
 use std::collections::hash_map::DefaultHasher;
@@ -289,7 +292,6 @@ pub struct PresetImportResult {
     pub failures: Vec<PresetImportFailure>,
 }
 
-
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct ImageFile {
     pub path: String,
@@ -418,8 +420,6 @@ pub struct ImportSettings {
     pub date_folder_format: String,
     pub delete_after_import: bool,
 }
-
-
 
 #[tauri::command]
 pub async fn read_exif_for_paths(
@@ -1281,10 +1281,6 @@ pub async fn get_pinned_folder_trees(
     }
 }
 
-
-
-
-
 fn find_embedded_jpeg(exif: &exif::Exif, ifd: exif::In) -> Option<&[u8]> {
     let offset = exif
         .get_field(exif::Tag::JPEGInterchangeFormat, ifd)?
@@ -1896,8 +1892,11 @@ pub fn start_thumbnail_workers(app_handle: tauri::AppHandle) {
                 };
 
                 let state = app_clone.state::<crate::AppState>();
-                let gpu_context =
-                    crate::gpu_processing::get_or_init_gpu_context(&state, &*crate::host::TauriHost::host(app_clone.clone())).ok();
+                let gpu_context = crate::gpu_processing::get_or_init_gpu_context(
+                    &state,
+                    &*crate::host::TauriHost::host(app_clone.clone()),
+                )
+                .ok();
 
                 let current_settings = load_settings(app_clone.clone()).unwrap_or_default();
 
@@ -2610,7 +2609,11 @@ pub fn save_metadata_and_update_thumbnail(
     };
     drop(loaded_image_lock);
 
-    let gpu_context = gpu_processing::get_or_init_gpu_context(&state, &*crate::host::TauriHost::host(app_handle.clone())).ok();
+    let gpu_context = gpu_processing::get_or_init_gpu_context(
+        &state,
+        &*crate::host::TauriHost::host(app_handle.clone()),
+    )
+    .ok();
     let app_handle_clone = app_handle.clone();
     let path_clone = path.clone();
 
@@ -2848,7 +2851,11 @@ pub(crate) fn regenerate_thumbnails(
         }
     };
 
-    let gpu_context = gpu_processing::get_or_init_gpu_context(&state, &*crate::host::TauriHost::host(app_handle.clone())).ok();
+    let gpu_context = gpu_processing::get_or_init_gpu_context(
+        &state,
+        &*crate::host::TauriHost::host(app_handle.clone()),
+    )
+    .ok();
 
     run_batch_workers(paths, |path| {
         let path_str = path.as_str();
@@ -2948,7 +2955,11 @@ async fn update_sidecars_from_images(
             }
         };
 
-        let gpu_context = gpu_processing::get_or_init_gpu_context(&state, &*crate::host::TauriHost::host(app_handle.clone())).ok();
+        let gpu_context = gpu_processing::get_or_init_gpu_context(
+            &state,
+            &*crate::host::TauriHost::host(app_handle.clone()),
+        )
+        .ok();
 
         let process = |path: &String| {
             let loaded_image: Option<DynamicImage> = (|| -> Result<DynamicImage, String> {

@@ -10,8 +10,7 @@ pub fn trash_remote(
     whole_stack: bool,
 ) -> Result<Vec<String>, String> {
     let (remote, local): (Vec<_>, Vec<_>) = paths.into_iter().partition(|p| {
-        !p.contains("?vc=")
-            && registry::get(&engine::paths::parse_virtual_path(p).0).is_some()
+        !p.contains("?vc=") && registry::get(&engine::paths::parse_virtual_path(p).0).is_some()
     });
     if remote.is_empty() {
         return Ok(local);

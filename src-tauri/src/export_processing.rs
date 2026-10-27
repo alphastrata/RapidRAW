@@ -51,7 +51,6 @@ use crate::{
 
 pub use engine::launch_request::TiffBitDepth;
 
-
 #[derive(Serialize, Deserialize, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
 pub enum ResizeMode {
@@ -1066,7 +1065,10 @@ fn process_image_for_export_pipeline(
         })
         .collect();
 
-    let render = resolve_render_options(&crate::app_settings::load_settings(app_handle.clone()).unwrap_or_default(), is_raw);
+    let render = resolve_render_options(
+        &crate::app_settings::load_settings(app_handle.clone()).unwrap_or_default(),
+        is_raw,
+    );
     let mut all_adjustments =
         get_all_adjustments_from_json(js_adjustments, is_raw, as_shot(path), render);
     all_adjustments.global.show_clipping = 0;
@@ -1150,7 +1152,8 @@ fn save_image_with_metadata(
         export_settings.strip_gps,
         export_xmp,
         export_settings.dpi,
-    ).map_err(|e| e.to_string())?;
+    )
+    .map_err(|e| e.to_string())?;
 
     #[cfg(target_os = "android")]
     {
@@ -1439,7 +1442,10 @@ fn export_masks_for_image(
     }
 
     if !mask_bitmaps.is_empty() {
-        let render = resolve_render_options(&crate::app_settings::load_settings(app_handle.clone()).unwrap_or_default(), is_raw);
+        let render = resolve_render_options(
+            &crate::app_settings::load_settings(app_handle.clone()).unwrap_or_default(),
+            is_raw,
+        );
         let all_adjustments =
             get_all_adjustments_from_json(js_adjustments, is_raw, as_shot(source_path_str), render);
         let lut_path = js_adjustments["lutPath"].as_str();
@@ -1475,7 +1481,8 @@ fn export_masks_for_image(
                 },
                 "export_mask_image",
                 render_output_precision(extension, export_settings),
-            ).map_err(|e| e.to_string())?;
+            )
+            .map_err(|e| e.to_string())?;
             ensure_export_not_cancelled(cancellation_token)?;
 
             let (with_options, geometry) =
@@ -1549,7 +1556,10 @@ fn export_adjustments_as_lut(
 
     let render = RenderOptions {
         baseline: BaselineOptions::default(),
-        ..resolve_render_options(&crate::app_settings::load_settings(app_handle.clone()).unwrap_or_default(), false)
+        ..resolve_render_options(
+            &crate::app_settings::load_settings(app_handle.clone()).unwrap_or_default(),
+            false,
+        )
     };
     let mut all_adjustments =
         get_all_adjustments_from_json(js_adjustments, false, as_shot(source_path_str), render);
@@ -1587,7 +1597,8 @@ fn export_adjustments_as_lut(
             roi: None,
         },
         "export_lut",
-    ).map_err(|e| e.to_string())?;
+    )
+    .map_err(|e| e.to_string())?;
     ensure_export_not_cancelled(cancellation_token)?;
 
     let cube_lut = convert_image_to_cube_lut(&processed_lut, lut_size)?;
@@ -1621,11 +1632,12 @@ pub(crate) async fn export_images_impl(
         return Ok(());
     }
 
-    let context = match get_or_init_gpu_context(&state, &*crate::host::TauriHost::host(app_handle.clone())) {
-        Ok(context) => context,
-        Err(_) if cancellation_token.load(Ordering::SeqCst) => return Ok(()),
-        Err(error) => return Err(error.to_string()),
-    };
+    let context =
+        match get_or_init_gpu_context(&state, &*crate::host::TauriHost::host(app_handle.clone())) {
+            Ok(context) => context,
+            Err(_) if cancellation_token.load(Ordering::SeqCst) => return Ok(()),
+            Err(error) => return Err(error.to_string()),
+        };
 
     if cancellation_token.load(Ordering::SeqCst) {
         return Ok(());
@@ -2303,7 +2315,9 @@ pub async fn estimate_export_sizes(
     let (source_path, sidecar_path) = parse_virtual_path(first_path);
     let source_path_str = source_path.to_string_lossy().to_string();
 
-    let context = get_or_init_gpu_context(&state, &*crate::host::TauriHost::host(app_handle.clone())).map_err(|e| e.to_string())?;
+    let context =
+        get_or_init_gpu_context(&state, &*crate::host::TauriHost::host(app_handle.clone()))
+            .map_err(|e| e.to_string())?;
     let is_current_edit = Some(&source_path_str) == current_edit_path.as_ref();
     let is_raw = is_raw_file(&source_path_str);
     let settings = load_settings(app_handle.clone()).unwrap_or_default();
@@ -2344,7 +2358,8 @@ pub async fn estimate_export_sizes(
             }
         } else {
             drop(cached_preview_lock);
-            generate_transformed_preview(&state, &loaded_image, &adjustments_clone, preview_dim).map_err(|e| e.to_string())?
+            generate_transformed_preview(&state, &loaded_image, &adjustments_clone, preview_dim)
+                .map_err(|e| e.to_string())?
         };
 
         let (img_w, img_h) = preview_image.dimensions();
@@ -2370,7 +2385,10 @@ pub async fn estimate_export_sizes(
         )
         .bitmaps;
 
-        let render = resolve_render_options(&crate::app_settings::load_settings(app_handle.clone()).unwrap_or_default(), is_raw);
+        let render = resolve_render_options(
+            &crate::app_settings::load_settings(app_handle.clone()).unwrap_or_default(),
+            is_raw,
+        );
         let mut all_adjustments =
             get_all_adjustments_from_json(&adjustments_clone, is_raw, loaded_image.as_shot, render);
         all_adjustments.global.show_clipping = 0;
@@ -2395,7 +2413,8 @@ pub async fn estimate_export_sizes(
             },
             "estimate_export_size",
             render_output_precision(&output_format, &export_settings),
-        ).map_err(|e| e.to_string())?;
+        )
+        .map_err(|e| e.to_string())?;
 
         let preview_bytes =
             encode_image_to_bytes(&processed_preview, &output_format, &export_settings)?;
@@ -2503,7 +2522,10 @@ pub async fn estimate_export_sizes(
         )
         .bitmaps;
 
-        let render = resolve_render_options(&crate::app_settings::load_settings(app_handle.clone()).unwrap_or_default(), is_raw);
+        let render = resolve_render_options(
+            &crate::app_settings::load_settings(app_handle.clone()).unwrap_or_default(),
+            is_raw,
+        );
         let mut all_adjustments = get_all_adjustments_from_json(
             &js_adjustments,
             is_raw,
@@ -2532,7 +2554,8 @@ pub async fn estimate_export_sizes(
             },
             "estimate_batch_export_size",
             render_output_precision(&output_format, &export_settings),
-        ).map_err(|e| e.to_string())?;
+        )
+        .map_err(|e| e.to_string())?;
 
         let preview_bytes =
             encode_image_to_bytes(&processed_preview, &output_format, &export_settings)?;
