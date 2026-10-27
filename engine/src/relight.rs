@@ -59,8 +59,9 @@ pub(crate) struct RelightTap {
 impl RelightTap {
     #[inline(always)]
     pub(crate) fn new(u: f32, v: f32, w: usize, h: usize) -> Self {
-        let fx = (u * w as f32 - 0.5).clamp(0.0, (w - 1) as f32);
-        let fy = (v * h as f32 - 0.5).clamp(0.0, (h - 1) as f32);
+        let (wf, hf) = (w as f32, h as f32);
+        let fx = (u * wf - 0.5).clamp(0.0, wf - 1.0);
+        let fy = (v * hf - 0.5).clamp(0.0, hf - 1.0);
         let (x0, y0) = (fx.floor() as usize, fy.floor() as usize);
         let (x1, y1) = ((x0 + 1).min(w - 1), (y0 + 1).min(h - 1));
         Self {
@@ -222,7 +223,7 @@ fn build_shadow_map(
         .for_each(|(y, row)| {
             let v = (y as f32 + 0.5) / shf;
             let depth_row = &depth[y * sw..(y + 1) * sw];
-            for (x, out) in row.iter_mut().enumerate() {
+            row.iter_mut().enumerate().for_each(|(x, out)| {
                 let u = (x as f32 + 0.5) / swf;
                 let p = [(u - 0.5) * aspect[0], (v - 0.5) * aspect[1], depth_row[x]];
                 let ray = match light.kind {
@@ -246,31 +247,37 @@ fn build_shadow_map(
                     * (0.067_110_56 * x as f32 + 0.005_837_15 * y as f32).fract())
                 .fract();
                 let mut occlusion = 0.0f32;
-                for k in 1..=64 {
+                let mut stop = false;
+                (1..=64).for_each(|k| {
+                    if stop {
+                        return;
+                    }
                     let t = (k as f32 - jitter) * (1.0 / 64.0);
                     let fx = fx0 + dx * t;
                     let fy = fy0 + dy * t;
                     if !(0.0..swf).contains(&fx) || !(0.0..shf).contains(&fy) {
-                        break;
+                        stop = true;
+                        return;
                     }
                     let rz = p[2] + ray[2] * t;
                     if (rising && rz >= z_hi) || (!rising && rz <= z_lo) {
-                        break;
+                        stop = true;
+                        return;
                     }
                     let diff = rz - depth[fy as usize * sw + fx as usize];
                     if diff <= 0.01 || diff >= 0.3 {
-                        continue;
+                        return;
                     }
                     occlusion = occlusion.max(
                         relight_smoothstep(0.01, 0.04, diff)
                             * (1.0 - relight_smoothstep(0.15, 0.3, diff)),
                     );
                     if occlusion >= 1.0 {
-                        break;
+                        stop = true;
                     }
-                }
+                });
                 *out = 1.0 - occlusion;
-            }
+            });
         });
 
     let radius = (shadow_softness * sw.max(sh) as f32 * 0.02).round() as usize;
@@ -387,9 +394,9 @@ pub fn apply_relight<'a>(
         crate::effect_maps::effect_map_key(normal_b64, adjustments).hash(&mut hasher);
         (w, h).hash(&mut hasher);
         let raw = out.as_raw();
-        for value in raw.iter().step_by((raw.len() / 4096).max(1)) {
-            value.to_bits().hash(&mut hasher);
-        }
+        raw.iter()
+            .step_by((raw.len() / 4096).max(1))
+            .for_each(|value| value.to_bits().hash(&mut hasher));
         hasher.finish()
     };
 
@@ -439,17 +446,19 @@ pub fn apply_relight<'a>(
 
     let (nw, nh) = (cache.nw, cache.nh);
     let shadow_scale = (2048.0 / long_side).min(1.0);
-    let sw = ((w as f32 * shadow_scale).round() as usize).max(2);
-    let sh = ((h as f32 * shadow_scale).round() as usize).max(2);
+    let (wf, hf) = (w as f32, h as f32);
+    let sw = ((wf * shadow_scale).round() as usize).max(2);
+    let sh = ((hf * shadow_scale).round() as usize).max(2);
 
     if shadows_enabled && !lights.is_empty() && cache.shadow_inputs.is_none() {
         let shadow_guide = build_relight_guide(out.as_raw(), wu, hu, sw, sh);
+        let (swf, shf) = (sw as f32, sh as f32);
         let depth: Vec<f32> = (0..sw * sh)
             .into_par_iter()
             .map(|i| {
                 let tap = RelightTap::new(
-                    ((i % sw) as f32 + 0.5) / sw as f32,
-                    ((i / sw) as f32 + 0.5) / sh as f32,
+                    ((i % sw) as f32 + 0.5) / swf,
+                    ((i / sw) as f32 + 0.5) / shf,
                     nw,
                     nh,
                 );

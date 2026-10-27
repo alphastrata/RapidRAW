@@ -192,17 +192,17 @@ impl CameraToSrgb {
 
         let mut matrix = [[0.0f32; 4]; 3];
         let mut limits = [0.0f32; 3];
-        for (channel, primary) in primaries.iter().enumerate() {
-            for (row, value) in matrix.iter_mut().zip(primary) {
+        primaries.iter().enumerate().for_each(|(channel, primary)| {
+            matrix.iter_mut().zip(primary).for_each(|(row, value)| {
                 row[channel] = *value;
-            }
+            });
             let peak = primary[0].max(primary[1]).max(primary[2]);
             if peak > 0.0 {
-                for (limit, value) in limits.iter_mut().zip(primary) {
+                limits.iter_mut().zip(primary).for_each(|(limit, value)| {
                     *limit = limit.max((peak - value) / peak);
-                }
+                });
             }
-        }
+        });
 
         Some(Self {
             matrix,
@@ -219,12 +219,12 @@ impl CameraToSrgb {
         if achromatic <= 0.0 {
             return [0.0; 3];
         }
-        for (value, compression) in rgb.iter_mut().zip(&self.compression) {
+        rgb.iter_mut().zip(&self.compression).for_each(|(value, compression)| {
             if let Some(compression) = compression {
                 let distance = (achromatic - *value) / achromatic;
                 *value = achromatic - compression.compress(distance) * achromatic;
             }
-        }
+        });
         rgb
     }
 
@@ -369,8 +369,10 @@ fn develop_internal(
             });
         }
         Intermediate::ThreeColor(pixels) if cfa_balance.is_some() => {
-            let wb = cfa_balance.unwrap();
-            let camera_to_srgb = camera_to_srgb.as_ref().unwrap();
+            let wb = cfa_balance.ok_or_else(|| anyhow!("Missing CFA white balance"))?;
+            let camera_to_srgb = camera_to_srgb
+                .as_ref()
+                .ok_or_else(|| anyhow!("Missing camera-to-sRGB matrix"))?;
             let crop = default_crop(crop_area, active_area, raw_dim, pixels.dim());
             let region = Region {
                 stride: pixels.width,
@@ -390,11 +392,13 @@ fn develop_internal(
                 .skip(region.y)
                 .take(region.height)
                 .for_each(|row| {
-                    for p in &mut row[region.x..region.x + region.width] {
-                        for c in 0..3 {
-                            p[c] = (p[c] * rescale_factor).max(0.0) * wb[c];
-                        }
-                    }
+                    row[region.x..region.x + region.width]
+                        .iter_mut()
+                        .for_each(|p| {
+                            (0..3).for_each(|c| {
+                                p[c] = (p[c] * rescale_factor).max(0.0) * wb[c];
+                            });
+                        });
                 });
             highlight_reconstruction::reconstruct_highlights(&mut pixels.data, region, clips);
             check_cancel()?;
@@ -585,8 +589,9 @@ pub fn get_fast_demosaic_scale_factor(
     decoded_height: u32,
 ) -> f32 {
     if let Some((raw_width, raw_height)) = raw_dimensions(file_bytes) {
-        let max_orig = (raw_width as f32).max(raw_height as f32);
-        let max_comp = (decoded_width as f32).max(decoded_height as f32);
+        let max_orig =
+            u32::try_from(raw_width.max(raw_height)).unwrap_or(u32::MAX) as f32;
+        let max_comp = decoded_width.max(decoded_height) as f32;
         if max_orig > 0.0 {
             let ratio = max_comp / max_orig;
             if ratio > 0.1 && ratio < 0.35 {

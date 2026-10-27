@@ -44,9 +44,9 @@ pub fn clear_pending_android_exception(env: &mut JNIEnv<'_>) {
 }
 
 #[cfg(target_os = "android")]
-pub fn map_android_jni_error(env: &mut JNIEnv<'_>, err: jni::errors::Error) -> String {
+pub fn map_android_jni_error(env: &mut JNIEnv<'_>, err: jni::errors::Error) -> anyhow::Error {
     clear_pending_android_exception(env);
-    format!("Android JNI error: {}", err)
+    anyhow::anyhow!("Android JNI error: {}", err)
 }
 
 #[cfg(target_os = "android")]
@@ -115,10 +115,10 @@ pub fn get_android_cached_lut_path(uri: &str, extension: &str) -> anyhow::Result
 #[cfg(target_os = "android")]
 pub fn get_android_content_resolver<'local>(
     env: &mut JNIEnv<'local>,
-) -> Result<JObject<'local>, String> {
+) -> anyhow::Result<JObject<'local>> {
     let context = env
         .new_local_ref(unsafe { JObject::from_raw(android_context().context().cast()) })
-        .map_err(|e| map_android_jni_error(env, e))?;
+        .map_err(|e| anyhow::anyhow!(map_android_jni_error(env, e)))?;
 
     let resolver = env
         .call_method(
@@ -131,7 +131,7 @@ pub fn get_android_content_resolver<'local>(
         .map_err(|e| map_android_jni_error(env, e))?;
 
     if resolver.is_null() {
-        return Err("Android ContentResolver was null.".into());
+        return Err(anyhow::anyhow!("Android ContentResolver was null."));
     }
 
     Ok(resolver)
@@ -141,10 +141,10 @@ pub fn get_android_content_resolver<'local>(
 pub fn parse_android_uri<'local>(
     env: &mut JNIEnv<'local>,
     uri_str: &str,
-) -> Result<JObject<'local>, String> {
+) -> anyhow::Result<JObject<'local>> {
     let uri_string = env
         .new_string(uri_str)
-        .map_err(|e| map_android_jni_error(env, e))?;
+        .map_err(|e| anyhow::anyhow!(map_android_jni_error(env, e)))?;
 
     let uri = env
         .call_static_method(
@@ -157,7 +157,10 @@ pub fn parse_android_uri<'local>(
         .map_err(|e| map_android_jni_error(env, e))?;
 
     if uri.is_null() {
-        return Err(format!("Failed to parse Android content URI: {}", uri_str));
+        return Err(anyhow::anyhow!(
+            "Failed to parse Android content URI: {}",
+            uri_str
+        ));
     }
 
     Ok(uri)
@@ -165,12 +168,12 @@ pub fn parse_android_uri<'local>(
 
 
 #[cfg(target_os = "android")]
-pub fn read_android_content_uri(uri_str: &str) -> Result<Vec<u8>, String> {
+pub fn read_android_content_uri(uri_str: &str) -> anyhow::Result<Vec<u8>> {
     let vm = unsafe { JavaVM::from_raw(android_context().vm().cast()) }
-        .map_err(|e| format!("Failed to access Android JVM: {}", e))?;
+        .map_err(|e| anyhow::anyhow!("Failed to access Android JVM: {}", e))?;
     let mut env = vm
         .attach_current_thread()
-        .map_err(|e| format!("Failed to attach current thread to Android JVM: {}", e))?;
+        .map_err(|e| anyhow::anyhow!("Failed to attach current thread to Android JVM: {}", e))?;
 
     let resolver = get_android_content_resolver(&mut env)?;
     let uri = parse_android_uri(&mut env, uri_str)?;
@@ -185,13 +188,13 @@ pub fn read_android_content_uri(uri_str: &str) -> Result<Vec<u8>, String> {
         .map_err(|e| map_android_jni_error(&mut env, e))?;
 
     if input_stream.is_null() {
-        return Err(format!(
+        return Err(anyhow::anyhow!(
             "Failed to open InputStream for Android content URI: {}",
             uri_str
         ));
     }
 
-    let result = (|| -> Result<Vec<u8>, String> {
+    let result = (|| -> anyhow::Result<Vec<u8>> {
         const BUFFER_SIZE: i32 = 8192;
 
         let java_buffer = env
@@ -210,14 +213,12 @@ pub fn read_android_content_uri(uri_str: &str) -> Result<Vec<u8>, String> {
                 break;
             }
 
-            if read_count == 0 {
-                continue;
+            if read_count > 0 {
+                let read_len = read_count as usize;
+                env.get_byte_array_region(&java_buffer, 0, &mut rust_buffer[..read_len])
+                    .map_err(|e| map_android_jni_error(&mut env, e))?;
+                bytes.extend(rust_buffer[..read_len].iter().map(|byte| *byte as u8));
             }
-
-            let read_len = read_count as usize;
-            env.get_byte_array_region(&java_buffer, 0, &mut rust_buffer[..read_len])
-                .map_err(|e| map_android_jni_error(&mut env, e))?;
-            bytes.extend(rust_buffer[..read_len].iter().map(|byte| *byte as u8));
         }
 
         Ok(bytes)
@@ -233,13 +234,13 @@ pub fn put_android_content_value_string<'local>(
     content_values: &JObject<'local>,
     key: &str,
     value: &str,
-) -> Result<(), String> {
+) -> anyhow::Result<()> {
     let key_java = env
         .new_string(key)
-        .map_err(|e| map_android_jni_error(env, e))?;
+        .map_err(|e| anyhow::anyhow!(map_android_jni_error(env, e)))?;
     let value_java = env
         .new_string(value)
-        .map_err(|e| map_android_jni_error(env, e))?;
+        .map_err(|e| anyhow::anyhow!(map_android_jni_error(env, e)))?;
 
     env.call_method(
         content_values,
@@ -258,13 +259,13 @@ pub fn put_android_content_value_int<'local>(
     content_values: &JObject<'local>,
     key: &str,
     value: i32,
-) -> Result<(), String> {
+) -> anyhow::Result<()> {
     let key_java = env
         .new_string(key)
-        .map_err(|e| map_android_jni_error(env, e))?;
+        .map_err(|e| anyhow::anyhow!(map_android_jni_error(env, e)))?;
     let value_java = env
         .new_object("java/lang/Integer", "(I)V", &[JValue::from(value)])
-        .map_err(|e| map_android_jni_error(env, e))?;
+        .map_err(|e| anyhow::anyhow!(map_android_jni_error(env, e)))?;
 
     env.call_method(
         content_values,
@@ -306,12 +307,12 @@ pub fn save_bytes_to_android_media_store(
     relative_path: &str,
     collection_class: &str,
     bytes: &[u8],
-) -> Result<(), String> {
+) -> anyhow::Result<()> {
     let vm = unsafe { JavaVM::from_raw(android_context().vm().cast()) }
-        .map_err(|e| format!("Failed to access Android JVM: {}", e))?;
+        .map_err(|e| anyhow::anyhow!("Failed to access Android JVM: {}", e))?;
     let mut env = vm
         .attach_current_thread()
-        .map_err(|e| format!("Failed to attach current thread to Android JVM: {}", e))?;
+        .map_err(|e| anyhow::anyhow!("Failed to attach current thread to Android JVM: {}", e))?;
     let resolver = get_android_content_resolver(&mut env)?;
     let content_values = env
         .new_object("android/content/ContentValues", "()V", &[])
@@ -341,7 +342,7 @@ pub fn save_bytes_to_android_media_store(
         .map_err(|e| map_android_jni_error(&mut env, e))?;
 
     if item_uri.is_null() {
-        return Err(format!(
+        return Err(anyhow::anyhow!(
             "Failed to create Android MediaStore item for {}",
             file_name
         ));
@@ -359,13 +360,13 @@ pub fn save_bytes_to_android_media_store(
 
     if output_stream.is_null() {
         delete_android_media_store_item(&mut env, &resolver, &item_uri);
-        return Err(format!(
+        return Err(anyhow::anyhow!(
             "Failed to open Android MediaStore output stream for {}",
             file_name
         ));
     }
 
-    let write_result = (|| -> Result<(), String> {
+    let write_result = (|| -> anyhow::Result<()> {
         let byte_array = env
             .byte_array_from_slice(bytes)
             .map_err(|e| map_android_jni_error(&mut env, e))?;
@@ -411,7 +412,7 @@ pub fn save_image_bytes_to_android_gallery(
     file_name: &str,
     mime_type: &str,
     bytes: &[u8],
-) -> Result<(), String> {
+) -> anyhow::Result<()> {
     save_bytes_to_android_media_store(
         file_name,
         mime_type,
@@ -426,7 +427,7 @@ pub fn save_file_bytes_to_android_downloads(
     file_name: &str,
     mime_type: &str,
     bytes: &[u8],
-) -> Result<(), String> {
+) -> anyhow::Result<()> {
     save_bytes_to_android_media_store(
         file_name,
         mime_type,
@@ -437,49 +438,50 @@ pub fn save_file_bytes_to_android_downloads(
 }
 
 #[cfg(target_os = "android")]
-pub fn get_android_internal_library_root() -> Result<PathBuf, String> {
+pub fn get_android_internal_library_root() -> anyhow::Result<PathBuf> {
     let vm = unsafe { JavaVM::from_raw(android_context().vm().cast()) }
-        .map_err(|e| format!("Failed to access Android JVM: {}", e))?;
+        .map_err(|e| anyhow::anyhow!("Failed to access Android JVM: {}", e))?;
     let mut env = vm
         .attach_current_thread()
-        .map_err(|e| format!("Failed to attach current thread: {}", e))?;
+        .map_err(|e| anyhow::anyhow!("Failed to attach current thread: {}", e))?;
 
     let context = env
         .new_local_ref(unsafe { JObject::from_raw(android_context().context().cast()) })
-        .map_err(|e| map_android_jni_error(&mut env, e))?;
+        .map_err(|e| anyhow::anyhow!(map_android_jni_error(&mut env, e)))?;
 
     let dirs_array_obj = env
         .call_method(&context, "getExternalMediaDirs", "()[Ljava/io/File;", &[])
         .and_then(|v| v.l())
-        .map_err(|e| map_android_jni_error(&mut env, e))?;
+        .map_err(|e| anyhow::anyhow!(map_android_jni_error(&mut env, e)))?;
 
     if dirs_array_obj.is_null() {
-        return Err("External media storage not available".to_string());
+        return Err(anyhow::anyhow!("External media storage not available"));
     }
 
     let dirs_array: jni::objects::JObjectArray = dirs_array_obj.into();
 
     let dir_file = env
         .get_object_array_element(&dirs_array, 0)
-        .map_err(|e| map_android_jni_error(&mut env, e))?;
+        .map_err(|e| anyhow::anyhow!(map_android_jni_error(&mut env, e)))?;
 
     if dir_file.is_null() {
-        return Err("Primary external media storage is null".to_string());
+        return Err(anyhow::anyhow!("Primary external media storage is null"));
     }
 
     let path_jstring = env
         .call_method(&dir_file, "getAbsolutePath", "()Ljava/lang/String;", &[])
         .and_then(|v| v.l())
-        .map_err(|e| map_android_jni_error(&mut env, e))?;
+        .map_err(|e| anyhow::anyhow!(map_android_jni_error(&mut env, e)))?;
 
     let media_path: PathBuf = env
         .get_string(&path_jstring.into())
-        .map_err(|e| map_android_jni_error(&mut env, e))?
+        .map_err(|e| anyhow::anyhow!(map_android_jni_error(&mut env, e)))?
         .into();
     let library_dir = media_path.join(".library");
 
     if !library_dir.exists() {
-        fs::create_dir_all(&library_dir).map_err(|e| e.to_string())?;
+        fs::create_dir_all(&library_dir)
+            .map_err(|e| anyhow::anyhow!("Failed to create library directory: {}", e))?;
     }
     Ok(library_dir)
 }

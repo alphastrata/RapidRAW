@@ -342,32 +342,34 @@ impl Lens {
                 extract_dist_params(exact)
             } else if focal_length < distortions[0].focal {
                 extract_dist_params(distortions[0])
-            } else if focal_length > distortions.last().unwrap().focal {
-                extract_dist_params(distortions.last().unwrap())
+            } else if let Some(last) = distortions.last()
+                && focal_length > last.focal
+            {
+                extract_dist_params(last)
             } else {
                 let mut res = (0.0, 0.0, 0.0, 0);
-                for pair in distortions.windows(2) {
+                distortions.windows(2).any(|pair| {
                     let (d1, d2) = (&pair[0], &pair[1]);
-
-                    if focal_length >= d1.focal && focal_length <= d2.focal {
-                        let p1 = extract_dist_params(d1);
-                        let p2 = extract_dist_params(d2);
-
-                        let range = d2.focal - d1.focal;
-                        if range.abs() < 1e-5 || p1.3 != p2.3 {
-                            res = p1;
-                        } else {
-                            let t = (focal_length - d1.focal) / range;
-                            res = (
-                                p1.0 + f64::from(t) * (p2.0 - p1.0),
-                                p1.1 + f64::from(t) * (p2.1 - p1.1),
-                                p1.2 + f64::from(t) * (p2.2 - p1.2),
-                                p1.3,
-                            );
-                        }
-                        break;
+                    if !(focal_length >= d1.focal && focal_length <= d2.focal) {
+                        return false;
                     }
-                }
+                    let p1 = extract_dist_params(d1);
+                    let p2 = extract_dist_params(d2);
+
+                    let range = d2.focal - d1.focal;
+                    res = if range.abs() < 1e-5 || p1.3 != p2.3 {
+                        p1
+                    } else {
+                        let t = (focal_length - d1.focal) / range;
+                        (
+                            p1.0 + f64::from(t) * (p2.0 - p1.0),
+                            p1.1 + f64::from(t) * (p2.1 - p1.1),
+                            p1.2 + f64::from(t) * (p2.2 - p1.2),
+                            p1.3,
+                        )
+                    };
+                    true
+                });
                 res
             }
         };
@@ -381,29 +383,32 @@ impl Lens {
                 extract_tca_params(exact)
             } else if focal_length < tcas[0].focal {
                 extract_tca_params(tcas[0])
-            } else if focal_length > tcas.last().unwrap().focal {
-                extract_tca_params(tcas.last().unwrap())
+            } else if let Some(last) = tcas.last()
+                && focal_length > last.focal
+            {
+                extract_tca_params(last)
             } else {
                 let mut res = (1.0, 1.0);
-                for pair in tcas.windows(2) {
+                tcas.windows(2).any(|pair| {
                     let (d1, d2) = (&pair[0], &pair[1]);
-                    if focal_length >= d1.focal && focal_length <= d2.focal {
-                        let p1 = extract_tca_params(d1);
-                        let p2 = extract_tca_params(d2);
-
-                        let range = d2.focal - d1.focal;
-                        if range.abs() < 1e-5 {
-                            res = p1;
-                        } else {
-                            let t = (focal_length - d1.focal) / range;
-                            res = (
-                                p1.0 + f64::from(t) * (p2.0 - p1.0),
-                                p1.1 + f64::from(t) * (p2.1 - p1.1),
-                            );
-                        }
-                        break;
+                    if !(focal_length >= d1.focal && focal_length <= d2.focal) {
+                        return false;
                     }
-                }
+                    let p1 = extract_tca_params(d1);
+                    let p2 = extract_tca_params(d2);
+
+                    let range = d2.focal - d1.focal;
+                    res = if range.abs() < 1e-5 {
+                        p1
+                    } else {
+                        let t = (focal_length - d1.focal) / range;
+                        (
+                            p1.0 + f64::from(t) * (p2.0 - p1.0),
+                            p1.1 + f64::from(t) * (p2.1 - p1.1),
+                        )
+                    };
+                    true
+                });
                 res
             }
         };
@@ -449,8 +454,10 @@ impl Lens {
                     .copied()
                     .collect();
                 find_best_vig(&group)
-            } else if focal_length >= vignettings.last().unwrap().focal - 0.01 {
-                let last_focal = vignettings.last().unwrap().focal;
+            } else if let Some(last) = vignettings.last()
+                && focal_length >= last.focal - 0.01
+            {
+                let last_focal = last.focal;
                 let group: Vec<&Vignetting> = vignettings
                     .iter()
                     .filter(|x| (x.focal - last_focal).abs() < 0.01)
@@ -465,37 +472,38 @@ impl Lens {
                     f.dedup_by(|a, b| (*a - *b).abs() < 0.01);
                     f
                 };
-                for pair in unique_focals.windows(2) {
+                unique_focals.windows(2).any(|pair| {
                     let (f1, f2) = (pair[0], pair[1]);
-                    if focal_length >= f1 && focal_length <= f2 {
-                        let group1: Vec<&Vignetting> = vignettings
-                            .iter()
-                            .filter(|x| (x.focal - f1).abs() < 0.01)
-                            .copied()
-                            .collect();
-                        let group2: Vec<&Vignetting> = vignettings
-                            .iter()
-                            .filter(|x| (x.focal - f2).abs() < 0.01)
-                            .copied()
-                            .collect();
-
-                        let p1 = find_best_vig(&group1);
-                        let p2 = find_best_vig(&group2);
-
-                        let range = f2 - f1;
-                        if range.abs() > 0.01 {
-                            let t = (focal_length - f1) / range;
-                            res = (
-                                p1.0 + f64::from(t) * (p2.0 - p1.0),
-                                p1.1 + f64::from(t) * (p2.1 - p1.1),
-                                p1.2 + f64::from(t) * (p2.2 - p1.2),
-                            );
-                        } else {
-                            res = p1;
-                        }
-                        break;
+                    if !(focal_length >= f1 && focal_length <= f2) {
+                        return false;
                     }
-                }
+                    let group1: Vec<&Vignetting> = vignettings
+                        .iter()
+                        .filter(|x| (x.focal - f1).abs() < 0.01)
+                        .copied()
+                        .collect();
+                    let group2: Vec<&Vignetting> = vignettings
+                        .iter()
+                        .filter(|x| (x.focal - f2).abs() < 0.01)
+                        .copied()
+                        .collect();
+
+                    let p1 = find_best_vig(&group1);
+                    let p2 = find_best_vig(&group2);
+
+                    let range = f2 - f1;
+                    res = if range.abs() > 0.01 {
+                        let t = (focal_length - f1) / range;
+                        (
+                            p1.0 + f64::from(t) * (p2.0 - p1.0),
+                            p1.1 + f64::from(t) * (p2.1 - p1.1),
+                            p1.2 + f64::from(t) * (p2.2 - p1.2),
+                        )
+                    } else {
+                        p1
+                    };
+                    true
+                });
                 res
             }
         };

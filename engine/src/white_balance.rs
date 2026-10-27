@@ -83,39 +83,44 @@ impl WhiteBalance {
         let u = 2.0 * x / denom;
         let v = 3.0 * y / denom;
 
-        let mut last_distance = 0.0;
-        let mut last_direction = (0.0, 0.0);
-        for i in 1..ROBERTSON_ISOTHERMS.len() {
-            let [mired, iso_u, iso_v, slope] = ROBERTSON_ISOTHERMS[i];
-            let direction = isotherm_direction(slope);
-            let distance = (v - iso_v) * direction.0 - (u - iso_u) * direction.1;
-            let is_last = i == ROBERTSON_ISOTHERMS.len() - 1;
+        let last_distance = 0.0;
+        let last_direction = (0.0, 0.0);
+        let found = (1..ROBERTSON_ISOTHERMS.len()).try_fold(
+            (last_distance, last_direction),
+            |(last_distance, last_direction), i| {
+                let [mired, iso_u, iso_v, slope] = ROBERTSON_ISOTHERMS[i];
+                let direction = isotherm_direction(slope);
+                let distance = (v - iso_v) * direction.0 - (u - iso_u) * direction.1;
+                let is_last = i == ROBERTSON_ISOTHERMS.len() - 1;
 
-            if distance <= 0.0 || is_last {
-                let distance = (-distance).max(0.0);
-                let f = if i == 1 {
-                    0.0
+                if distance <= 0.0 || is_last {
+                    let distance = (-distance).max(0.0);
+                    let f = if i == 1 {
+                        0.0
+                    } else {
+                        distance / (last_distance + distance)
+                    };
+                    let [prev_mired, prev_u, prev_v, _] = ROBERTSON_ISOTHERMS[i - 1];
+                    let locus_u = prev_u * f + iso_u * (1.0 - f);
+                    let locus_v = prev_v * f + iso_v * (1.0 - f);
+                    let du = direction.0 * (1.0 - f) + last_direction.0 * f;
+                    let dv = direction.1 * (1.0 - f) + last_direction.1 * f;
+                    let len = (du * du + dv * dv).sqrt();
+                    let offset = ((u - locus_u) * du + (v - locus_v) * dv) / len;
+
+                    Err(Self {
+                        temperature: 1.0e6 / (prev_mired * f + mired * (1.0 - f)),
+                        tint: offset * TINT_SCALE,
+                    })
                 } else {
-                    distance / (last_distance + distance)
-                };
-                let [prev_mired, prev_u, prev_v, _] = ROBERTSON_ISOTHERMS[i - 1];
-                let locus_u = prev_u * f + iso_u * (1.0 - f);
-                let locus_v = prev_v * f + iso_v * (1.0 - f);
-                let du = direction.0 * (1.0 - f) + last_direction.0 * f;
-                let dv = direction.1 * (1.0 - f) + last_direction.1 * f;
-                let len = (du * du + dv * dv).sqrt();
-                let offset = ((u - locus_u) * du + (v - locus_v) * dv) / len;
-
-                return Self {
-                    temperature: 1.0e6 / (prev_mired * f + mired * (1.0 - f)),
-                    tint: offset * TINT_SCALE,
-                };
-            }
-
-            last_distance = distance;
-            last_direction = direction;
+                    Ok((distance, direction))
+                }
+            },
+        );
+        match found {
+            Err(white_balance) => white_balance,
+            Ok(_) => unreachable!("isotherm search always terminates"),
         }
-        unreachable!()
     }
 
     #[must_use]
@@ -186,29 +191,38 @@ impl WhiteBalance {
         xyz_to_camera_d65: &[f32],
         neutral: &[f32],
     ) -> Option<(Self, Vec<f32>)> {
-        let mut xyz_to_camera = xyz_to_camera_d65.to_vec();
-        let mut estimate = Self::from_camera_neutral(&xyz_to_camera, neutral)?;
+        let xyz_to_camera = xyz_to_camera_d65.to_vec();
+        let estimate = Self::from_camera_neutral(&xyz_to_camera, neutral)?;
         if xyz_to_camera_a.len() != xyz_to_camera_d65.len() {
             return Some((estimate, xyz_to_camera));
         }
 
-        for _ in 0..20 {
-            let weight = ((1.0 / estimate.temperature - 1.0 / ILLUMINANT_D65_TEMPERATURE)
-                / (1.0 / ILLUMINANT_A_TEMPERATURE - 1.0 / ILLUMINANT_D65_TEMPERATURE))
-                .clamp(0.0, 1.0) as f32;
-            xyz_to_camera = xyz_to_camera_a
-                .iter()
-                .zip(xyz_to_camera_d65)
-                .map(|(a, d65)| weight * a + (1.0 - weight) * d65)
-                .collect();
-            let next = Self::from_camera_neutral(&xyz_to_camera, neutral)?;
-            let converged = (next.temperature - estimate.temperature).abs() < 0.1;
-            estimate = next;
-            if converged {
-                break;
-            }
+        let found = (0..20).try_fold(
+            (estimate, xyz_to_camera, false),
+            |(estimate, xyz_to_camera, converged), _| {
+                if converged {
+                    return Ok((estimate, xyz_to_camera, converged));
+                }
+                let weight = ((1.0 / estimate.temperature - 1.0 / ILLUMINANT_D65_TEMPERATURE)
+                    / (1.0 / ILLUMINANT_A_TEMPERATURE - 1.0 / ILLUMINANT_D65_TEMPERATURE))
+                    .clamp(0.0, 1.0) as f32;
+                let next_xyz: Vec<f32> = xyz_to_camera_a
+                    .iter()
+                    .zip(xyz_to_camera_d65)
+                    .map(|(a, d65)| weight * a + (1.0 - weight) * d65)
+                    .collect();
+                let next = match Self::from_camera_neutral(&next_xyz, neutral) {
+                    Some(next) => next,
+                    None => return Err(()),
+                };
+                let converged = (next.temperature - estimate.temperature).abs() < 0.1;
+                Ok((next, next_xyz, converged))
+            },
+        );
+        match found {
+            Ok((estimate, xyz_to_camera, _)) => Some((estimate, xyz_to_camera)),
+            Err(()) => None,
         }
-        Some((estimate, xyz_to_camera))
     }
 }
 

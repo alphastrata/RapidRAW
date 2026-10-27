@@ -39,16 +39,19 @@ fn _find_ifd_entry(file_bytes: &[u8], ifd_offset: usize, tag_id: u16) -> Option<
     let entry_count = rd16(ifd_offset)? as usize;
     let capped_count = entry_count.min(512);
 
-    for i in 0..capped_count {
+    let mut found = None;
+    let _ = (0..capped_count).try_for_each(|i| {
         let entry_offset = ifd_offset + 2 + i * 12;
-        let tag = rd16(entry_offset)?;
-
-        if tag == tag_id {
-            return rd32(entry_offset + 8);
+        match rd16(entry_offset)? {
+            tag if tag == tag_id => {
+                found = rd32(entry_offset + 8);
+                None
+            }
+            _ => Some(()),
         }
-    }
+    });
 
-    None
+    found
 }
 
 #[must_use]
@@ -56,11 +59,11 @@ pub fn neutralize_wb_if_multiexposure(wb_coeffs: [f32; 4], file_bytes: &[u8]) ->
     if is_incamera_multiexposure_canon(file_bytes) {
         log::info!("[raw_hdr_wb] multi-exposure CR2 detected, neutralizing WB");
         let mut neutralized = wb_coeffs;
-        for exp in &mut neutralized {
+        neutralized.iter_mut().for_each(|exp| {
             if exp.is_finite() {
                 *exp = 1.0;
             }
-        }
+        });
         neutralized
     } else {
         wb_coeffs

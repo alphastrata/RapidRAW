@@ -58,20 +58,18 @@ mod imp {
 
         let mut plain: Option<Retained<NSString>> = None;
         let mut dng: Option<Retained<NSString>> = None;
-        let mut all = Vec::new();
+        let all: Vec<String> = versions.iter().map(|v| v.to_string()).collect();
 
-        for version in versions.iter() {
+        versions.iter().for_each(|version| {
             let s = version.to_string();
-            all.push(s.clone());
-            if !s.starts_with('9') {
-                continue;
+            if s.starts_with('9') {
+                if s.to_ascii_lowercase().contains("dng") {
+                    dng = Some(version);
+                } else {
+                    plain = Some(version);
+                }
             }
-            if s.to_ascii_lowercase().contains("dng") {
-                dng = Some(version);
-            } else {
-                plain = Some(version);
-            }
-        }
+        });
 
         log::info!("CIRAWFilter supported decoder versions: {:?}", all);
 
@@ -144,18 +142,18 @@ mod imp {
 
             if FLIP_ROWS {
                 let row = width * 4;
-                for y in 0..height / 2 {
+                (0..height / 2).for_each(|y| {
                     let (top, bottom) = buf.split_at_mut((height - 1 - y) * row);
                     top[y * row..(y + 1) * row].swap_with_slice(&mut bottom[..row]);
-                }
+                });
             }
 
-            for px in buf.chunks_exact_mut(4) {
+            buf.chunks_exact_mut(4).for_each(|px| {
                 px[0] = (px[0] * RAW9_EXPOSURE_GAIN).clamp(0.0, MAX_LINEAR_VALUE);
                 px[1] = (px[1] * RAW9_EXPOSURE_GAIN).clamp(0.0, MAX_LINEAR_VALUE);
                 px[2] = (px[2] * RAW9_EXPOSURE_GAIN).clamp(0.0, MAX_LINEAR_VALUE);
                 px[3] = 1.0;
-            }
+            });
 
             let buffer = ImageBuffer::<Rgba<f32>, _>::from_raw(width as u32, height as u32, buf)
                 .ok_or_else(|| anyhow!("RAW 9 buffer size mismatch"))?;

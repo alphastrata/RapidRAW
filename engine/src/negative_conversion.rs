@@ -73,8 +73,10 @@ struct ChannelBounds {
 }
 
 fn analyze_bounds(log_data: &[f32], width: usize, height: usize) -> [ChannelBounds; 3] {
-    let margin_x = (width as f32 * 0.12) as usize;
-    let margin_y = (height as f32 * 0.12) as usize;
+    let wf = width as f32;
+    let hf = height as f32;
+    let margin_x = (wf * 0.12) as usize;
+    let margin_y = (hf * 0.12) as usize;
 
     let est_pixels = (width.saturating_sub(margin_x * 2)) * (height.saturating_sub(margin_y * 2));
     let step = (est_pixels / 40_000).max(1);
@@ -168,7 +170,7 @@ fn convert(input: DynamicImage, params: &NegativeConversionParams) -> DynamicIma
     let weights = [params.red_weight, params.green_weight, params.blue_weight];
 
     rgb.par_chunks_mut(PIXEL_CHUNK).for_each(|chunk| {
-        for px in chunk.as_chunks_mut::<3>().0 {
+        chunk.as_chunks_mut::<3>().0.iter_mut().for_each(|px| {
             let [mut r, mut g, mut b] = [0, 1, 2].map(|c| {
                 let n = (density(px[c]) - bounds[c].min) / (bounds[c].max - bounds[c].min);
                 apply_curve(n.max(0.0) * weights[c])
@@ -189,7 +191,7 @@ fn convert(input: DynamicImage, params: &NegativeConversionParams) -> DynamicIma
             px[0] = r.clamp(0.0, 1.0).powf(gamma_inv);
             px[1] = g.clamp(0.0, 1.0).powf(gamma_inv);
             px[2] = b.clamp(0.0, 1.0).powf(gamma_inv);
-        }
+        });
     });
 
     DynamicImage::ImageRgb32F(rgb)
