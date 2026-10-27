@@ -17,7 +17,6 @@ use crate::{AppState, exif_processing};
 use engine::paths::parse_virtual_path;
 
 pub use engine::tagging::{COLOR_TAG_PREFIX, USER_TAG_PREFIX, generate_tags_with_clip};
-use engine::tagging::generate_tags_with_clip;
 
 fn needs_ai_tags(path: &Path) -> bool {
     let (_, sidecar_path) = parse_virtual_path(&path.to_string_lossy());

@@ -217,9 +217,7 @@ pub fn generate_tags_with_clip(
     let mut clip_session = clip_session_mutex
         .lock()
         .map_err(|e| anyhow::anyhow!(e.to_string()))?;
-    let outputs = gpu_inference(
-        clip_session.run(ort::inputs![ids_val, image_val, mask_val]),
-    )?;
+    let outputs = gpu_inference(clip_session.run(ort::inputs![ids_val, image_val, mask_val]))?;
 
     let logits = outputs[0]
         .try_extract_array::<f32>()?
