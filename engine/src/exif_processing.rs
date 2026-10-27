@@ -1,3 +1,4 @@
+use crate::best_effort::best_effort;
 use std::borrow::Cow;
 use std::collections::hash_map::DefaultHasher;
 use std::collections::{HashMap, HashSet};
@@ -69,7 +70,7 @@ fn get_exif_cache() -> &'static Mutex<ExifCacheState> {
 
 pub fn initialize_cache_dir(cache_dir: PathBuf) {
     let dir = cache_dir.join("exif");
-    let _ = std::fs::create_dir_all(&dir);
+    best_effort(std::fs::create_dir_all(&dir));
     if let Ok(mut state) = get_exif_cache().lock() {
         state.cache_dir = Some(dir);
     }
@@ -95,7 +96,7 @@ pub fn flush_all_dirty_caches() {
 
     for (path, map) in to_write {
         if let Ok(json) = serde_json::to_string(&map) {
-            let _ = crate::paths::write_file_atomic(&path, json.as_bytes());
+            best_effort(crate::paths::write_file_atomic(&path, json.as_bytes()));
         }
     }
     drop(state);
@@ -2112,7 +2113,7 @@ pub fn read_rrexif_sidecar(image_path: &Path) -> Option<HashMap<String, String>>
         && let Ok(map) = serde_json::from_str::<HashMap<String, String>>(&content)
     {
         save_exif_to_rrcache(image_path, map.clone());
-        let _ = fs::remove_file(&legacy);
+        best_effort(fs::remove_file(&legacy));
         return Some(map);
     }
 
@@ -2161,9 +2162,9 @@ pub fn read_exif_data(path: &str, file_bytes: &[u8]) -> HashMap<String, String> 
     if !exif_map.is_empty() {
         let primary = get_primary_sidecar_path(source_path);
         if primary.exists() {
-            let _ = update_primary_metadata(source_path, |metadata| {
+            best_effort(update_primary_metadata(source_path, |metadata| {
                 metadata.exif = Some(exif_map.clone());
-            });
+            }));
         } else {
             save_exif_to_rrcache(source_path, exif_map.clone());
         }
@@ -2185,9 +2186,9 @@ pub fn persist_exif_if_missing(source_path: &Path, source_path_str: &str, file_b
     let primary = get_primary_sidecar_path(source_path);
 
     if primary.exists() {
-        let _ = update_primary_metadata(source_path, |metadata| {
+        best_effort(update_primary_metadata(source_path, |metadata| {
             metadata.exif.get_or_insert(exif_map);
-        });
+        }));
     } else {
         save_exif_to_rrcache(source_path, exif_map);
     }

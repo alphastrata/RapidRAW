@@ -2,6 +2,7 @@ pub mod formats;
 pub mod immich;
 pub mod paths;
 pub mod settings;
+pub mod best_effort;
 pub mod bm3d;
 pub mod highlight_reconstruction;
 pub mod multi_exposure;

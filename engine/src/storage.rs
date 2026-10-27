@@ -1,4 +1,5 @@
 use serde::Serialize;
+use crate::best_effort::best_effort;
 use std::collections::HashMap;
 
 use std::path::{Path, PathBuf};
@@ -63,7 +64,7 @@ pub fn mark_used(path: &Path) {
         .and_then(|modified| modified.elapsed().ok())
         .is_some_and(|age| age > mark_used_interval());
     if stale {
-        let _ = filetime::set_file_mtime(path, filetime::FileTime::now());
+        best_effort(filetime::set_file_mtime(path, filetime::FileTime::now()));
     }
 }
 
@@ -189,7 +190,7 @@ fn prune_thumbnails(dir: &Path, limit_bytes: u64) -> u64 {
             break;
         }
         for file in &entry.files {
-            let _ = fs::remove_file(file);
+            best_effort(fs::remove_file(file));
         }
         total = total.saturating_sub(entry.size);
     }

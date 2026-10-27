@@ -1,3 +1,4 @@
+use crate::best_effort::best_effort;
 use std::collections::HashMap;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
@@ -268,9 +269,9 @@ pub fn get_or_init_gpu_context(
     let flag_path = state.gpu_crash_flag_path.lock().unwrap().clone();
     if let Some(p) = &flag_path {
         if let Some(parent) = p.parent() {
-            let _ = std::fs::create_dir_all(parent);
+            best_effort(std::fs::create_dir_all(parent));
         }
-        let _ = std::fs::write(p, "initializing_gpu");
+        best_effort(std::fs::write(p, "initializing_gpu"));
     }
 
     let instance = wgpu::Instance::new(instance_desc);
@@ -287,7 +288,7 @@ pub fn get_or_init_gpu_context(
     }))
     .map_err(|e| {
         if let Some(p) = &flag_path {
-            let _ = std::fs::remove_file(p);
+            best_effort(std::fs::remove_file(p));
         }
         format!("Failed to find a wgpu adapter: {e}")
     })?;
@@ -322,7 +323,7 @@ pub fn get_or_init_gpu_context(
     }))
     .map_err(|e| {
         if let Some(p) = &flag_path {
-            let _ = std::fs::remove_file(p);
+            best_effort(std::fs::remove_file(p));
         }
         e.to_string()
     })?;
@@ -338,7 +339,7 @@ pub fn get_or_init_gpu_context(
     });
 
     if let Some(p) = &flag_path {
-        let _ = std::fs::remove_file(p);
+        best_effort(std::fs::remove_file(p));
     }
 
     let display_opt = if let Some(surface) = surface_opt {
@@ -570,7 +571,7 @@ fn read_texture_data_roi(
     let buffer_slice = output_buffer.slice(..);
     let (tx, rx) = std::sync::mpsc::channel();
     buffer_slice.map_async(wgpu::MapMode::Read, move |result| {
-        let _ = tx.send(result);
+        best_effort(tx.send(result));
     });
     device
         .poll(wgpu::PollType::Wait {
@@ -823,7 +824,7 @@ fn complete_analytics_readback(readback: AnalyticsReadback) {
         .buffer
         .slice(..)
         .map_async(wgpu::MapMode::Read, move |result| {
-            let _ = tx.send(result);
+            best_effort(tx.send(result));
         });
 
     if let Err(e) = readback.device.poll(wgpu::PollType::Wait {
@@ -836,7 +837,7 @@ fn complete_analytics_readback(readback: AnalyticsReadback) {
 
     if let Ok(Ok(())) = rx.recv() {
         let analytics = readback.analytics;
-        let _ = analytics.sender.send(crate::app_state::AnalyticsJob {
+        best_effort(analytics.sender.send(crate::app_state::AnalyticsJob {
             path: analytics.path,
             frame: AnalyticsFrame {
                 data: AnalyticsPixels::Mapped(PooledReadback {
@@ -850,7 +851,7 @@ fn complete_analytics_readback(readback: AnalyticsReadback) {
             },
             compute_waveform: analytics.compute_waveform,
             active_waveform_channel: analytics.active_waveform_channel,
-        });
+        }));
     }
 }
 
@@ -2950,10 +2951,10 @@ fn process_and_get_dynamic_image_inner(
         let old_processor = processor_lock.take();
         drop(old_processor);
 
-        let _ = context.device.poll(wgpu::PollType::Wait {
+        best_effort(context.device.poll(wgpu::PollType::Wait {
             submission_index: None,
             timeout: Some(std::time::Duration::from_millis(500)),
-        });
+        }));
 
         let new_processor = GpuProcessor::new(context.clone(), new_width, new_height)?;
 
@@ -3125,7 +3126,7 @@ fn process_and_get_dynamic_image_inner(
 
     if let Some(analytics) = analytics_config {
         if let (Some(output_buffer), Some(submission)) = (async_readback_buffer, final_submission) {
-            let _ = analytics_readback_sender().send(AnalyticsReadback {
+            best_effort(analytics_readback_sender().send(AnalyticsReadback {
                 device: Arc::clone(&context.device),
                 buffer: output_buffer,
                 pool: Arc::clone(&processor.readback_pool),
@@ -3134,9 +3135,9 @@ fn process_and_get_dynamic_image_inner(
                 width: out_w,
                 height: out_h,
                 row_stride: async_padded_bpr as usize,
-            });
+            }));
         } else if let RenderedPixels::U8(pixels) = &processed_pixels {
-            let _ = analytics.sender.send(crate::app_state::AnalyticsJob {
+            best_effort(analytics.sender.send(crate::app_state::AnalyticsJob {
                 path: analytics.path,
                 frame: AnalyticsFrame {
                     data: AnalyticsPixels::Owned(pixels.clone()),
@@ -3146,7 +3147,7 @@ fn process_and_get_dynamic_image_inner(
                 },
                 compute_waveform: analytics.compute_waveform,
                 active_waveform_channel: analytics.active_waveform_channel,
-            });
+            }));
         } else {
             log::warn!("Skipping analytics for a high-precision CPU readback");
         }

@@ -12,6 +12,9 @@ use std::fs;
 use std::path::PathBuf;
 #[cfg(target_os = "android")]
 static INIT_NDK_CONTEXT: std::sync::Once = std::sync::Once::new();
+
+use crate::best_effort::best_effort;
+
 #[cfg(target_os = "android")]
 static INIT_RUSTLS_PLATFORM_VERIFIER: std::sync::Once = std::sync::Once::new();
 
@@ -33,8 +36,8 @@ pub fn is_android_content_uri(path: &str) -> bool {
 #[cfg(target_os = "android")]
 pub fn clear_pending_android_exception(env: &mut JNIEnv<'_>) {
     if env.exception_check().unwrap_or(false) {
-        let _ = env.exception_describe();
-        let _ = env.exception_clear();
+        best_effort(env.exception_describe());
+        best_effort(env.exception_clear());
     }
 }
 

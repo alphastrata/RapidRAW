@@ -1,3 +1,4 @@
+use crate::best_effort::best_effort;
 use std::collections::HashSet;
 use std::fs;
 use std::io::{Read, Write};
@@ -611,12 +612,12 @@ fn build_session(
     {
         match create_session(model_path, kind, Some(gpu_provider), gpu_patch) {
             Ok(session) => {
-                let _ = GPU_STATUS.compare_exchange(
+                best_effort(GPU_STATUS.compare_exchange(
                     GPU_IDLE,
                     GPU_ACTIVE,
                     Ordering::AcqRel,
                     Ordering::Acquire,
-                );
+                ));
                 return Ok(session);
             }
             Err(e) => log::warn!(

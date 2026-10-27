@@ -2,6 +2,7 @@ use base64::{Engine as _, engine::general_purpose};
 use image::{DynamicImage, ImageFormat, Rgb32FImage};
 use nalgebra::{DMatrix, DVector};
 use rayon::prelude::*;
+use crate::best_effort::best_effort;
 use std::fs;
 use std::io::{Cursor, Read, Write};
 use std::path::PathBuf;
@@ -131,7 +132,7 @@ impl Plane {
                 *out_val = 0.5 * (b - a);
             }
         });
-        let _ = h;
+        drop(h);
         (gx, gy)
     }
 }
@@ -1972,7 +1973,7 @@ impl FrameSource for DiskSource {
 
 impl Drop for DiskSource {
     fn drop(&mut self) {
-        let _ = fs::remove_dir_all(&self.dir);
+        best_effort(fs::remove_dir_all(&self.dir));
     }
 }
 

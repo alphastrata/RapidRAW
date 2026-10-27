@@ -5,6 +5,7 @@ use crate::image_processing::{
 use base64::{Engine as _, engine::general_purpose::STANDARD as BASE64};
 use image::{DynamicImage, GrayImage, Luma, Rgb, Rgb32FImage, Rgba, RgbaImage};
 use rayon::prelude::*;
+use crate::best_effort::best_effort;
 use std::collections::hash_map::DefaultHasher;
 use std::fs;
 use std::hash::{Hash, Hasher};
@@ -53,7 +54,7 @@ impl EffectMapKind {
 
 pub fn initialize_cache_dir(cache_dir: PathBuf) {
     let dir = cache_dir.join("ai_maps");
-    let _ = fs::create_dir_all(&dir);
+    best_effort(fs::create_dir_all(&dir));
     *MAP_CACHE_DIR.lock().unwrap_or_else(std::sync::PoisonError::into_inner) = Some(dir);
 }
 
