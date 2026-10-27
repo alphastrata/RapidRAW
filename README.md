@@ -785,17 +785,17 @@ git clone https://github.com/CyberTimon/RapidRAW.git
 cd RapidRAW
 
 # 2. Install frontend dependencies
-npm install
+bun install
 
 # 3. Build and run the application
-npm start
+bun run start
 ```
 
 To build the release build:
 
 ```bash
 # 1. Make the release build
-npm run tauri build
+bun run tauri build
 
 # 2. Run the release build
 ./src-tauri/target/release/RapidRAW
@@ -818,11 +818,11 @@ Then run or build using the `tethering` feature flag:
 
 ```bash
 # Development mode with Tethering
-npm run start:tethering
-# or: npm start -- -- --features tethering
+bun run start:tethering
+# or: bun run start -- -- --features tethering
 
 # Release build with Tethering
-npm run tauri build -- --features tethering
+bun run tauri build -- --features tethering
 ```
 
 </details>
