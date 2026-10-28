@@ -63,9 +63,9 @@ default := "check"
 @bench-engine:
     cargo bench -p engine
 
-# rules qa gate (engine + simd must be problem-free)
+# rules qa gate (libraries must be problem-free; the app shell is exempt)
 @rules:
-    rules -q
+    rules --bacon engine simd_optimised
 
 # format rust + check frontend types
 @fmt:
