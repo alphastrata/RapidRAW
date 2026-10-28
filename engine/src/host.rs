@@ -19,8 +19,6 @@ pub trait Host: Send + Sync {
     fn resource_dir(&self) -> PathBuf;
     fn models_dir(&self) -> PathBuf;
     fn app_state(&self) -> Arc<AppState>;
-    fn add_to_thumbnail_queue(&self, state: &AppState, count: usize);
-    fn regenerate_thumbnails(&self, paths: Vec<String>, force: bool);
     fn on_exit(&self);
 }
 
@@ -53,7 +51,5 @@ impl Host for SilentHost {
     fn app_state(&self) -> Arc<AppState> {
         Arc::new(AppState::new())
     }
-    fn add_to_thumbnail_queue(&self, _: &AppState, _: usize) {}
-    fn regenerate_thumbnails(&self, _: Vec<String>, _: bool) {}
     fn on_exit(&self) {}
 }

@@ -276,20 +276,6 @@ pub fn calculate_effects_hash(adjustments: &serde_json::Value) -> u64 {
 }
 
 #[must_use]
-pub fn calculate_thumbnail_base_hash(adjustments: &serde_json::Value) -> u64 {
-    let mut hasher = DefaultHasher::new();
-
-    calculate_patched_warped_hash(adjustments).hash(&mut hasher);
-
-    adjustments["orientationSteps"]
-        .as_u64()
-        .unwrap_or(0)
-        .hash(&mut hasher);
-
-    hasher.finish()
-}
-
-#[must_use]
 pub fn calculate_transform_hash(adjustments: &serde_json::Value) -> u64 {
     let mut hasher = DefaultHasher::new();
 

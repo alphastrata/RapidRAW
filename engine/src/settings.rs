@@ -3,70 +3,6 @@ use std::collections::{BTreeMap, HashMap, HashSet};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
-#[serde(rename_all = "camelCase")]
-pub struct SortCriteria {
-    pub key: String,
-    pub order: String,
-}
-
-#[derive(Serialize, Deserialize, Debug, Clone)]
-#[serde(rename_all = "camelCase")]
-pub struct FilterCriteria {
-    pub rating: i8,
-    pub raw_status: String,
-    #[serde(default)]
-    pub edited_status: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub flag_status: Option<String>,
-    #[serde(default)]
-    pub colors: Vec<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub rating_operator: Option<String>,
-}
-
-impl Default for FilterCriteria {
-    fn default() -> Self {
-        Self {
-            rating: 0,
-            raw_status: "all".to_string(),
-            edited_status: Some("all".to_string()),
-            flag_status: None,
-            colors: Vec::new(),
-            rating_operator: None,
-        }
-    }
-}
-
-#[derive(Serialize, Deserialize, Debug, Clone)]
-#[serde(rename_all = "camelCase")]
-pub struct FolderTreeSort {
-    pub key: String,
-    pub order: String,
-}
-
-impl Default for FolderTreeSort {
-    fn default() -> Self {
-        Self {
-            key: "name".to_string(),
-            order: "asc".to_string(),
-        }
-    }
-}
-
-#[derive(Serialize, Deserialize, Debug, Clone)]
-#[serde(rename_all = "camelCase")]
-pub struct LastFolderState {
-    #[serde(default)]
-    pub current_folder_path: Option<String>,
-    #[serde(default)]
-    pub expanded_folders: Vec<String>,
-    #[serde(default)]
-    pub active_album_id: Option<String>,
-    #[serde(default)]
-    pub expanded_album_groups: Vec<String>,
-}
-
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 pub struct MyLens {
     pub maker: String,
@@ -424,11 +360,7 @@ pub struct WorkspaceState {
 impl Default for WorkspaceState {
     fn default() -> Self {
         let mut panel_layout = HashMap::new();
-        let left_top = vec![
-            "metadata".to_string(),
-            "folderTree".to_string(),
-            "export".to_string(),
-        ];
+        let left_top = vec!["export".to_string()];
 
         panel_layout.insert("leftTop".to_string(), left_top);
         panel_layout.insert("leftBottom".to_string(), vec![]);
@@ -446,7 +378,7 @@ impl Default for WorkspaceState {
         panel_layout.insert("rightBottom".to_string(), vec![]);
 
         let mut active_panels = HashMap::new();
-        active_panels.insert("leftTop".to_string(), Some("folderTree".to_string()));
+        active_panels.insert("leftTop".to_string(), Some("export".to_string()));
         active_panels.insert("leftBottom".to_string(), None);
         active_panels.insert("rightTop".to_string(), Some("adjustments".to_string()));
         active_panels.insert("rightBottom".to_string(), None);
@@ -499,44 +431,10 @@ pub fn default_ai_maps_cache_limit_gb() -> u32 {
     4
 }
 
-#[must_use]
-pub fn default_thumbnail_cache_limit_gb() -> u32 {
-    10
-}
-
-#[must_use]
-pub fn default_tagging_shortcuts_option() -> Option<Vec<String>> {
-    Some(vec![
-        "portrait".to_string(),
-        "landscape".to_string(),
-        "architecture".to_string(),
-        "travel".to_string(),
-        "street".to_string(),
-        "family".to_string(),
-        "nature".to_string(),
-        "food".to_string(),
-        "event".to_string(),
-    ])
-}
-
-#[must_use]
-pub fn default_open_tree_sections() -> Vec<String> {
-    vec!["current".to_string()]
-}
-
 #[derive(Serialize, Deserialize, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct AppSettings {
-    pub last_root_path: Option<String>,
-    #[serde(default)]
-    pub root_folders: Vec<String>,
-    #[serde(default)]
-    pub pinned_folders: Vec<String>,
     pub editor_preview_resolution: Option<u32>,
-    #[serde(default)]
-    pub small_thumbnail_resolution: Option<u32>,
-    #[serde(default)]
-    pub medium_thumbnail_resolution: Option<u32>,
     #[serde(default)]
     pub enable_zoom_hifi: Option<bool>,
     #[serde(default)]
@@ -547,31 +445,16 @@ pub struct AppSettings {
     pub enable_live_previews: Option<bool>,
     #[serde(default)]
     pub live_preview_quality: Option<String>,
-    pub sort_criteria: Option<SortCriteria>,
-    pub filter_criteria: Option<FilterCriteria>,
     pub theme: Option<String>,
     #[serde(default)]
     pub font_family: Option<String>,
     pub decorations: Option<bool>,
     #[serde(alias = "comfyuiAddress")]
     pub ai_connector_address: Option<String>,
-    pub last_folder_state: Option<LastFolderState>,
     pub ui_visibility: Option<Value>,
-    pub enable_ai_tagging: Option<bool>,
-    pub tagging_thread_count: Option<u32>,
-    #[serde(default = "default_tagging_shortcuts_option")]
-    pub tagging_shortcuts: Option<Vec<String>>,
-    #[serde(default)]
-    pub custom_ai_tags: Option<Vec<String>>,
-    #[serde(default)]
-    pub ai_tag_count: Option<u32>,
-    pub thumbnail_size: Option<String>,
-    pub thumbnail_aspect_ratio: Option<String>,
     pub ai_provider: Option<String>,
     #[serde(default = "default_ai_gpu_acceleration")]
     pub ai_gpu_acceleration: bool,
-    #[serde(default = "default_open_tree_sections")]
-    pub open_tree_sections: Vec<String>,
     #[serde(default)]
     pub copy_paste_settings: CopyPasteSettings,
     #[serde(default)]
@@ -582,16 +465,10 @@ pub struct AppSettings {
     pub linux_gpu_optimization: Option<bool>,
     #[serde(default)]
     pub linux_gpu_optimization_migrated_v1: Option<bool>,
-    #[serde(default)]
-    pub library_view_mode: Option<String>,
     #[serde(default = "default_export_presets")]
     pub export_presets: Vec<ExportPreset>,
     #[serde(default)]
     pub my_lenses: Option<Vec<MyLens>>,
-    #[serde(default)]
-    pub enable_folder_image_counts: Option<bool>,
-    #[serde(default)]
-    pub display_edit_icon: Option<bool>,
     #[serde(default = "default_linear_raw_mode")]
     pub linear_raw_mode: String,
     #[serde(default)]
@@ -621,13 +498,9 @@ pub struct AppSettings {
     #[serde(default)]
     pub keybinds: HashMap<String, Vec<String>>,
     #[serde(default)]
-    pub thumbnail_worker_threads: Option<u32>,
-    #[serde(default)]
     pub image_cache_size: Option<u32>,
     #[serde(default)]
     pub ai_cache_limit_gb: Option<u32>,
-    #[serde(default)]
-    pub thumbnail_cache_limit_gb: Option<u32>,
     #[serde(default)]
     pub ai_maps_cache_limit_gb: Option<u32>,
     #[serde(default)]
@@ -651,8 +524,6 @@ pub struct AppSettings {
     #[serde(default)]
     pub enable_tool_focus_mode: Option<bool>,
     #[serde(default)]
-    pub folder_icons: Option<HashMap<String, String>>,
-    #[serde(default)]
     pub raw_preprocessing_color_nr: Option<f32>,
     #[serde(default)]
     pub raw_preprocessing_sharpening: Option<f32>,
@@ -665,22 +536,6 @@ pub struct AppSettings {
     #[serde(default)]
     pub language: Option<String>,
     #[serde(default)]
-    pub folder_tree_sort: Option<FolderTreeSort>,
-    #[serde(default)]
-    pub library_display_mode: Option<String>,
-    #[serde(default)]
-    pub grouping: Option<String>,
-    #[serde(default)]
-    pub require_matching_exif: Option<bool>,
-    #[serde(default)]
-    pub group_edited_files: Option<bool>,
-    #[serde(default, skip_serializing)] // legacy
-    pub group_associated_files: Option<bool>,
-    #[serde(default, skip_serializing)] // legacy
-    pub group_preferred_type: Option<String>,
-    #[serde(default)]
-    pub always_decode_raw_thumbnails: Option<bool>,
-    #[serde(default)]
     pub custom_aspect_ratios: Vec<CustomAspectRatio>,
     #[serde(default)]
     pub adjustment_layout: AdjustmentLayout,
@@ -691,45 +546,26 @@ pub struct AppSettings {
 impl Default for AppSettings {
     fn default() -> Self {
         Self {
-            last_root_path: None,
-            root_folders: Vec::new(),
-            pinned_folders: Vec::new(),
-            small_thumbnail_resolution: Some(480),
-            medium_thumbnail_resolution: Some(1280),
             editor_preview_resolution: Some(1920),
             enable_zoom_hifi: Some(true),
             use_full_dpi_rendering: Some(false),
             enable_live_previews: Some(true),
             live_preview_quality: Some("high".to_string()),
-            sort_criteria: None,
-            filter_criteria: None,
             theme: Some("dark".to_string()),
             font_family: None,
             decorations: Some(false),
             ai_connector_address: None,
-            last_folder_state: None,
             ui_visibility: None,
-            enable_ai_tagging: Some(false),
-            tagging_thread_count: Some(3),
-            tagging_shortcuts: default_tagging_shortcuts_option(),
-            custom_ai_tags: Some(Vec::new()),
-            ai_tag_count: Some(10),
-            thumbnail_size: Some("medium".to_string()),
-            thumbnail_aspect_ratio: Some("contain".to_string()),
             ai_provider: Some("cpu".to_string()),
             ai_gpu_acceleration: default_ai_gpu_acceleration(),
-            open_tree_sections: default_open_tree_sections(),
             copy_paste_settings: CopyPasteSettings::default(),
             raw_highlight_compression: Some(2.5),
             processing_backend: Some("auto".to_string()),
             linux_gpu_optimization: Some(false),
             linux_gpu_optimization_migrated_v1: Some(true),
-            library_view_mode: Some("flat".to_string()),
             export_presets: default_export_presets(),
             my_lenses: Some(Vec::new()),
             high_res_zoom_multiplier: Some(1.0),
-            enable_folder_image_counts: Some(false),
-            display_edit_icon: Some(true),
             linear_raw_mode: default_linear_raw_mode(),
             enable_xmp_sync: Some(true),
             create_xmp_if_missing: Some(false),
@@ -747,10 +583,8 @@ impl Default for AppSettings {
             zoom_speed_multiplier: Some(1.0),
             zoom_photo_to_pixel_click: Some(false),
             keybinds: HashMap::new(),
-            thumbnail_worker_threads: Some(4),
             image_cache_size: Some(5),
             ai_cache_limit_gb: Some(default_ai_cache_limit_gb()),
-            thumbnail_cache_limit_gb: Some(default_thumbnail_cache_limit_gb()),
             ai_maps_cache_limit_gb: Some(default_ai_maps_cache_limit_gb()),
             export_worker_threads: None,
             export_memory_limit: None,
@@ -762,21 +596,12 @@ impl Default for AppSettings {
             default_non_raw_tonemapper: Some("basic".to_string()),
             enable_focus_mode: Some(false),
             enable_tool_focus_mode: Some(false),
-            folder_icons: Some(HashMap::new()),
             raw_preprocessing_color_nr: Some(0.5),
             raw_preprocessing_sharpening: Some(0.35),
             apply_preprocessing_to_non_raws: Some(false),
             use_apple_raw9: Some(false),
             exif_overlay: Some("off".to_string()),
             language: Some("en".to_string()),
-            folder_tree_sort: Some(FolderTreeSort::default()),
-            library_display_mode: Some("grid".to_string()),
-            grouping: Some("off".to_string()),
-            require_matching_exif: Some(false),
-            group_edited_files: Some(true),
-            group_associated_files: Some(false),
-            group_preferred_type: Some("raw".to_string()),
-            always_decode_raw_thumbnails: Some(false),
             custom_aspect_ratios: Vec::new(),
             adjustment_layout: AdjustmentLayout::default(),
             workspace: WorkspaceState::default(),

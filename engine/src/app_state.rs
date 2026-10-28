@@ -1,15 +1,14 @@
-use std::collections::{HashMap, HashSet, VecDeque};
+use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 use std::sync::mpsc::Sender;
-use std::sync::{Arc, Condvar, Mutex};
+use std::sync::{Arc, Mutex};
 
 use image::{DynamicImage, GrayImage};
 use serde::{Deserialize, Serialize};
 use sysinfo::Disks;
 use tokio::sync::Mutex as TokioMutex;
 use tokio::sync::Notify;
-use tokio::task::JoinHandle;
 use wgpu::{Texture, TextureView};
 
 use crate::ai_processing::AiState;
@@ -178,19 +177,6 @@ pub struct AnalyticsConfig {
     pub sender: Sender<AnalyticsJob>,
 }
 
-pub struct ThumbnailProgressTracker {
-    pub total: usize,
-    pub completed: usize,
-}
-
-pub struct ThumbnailManager {
-    pub queue: Mutex<VecDeque<String>>,
-    pub cvar: Condvar,
-    pub processing_now: Mutex<HashSet<String>>,
-    pub rotational_disk: AtomicBool,
-    pub io_gate: Mutex<()>,
-}
-
 impl AppState {
     pub fn new() -> Self {
         Self {
@@ -206,22 +192,15 @@ impl AppState {
             active_ai_tasks: Mutex::new(HashMap::new()),
             export_task_token: Arc::new(Mutex::new(None)),
             focus_stack_result: Arc::new(Mutex::new(None)),
-            indexing_task_handle: Mutex::new(None),
             lut_cache: Mutex::new(HashMap::new()),
             initial_file_path: Mutex::new(None),
             pending_edit_session: Mutex::new(None),
-            thumbnail_cancellation_token: Arc::new(AtomicBool::new(false)),
-            thumbnail_progress: Mutex::new(ThumbnailProgressTracker {
-                total: 0,
-                completed: 0,
-            }),
             preview_worker_tx: Mutex::new(None),
             analytics_worker_tx: Mutex::new(None),
             analytics_channel: Mutex::new(None),
             mask_cache: Mutex::new(HashMap::new()),
             patch_cache: Mutex::new(HashMap::new()),
             geometry_cache: Mutex::new(HashMap::new()),
-            thumbnail_geometry_cache: Mutex::new(HashMap::new()),
             lens_db: Mutex::new(None),
             load_image_generation: Arc::new(AtomicUsize::new(0)),
             full_warped_cache: Mutex::new(None),
@@ -234,9 +213,7 @@ impl AppState {
             full_transformed_cache: Mutex::new(None),
             decoded_image_cache: Mutex::new(DecodedImageCache::new(5)),
             decode_flights: Default::default(),
-            thumbnail_manager: ThumbnailManager::new(),
             memory_budget: crate::memory_budget::MemoryBudget::from_total_ram(0.6),
-            metadata_manager: MetadataManager::new(),
             disks_cache: Mutex::new(None),
             disks_cache_refreshing: AtomicBool::new(false),
 
@@ -250,43 +227,6 @@ impl Default for AppState {
     }
 }
 
-impl ThumbnailManager {
-    #[must_use]
-    pub fn new() -> Arc<Self> {
-        Arc::new(Self {
-            queue: Mutex::new(VecDeque::new()),
-            cvar: Condvar::new(),
-            processing_now: Mutex::new(HashSet::new()),
-            rotational_disk: AtomicBool::new(false),
-            io_gate: Mutex::new(()),
-        })
-    }
-}
-
-pub struct PendingMetadata {
-    pub virtual_path: String,
-    pub image_path: PathBuf,
-    pub sidecar_path: PathBuf,
-}
-
-pub struct MetadataManager {
-    pub queue: Mutex<VecDeque<PendingMetadata>>,
-    pub cvar: Condvar,
-    pub pending: Mutex<HashSet<PathBuf>>,
-}
-
-impl MetadataManager {
-    #[must_use]
-    pub fn new() -> Arc<Self> {
-        Arc::new(Self {
-            queue: Mutex::new(VecDeque::new()),
-            cvar: Condvar::new(),
-            pending: Mutex::new(HashSet::new()),
-        })
-    }
-}
-
-pub type ThumbnailGeometryEntry = (u64, Arc<DynamicImage>, f32);
 pub type TransformedImageCache = (u64, Arc<DynamicImage>, f32, (f32, f32));
 pub type TransformedPreview = (Arc<DynamicImage>, f32, (f32, f32));
 
@@ -305,19 +245,15 @@ pub struct AppState {
     pub active_ai_tasks: Mutex<HashMap<String, Arc<AiTaskToken>>>,
     pub export_task_token: Arc<Mutex<Option<Arc<AtomicBool>>>>,
     pub focus_stack_result: Arc<Mutex<Option<DynamicImage>>>,
-    pub indexing_task_handle: Mutex<Option<JoinHandle<()>>>,
     pub lut_cache: Mutex<HashMap<String, Arc<Lut>>>,
     pub initial_file_path: Mutex<Option<String>>,
     pub pending_edit_session: Mutex<Option<ExternalEditSession>>,
-    pub thumbnail_cancellation_token: Arc<AtomicBool>,
-    pub thumbnail_progress: Mutex<ThumbnailProgressTracker>,
     pub preview_worker_tx: Mutex<Option<Sender<PreviewJob>>>,
     pub analytics_worker_tx: Mutex<Option<Sender<AnalyticsJob>>>,
     pub analytics_channel: Mutex<Option<AnalyticsSink>>,
     pub mask_cache: Mutex<HashMap<u64, GrayImage>>,
     pub patch_cache: Mutex<HashMap<String, serde_json::Value>>,
     pub geometry_cache: Mutex<HashMap<u64, DynamicImage>>,
-    pub thumbnail_geometry_cache: Mutex<HashMap<String, ThumbnailGeometryEntry>>,
     pub lens_db: Mutex<Option<Arc<LensDatabase>>>,
     pub load_image_generation: Arc<AtomicUsize>,
     pub wgpu_presented_generation: AtomicUsize,
@@ -330,9 +266,7 @@ pub struct AppState {
     pub full_transformed_cache: Mutex<Option<TransformedImageCache>>,
     pub decoded_image_cache: Mutex<DecodedImageCache>,
     pub decode_flights: DecodeFlights,
-    pub thumbnail_manager: Arc<ThumbnailManager>,
     pub memory_budget: Arc<crate::memory_budget::MemoryBudget>,
-    pub metadata_manager: Arc<MetadataManager>,
     pub disks_cache: Mutex<Option<Disks>>,
     pub disks_cache_refreshing: AtomicBool,
 }

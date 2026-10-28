@@ -86,20 +86,6 @@ impl Host for TauriHost {
         self.app_handle.state::<Arc<AppState>>().inner().clone()
     }
 
-    fn add_to_thumbnail_queue(&self, state: &AppState, count: usize) {
-        crate::file_management::add_to_thumbnail_queue(state, count, &self.app_handle);
-    }
-
-    fn regenerate_thumbnails(&self, paths: Vec<String>, force: bool) {
-        let settings = self.load_settings();
-        crate::file_management::regenerate_thumbnails(
-            paths.into_iter(),
-            &self.app_handle,
-            &settings,
-            force,
-        );
-    }
-
     fn on_exit(&self) {
         crate::register_exit_handler();
     }

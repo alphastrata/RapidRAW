@@ -38,7 +38,6 @@ struct StorageDirs {
 pub async fn get_storage_usage(app_handle: AppHandle) -> Result<StorageUsage, String> {
     let dirs = storage_dirs(&app_handle)?;
     tauri::async_runtime::spawn_blocking(move || StorageUsage {
-        thumbnails: dir_size(&dirs.cache.join("thumbnails")),
         ai_denoise: dir_size(&dirs.cache.join("ai_denoise")),
         ai_maps: dir_size(&dirs.cache.join("ai_maps")),
         metadata: dir_size(&dirs.cache.join("exif")),
