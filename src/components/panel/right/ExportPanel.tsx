@@ -36,12 +36,10 @@ import { formatBytes } from '../../../utils/formatBytes';
 
 interface ExportPanelProps {
   exportState: ExportState;
-  multiSelectedPaths: Array<string>;
   selectedImage: SelectedImage | null;
   setExportState(state: any): void;
   appSettings: AppSettings | null;
   onSettingsChange: (settings: AppSettings) => void;
-  rootPaths: string[];
   isVisible?: boolean;
   onClose?: () => void;
 }
@@ -207,13 +205,11 @@ function WatermarkPreview({
 }
 
 export default function ExportPanel({
-  exportState,
-  multiSelectedPaths,
   selectedImage,
+  exportState,
   setExportState,
   appSettings,
   onSettingsChange,
-  rootPaths,
   isVisible = true,
   onClose,
 }: ExportPanelProps) {
@@ -390,15 +386,10 @@ export default function ExportPanel({
   const isCancelling = status === Status.Cancelling;
   const isLibraryContext = !!onClose;
 
-  const pathsToExport = useMemo(() => {
-    return isLibraryContext
-      ? multiSelectedPaths
-      : multiSelectedPaths.length > 0
-        ? multiSelectedPaths
-        : selectedImage
-          ? [selectedImage.path]
-          : [];
-  }, [isLibraryContext, multiSelectedPaths, selectedImage?.path]);
+  const pathsToExport = useMemo(
+    () => (selectedImage ? [selectedImage.path] : []),
+    [selectedImage?.path],
+  );
 
   const numImages = pathsToExport.length;
 
@@ -664,7 +655,7 @@ export default function ExportPanel({
           paths: pathsToExport,
           outputFolderOrFile: outputFolderOrFile,
           isExplicitFilePath: shouldChooseOutputFile,
-          baseOriginFolders: rootPaths,
+          baseOriginFolders: [],
           exportSettings,
           outputFormat: selectedFormat.extensions[0],
           currentEditPath: selectedImage?.path || null,

@@ -5,35 +5,29 @@ import clsx from 'clsx';
 import { useDraggable, useDroppable, useDndMonitor } from '@dnd-kit/core';
 import {
   SlidersHorizontal,
-  Info,
   Crop,
   Layers,
   Paintbrush,
   FileInput,
-  Folder as FolderIcon,
   type LucideIcon,
 } from 'lucide-react';
 import { Panel, PanelRegion } from '../ui/AppProperties';
 import { SwitcherPlacement, useUIStore } from '../../store/useUIStore';
 
 export const PANEL_ICONS: Record<Panel, LucideIcon> = {
-  [Panel.Metadata]: Info,
   [Panel.Adjustments]: SlidersHorizontal,
   [Panel.Crop]: Crop,
   [Panel.Masks]: Layers,
   [Panel.Ai]: Paintbrush,
   [Panel.Export]: FileInput,
-  [Panel.FolderTree]: FolderIcon,
 };
 
 const PANEL_TITLES: Record<Panel, string> = {
-  [Panel.Metadata]: 'editor.switcher.tooltips.info',
   [Panel.Adjustments]: 'editor.switcher.tooltips.adjust',
   [Panel.Crop]: 'editor.switcher.tooltips.crop',
   [Panel.Masks]: 'editor.switcher.tooltips.masks',
   [Panel.Ai]: 'editor.switcher.tooltips.inpaint',
   [Panel.Export]: 'editor.switcher.tooltips.export',
-  [Panel.FolderTree]: 'library.folders.sourcesTitle',
 };
 
 function PanelTab({ panel, region, side }: { panel: Panel; region: PanelRegion; side: 'left' | 'right' }) {
@@ -244,7 +238,6 @@ export function MobilePanelSwitcher({
   placement?: 'bottom' | 'right';
 }) {
   const MOBILE_PANELS = [
-    Panel.Metadata,
     Panel.Adjustments,
     Panel.Crop,
     Panel.Masks,

@@ -1,145 +1,64 @@
-import { type PointerEvent as ReactPointerEvent, useState, useEffect, useCallback, useRef, useMemo } from 'react';
+import { type PointerEvent as ReactPointerEvent, useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
 import { getCurrentWindow } from '@tauri-apps/api/window';
-import { ToastContainer, toast, Slide } from 'react-toastify';
+import { ToastContainer, Slide } from 'react-toastify';
 import {
   DndContext,
   DragOverlay,
   PointerSensor,
   useSensor,
   useSensors,
-  Modifier,
   MeasuringStrategy,
   pointerWithin,
 } from '@dnd-kit/core';
 import clsx from 'clsx';
 
 import TitleBar from './window/TitleBar';
-import FolderTree from './components/panel/right/FolderTree';
 import SettingsPanel from './components/panel/SettingsPanel';
-import ExportPanel from './components/panel/right/ExportPanel';
 import GlobalTooltip from './components/ui/GlobalTooltip';
 import AppModals from './components/modals/AppModals';
 
 import SidePanelArea from './components/panel/SidePanelArea';
 import { PANEL_ICONS } from './components/panel/PanelSwitcher';
 import Controls from './components/panel/right/ControlsPanel';
-import MetadataPanel from './components/panel/right/MetadataPanel';
 import CropPanel from './components/panel/right/CropPanel';
 import MasksPanel from './components/panel/right/MasksPanel';
 import AIPanel from './components/panel/right/AIPanel';
 
-
 import EditorView from './components/views/EditorView';
-import LibraryView from './components/views/LibraryView';
+import ExportPanel from './components/panel/right/ExportPanel';
+import ExternalEditBar from './components/ui/ExternalEditBar';
 
 import { ContextMenuProvider } from './context/ContextMenuContext';
 import { useSettingsStore } from './store/useSettingsStore';
-import { DEFAULT_BOTTOM_PANEL_HEIGHT, DEFAULT_PANEL_WIDTH, useUIStore } from './store/useUIStore';
-import { useLibraryStore } from './store/useLibraryStore';
+import { DEFAULT_PANEL_WIDTH, useUIStore } from './store/useUIStore';
 import { useEditorStore } from './store/useEditorStore';
-import { JobKind, useProcessStore } from './store/useProcessStore';
+import { useProcessStore } from './store/useProcessStore';
 import { useShallow } from 'zustand/react/shallow';
 
-import { useThumbnails } from './hooks/useThumbnails';
 import { ImageDimensions } from './hooks/useImageRenderSize';
 import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts';
 import { useTauriListeners } from './hooks/useTauriListeners';
-import { transferFiles, useFileOperations } from './hooks/useFileOperations';
 import { useAppContextMenus } from './hooks/useAppContextMenus';
-import { useSortedLibrary } from './hooks/useSortedLibrary';
 import { useAppNavigation } from './hooks/useAppNavigation';
 import { useExternalEditSession } from './hooks/useExternalEditSession';
-import ExternalEditBar from './components/ui/ExternalEditBar';
-import { Status } from './components/ui/ExportImportProperties';
 
 import { useEditorActions } from './hooks/useEditorActions';
-import { useLibraryActions } from './hooks/useLibraryActions';
 import { useProductivityActions } from './hooks/useProductivityActions';
 
 import { useAppInitialization } from './hooks/useAppInitialization';
 import './i18n';
 
-import {
-  Invokes,
-  ImageFile,
-  LibraryViewMode,
-  Panel,
-  PanelRegion,
-  Theme,
-  ThumbnailSize,
-  ThumbnailAspectRatio,
-} from './components/ui/AppProperties';
+import { Invokes, Panel, PanelRegion, Theme } from './components/ui/AppProperties';
+import { Status } from './components/ui/ExportImportProperties';
 
 import ImageProcessingManager from './components/managers/ImageProcessingManager';
 import ImageLoaderManager from './components/managers/ImageLoaderManager';
 
 const DND_MEASURING = { droppable: { strategy: MeasuringStrategy.Always } };
 
-const insertChildrenIntoTree = (node: any, targetPath: string, newChildren: any[]): any => {
-  if (!node) return null;
-
-  if (node.path === targetPath) {
-    const mergedChildren = newChildren.map((newChild: any) => {
-      const existingChild = node.children?.find((c: any) => c.path === newChild.path);
-      if (existingChild && existingChild.children && existingChild.children.length > 0) {
-        return { ...newChild, children: existingChild.children };
-      }
-      return newChild;
-    });
-    return { ...node, children: mergedChildren };
-  }
-
-  if (node.children && node.children.length > 0) {
-    return {
-      ...node,
-      children: node.children.map((child: any) => insertChildrenIntoTree(child, targetPath, newChildren)),
-    };
-  }
-
-  return node;
-};
-
-const imageDragModifier: Modifier = ({ active, activatorEvent, activeNodeRect, transform }) => {
-  if (active?.data?.current?.type === 'library-image' && activatorEvent && activeNodeRect) {
-    const event = activatorEvent as any;
-    const startX = event.clientX ?? event.touches?.[0]?.clientX ?? 0;
-    const startY = event.clientY ?? event.touches?.[0]?.clientY ?? 0;
-
-    if (startX === 0 && startY === 0) return transform;
-
-    const offsetX = startX - activeNodeRect.left - 48;
-    const offsetY = startY - activeNodeRect.top - 48;
-
-    return {
-      ...transform,
-      x: transform.x + offsetX,
-      y: transform.y + offsetY,
-    };
-  }
-  return transform;
-};
-
-function ImageDragOverlayNode({ activeItem }: { activeItem: { path: string; paths: string[] } }) {
-  const url = useProcessStore.getState().thumbnails[activeItem.path];
-  const count = activeItem.paths.length;
-
-  return (
-    <div className="w-24 h-24 rounded-lg shadow-2xl border-2 border-accent relative bg-surface overflow-hidden flex items-center justify-center">
-      {url && <img src={url} className="w-full h-full object-cover" />}
-      {count > 1 && (
-        <div className="absolute top-1 right-1 bg-accent text-button-text text-xs font-bold px-2 py-0.5 rounded-full shadow-md z-10">
-          {count}
-        </div>
-      )}
-    </div>
-  );
-}
-
 function App() {
-  const [activeImageDragItem, setActiveImageDragItem] = useState<{ path: string; paths: string[] } | null>(null);
-
   const { appSettings, theme, osPlatform, handleSettingsChange } = useSettingsStore(
     useShallow((state) => ({
       appSettings: state.appSettings,
@@ -150,11 +69,9 @@ function App() {
   );
 
   const {
-    activeView,
     isFullScreen,
     isWindowFullScreen,
     isInstantTransition,
-    isLayoutReady,
     uiVisibility,
     leftPanelWidth,
     rightPanelWidth,
@@ -168,11 +85,9 @@ function App() {
     movePanel,
   } = useUIStore(
     useShallow((state) => ({
-      activeView: state.activeView,
       isFullScreen: state.isFullScreen,
       isWindowFullScreen: state.isWindowFullScreen,
       isInstantTransition: state.isInstantTransition,
-      isLayoutReady: state.isLayoutReady,
       uiVisibility: state.uiVisibility,
       leftPanelWidth: state.leftPanelWidth,
       rightPanelWidth: state.rightPanelWidth,
@@ -187,13 +102,10 @@ function App() {
     })),
   );
 
-  const { rootPaths, currentFolderPath, expandedFolders, multiSelectedPaths, setLibrary } = useLibraryStore(
+  const { exportState, setExportState } = useProcessStore(
     useShallow((state) => ({
-      rootPaths: state.rootPaths,
-      currentFolderPath: state.currentFolderPath,
-      expandedFolders: state.expandedFolders,
-      multiSelectedPaths: state.multiSelectedPaths,
-      setLibrary: state.setLibrary,
+      exportState: state.exportState,
+      setExportState: state.setExportState,
     })),
   );
 
@@ -207,23 +119,6 @@ function App() {
         setEditor: state.setEditor,
       })),
     );
-
-  const { exportState, setExportState } = useProcessStore(
-    useShallow((state) => ({
-      exportState: state.exportState,
-      setExportState: state.setExportState,
-    })),
-  );
-
-  const defaultThumbnailSize = osPlatform === 'android' ? ThumbnailSize.Small : ThumbnailSize.Medium;
-  const defaultLibraryViewMode = osPlatform === 'android' ? LibraryViewMode.Recursive : LibraryViewMode.Flat;
-
-  const selectedImagePathRef = useRef<string | null>(null);
-  useEffect(() => {
-    selectedImagePathRef.current = selectedImage?.path ?? null;
-  }, [selectedImage?.path]);
-
-  const prevAdjustmentsRef = useRef<any>(null);
 
   const [viewportSize, setViewportSize] = useState<ImageDimensions>(() => {
     if (typeof window === 'undefined') {
@@ -242,30 +137,14 @@ function App() {
   const currentResRef = useRef<number>(1280);
   const cachedEditStateRef = useRef<any | null>(null);
 
-  const [libraryViewMode, setLibraryViewMode] = useState<LibraryViewMode>(defaultLibraryViewMode);
-  const [isResizing, setIsResizing] = useState(false);
-  const [thumbnailSize, setThumbnailSize] = useState(defaultThumbnailSize);
-  const [thumbnailAspectRatio, setThumbnailAspectRatio] = useState(ThumbnailAspectRatio.Contain);
-
-  const { requestThumbnails, clearThumbnailQueue, markGenerated } = useThumbnails();
-
+  const prevAdjustmentsRef = useRef<any>(null);
+  const selectedImagePathRef = useRef<string | null>(null);
   const transformWrapperRef = useRef<any>(null);
-  const preloadedDataRef = useRef<{
-    trees?: Promise<any>;
-    images?: Promise<ImageFile[]>;
-    rootPaths?: string[];
-    currentPath?: string;
-  }>({});
+  useEffect(() => {
+    selectedImagePathRef.current = selectedImage?.path ?? null;
+  }, [selectedImage?.path]);
 
-  useAppInitialization({
-    preloadedDataRef,
-    thumbnailSize,
-    setThumbnailSize,
-    thumbnailAspectRatio,
-    setThumbnailAspectRatio,
-    libraryViewMode,
-    setLibraryViewMode,
-  });
+  useAppInitialization();
 
   const isAndroid = osPlatform === 'android';
   const COMPACT_EDITOR_MAX_WIDTH = 900;
@@ -286,7 +165,6 @@ function App() {
       : 'full';
 
   const useCompactPanels = layoutMode === 'compact';
-  const useWidePanels = layoutMode === 'wide';
   const compactEditorPanelMinHeight = 220;
   const compactEditorPanelMaxHeight =
     viewportSize.height > 0
@@ -322,13 +200,12 @@ function App() {
   );
   const compactEditorPanelCollapsedHeight = 96;
 
-  const { handleCopyAdjustments, handlePasteAdjustments, handleResetAdjustments, handleZoomChange } =
+  const { handleCopyAdjustments, handlePasteAdjustments, handleZoomChange } =
     useEditorActions();
 
   const navigationRefs = useMemo(
     () => ({
       transformWrapperRef,
-      preloadedDataRef,
       cachedEditStateRef,
       selectedImagePathRef,
       isBackendReadyRef,
@@ -340,38 +217,10 @@ function App() {
     [],
   );
 
-  const {
-    handleGoHome,
-    handleBackToLibrary,
-    handleImageSelect,
-    handleSelectSubfolder,
-    handleSelectAlbum,
-    handleOpenFolder,
-    handleNavBack,
-    handleNavForward,
-    handleContinueSession,
-  } = useAppNavigation({
-    clearThumbnailQueue,
-    refs: navigationRefs,
-  });
+  const { handleOpenImage, handleImageSelect } = useAppNavigation({ refs: navigationRefs });
 
-  const {
-    externalEditSession,
-    isFinishing: isExternalEditFinishing,
-    finishExternalEdit,
-  } = useExternalEditSession(handleImageSelect);
-
-  const {
-    handleRate,
-    handleClearSelection,
-    handleLibraryImageSingleClick,
-    handleImageClick,
-    handleSetFlag,
-    refreshAllFolderTrees,
-    handleTogglePinFolder,
-    handleCreateAlbumItem,
-    handleRenameAlbumItem,
-  } = useLibraryActions(handleImageSelect);
+  const { externalEditSession, isFinishing: isExternalEditFinishing, finishExternalEdit } =
+    useExternalEditSession(handleImageSelect);
 
   useEffect(() => {
     const { setImageSelectHandler } = useUIStore.getState();
@@ -379,91 +228,16 @@ function App() {
     return () => setImageSelectHandler(null);
   }, [handleImageSelect]);
 
-  const { displayList: sortedImageList, badges: groupBadgeInfo } = useSortedLibrary();
+  const { handleStartFocusStack, handleSaveFocusStack } = useProductivityActions();
 
-  const handleLibraryRefresh = useCallback(async () => {
-    if (currentFolderPath) {
-      if (currentFolderPath.startsWith('Album: ')) {
-        const { activeAlbumId, albumTree } = useLibraryStore.getState();
-        if (activeAlbumId) {
-          const findObj = (nodes: any[]): any => {
-            for (const n of nodes) {
-              if (n.id === activeAlbumId) return n;
-              if (n.type === 'group') {
-                const f = findObj(n.children);
-                if (f) return f;
-              }
-            }
-            return null;
-          };
-          const album = findObj(albumTree);
-          if (album) await handleSelectAlbum(album.id, album.name, album.images, true);
-        }
-      } else {
-        await handleSelectSubfolder(currentFolderPath, false, undefined, false, true);
-      }
-    }
-  }, [currentFolderPath, handleSelectSubfolder, handleSelectAlbum]);
-
-  const {
-    executeDelete,
-    handleDeleteSelected,
-    handleDeleteRejected,
-    handleCreateFolder,
-    handleRenameFolder,
-    handleSaveRename,
-    handleRenameFiles,
-    handleStartImport,
-    handleImportClick,
-    handlePasteFiles,
-  } = useFileOperations(
-    handleLibraryRefresh,
-    refreshAllFolderTrees,
-    handleImageSelect,
-    handleBackToLibrary,
-    sortedImageList,
-  );
-
-  const {
-    handleStartFocusStack,
-    handleSaveFocusStack,
-  } = useProductivityActions(handleLibraryRefresh);
-
-  const {
-    handleEditorContextMenu,
-    handleThumbnailContextMenu,
-    handleFolderTreeContextMenu,
-    handleAlbumTreeContextMenu,
-    handleMainLibraryContextMenu,
-  } = useAppContextMenus({
-    handleImageSelect,
-    handleBackToLibrary,
-    handleLibraryRefresh,
-    handleRenameFiles,
-    handleImportClick,
-    refreshImageList: handleLibraryRefresh,
-    refreshAllFolderTrees,
-    executeDelete,
-    handleDeleteRejected,
-    handleTogglePinFolder,
-  });
-
+  const { handleEditorContextMenu } = useAppContextMenus();
 
   useTauriListeners({
-    refreshAllFolderTrees,
-    handleSelectSubfolder,
-    markGenerated,
+    markGenerated: () => {},
   });
 
-
   useKeyboardShortcuts({
-    sortedImageList,
-    handleBackToLibrary,
-    handleDeleteSelected,
-    handleDeleteRejected,
-    handleGoHome,
-    handleImageSelect,
-    handlePasteFiles,
+    handleOpenImage,
     handleZoomChange,
   });
 
@@ -523,7 +297,7 @@ function App() {
       activeMaskId: null,
       activeAiSubMaskId: null,
     });
-  }, [activePanel, activeView, setEditor]);
+  }, [activePanel, setEditor]);
 
   useEffect(() => {
     const unlisten = listen('ai-connector-status-update', (event: any) => {
@@ -541,7 +315,6 @@ function App() {
     if (e.pointerType === 'mouse' && e.button !== 0) return;
     e.preventDefault();
     e.stopPropagation();
-    setIsResizing(true);
 
     const pointerId = e.pointerId;
     const target = e.currentTarget;
@@ -581,18 +354,6 @@ function App() {
             uiVisibility: { ...state.uiVisibility, rightPanel: true },
           }));
         }
-      } else if (stateKey === 'bottom') {
-        const newHeight = startSize - (moveEvent.clientY - startY);
-        if (newHeight < 100) {
-          setUI((state) => ({
-            uiVisibility: { ...state.uiVisibility, filmstrip: false },
-          }));
-        } else {
-          setUI((state) => ({
-            bottomPanelHeight: Math.round(Math.min(newHeight, 400)),
-            uiVisibility: { ...state.uiVisibility, filmstrip: true },
-          }));
-        }
       } else if (stateKey === 'compact') {
         setUI({
           compactEditorPanelHeightOverride: Math.round(
@@ -616,11 +377,9 @@ function App() {
       window.removeEventListener('pointermove', doDrag);
       window.removeEventListener('pointerup', stopDrag);
       window.removeEventListener('pointercancel', stopDrag);
-      setIsResizing(false);
     };
 
-    document.documentElement.style.cursor =
-      stateKey === 'bottom' || stateKey === 'compact' ? 'row-resize' : 'col-resize';
+    document.documentElement.style.cursor = stateKey === 'compact' ? 'row-resize' : 'col-resize';
 
     window.addEventListener('pointermove', doDrag, { passive: false });
     window.addEventListener('pointerup', stopDrag);
@@ -637,11 +396,6 @@ function App() {
       setUI((state) => ({
         rightPanelWidth: DEFAULT_PANEL_WIDTH,
         uiVisibility: { ...state.uiVisibility, rightPanel: true },
-      }));
-    } else if (stateKey === 'bottom') {
-      setUI((state) => ({
-        bottomPanelHeight: DEFAULT_BOTTOM_PANEL_HEIGHT,
-        uiVisibility: { ...state.uiVisibility, filmstrip: true },
       }));
     } else if (stateKey === 'compact') {
       setUI({ compactEditorPanelHeightOverride: null });
@@ -667,77 +421,23 @@ function App() {
     [setPanel],
   );
 
-  const handleToggleFolder = useCallback(
-    async (path: string) => {
-      const isExpanding = !expandedFolders.has(path);
-      setLibrary((state) => {
-        const newSet = new Set(state.expandedFolders);
-        if (isExpanding) {
-          newSet.add(path);
-        } else {
-          newSet.delete(path);
-        }
-        return { expandedFolders: newSet };
-      });
-      if (!isExpanding) return;
-      try {
-        const showCounts = appSettings?.enableFolderImageCounts ?? false;
-        const newChildren: any[] = await invoke(Invokes.GetFolderChildren, {
-          path,
-          showImageCounts: showCounts,
-        });
-        setLibrary((state) => ({
-          folderTrees: state.folderTrees.map((t: any) => insertChildrenIntoTree(t, path, newChildren)),
-        }));
-        setLibrary((state) => ({
-          pinnedFolderTrees: state.pinnedFolderTrees.map((tree) => insertChildrenIntoTree(tree, path, newChildren)),
-        }));
-      } catch (err) {
-        toast.error(`Failed to load folder: ${err}`);
-      }
-    },
-    [expandedFolders, appSettings?.enableFolderImageCounts, setLibrary],
-  );
-
   const renderAppPanel = useCallback(
     (panelId: Panel) => {
       switch (panelId) {
-        case Panel.FolderTree:
-          return (
-            <FolderTree
-              isResizing={isResizing}
-              onContextMenu={handleFolderTreeContextMenu}
-              onAlbumContextMenu={handleAlbumTreeContextMenu}
-              onSelectAlbum={(id, name, images, skipHistory) => handleSelectAlbum(id, name, images, false, skipHistory)}
-              onFolderSelect={(path, skipHistory) =>
-                handleSelectSubfolder(path, false, undefined, true, false, skipHistory)
-              }
-              onToggleFolder={handleToggleFolder}
-              onOpenFolder={handleOpenFolder}
-              onNavBack={handleNavBack}
-              onNavForward={handleNavForward}
-              style={{ width: '100%', height: '100%' }}
-              isInstantTransition={isInstantTransition}
-            />
-          );
         case Panel.Export:
           return (
             <ExportPanel
               exportState={exportState}
-              multiSelectedPaths={multiSelectedPaths}
               selectedImage={selectedImage}
               setExportState={setExportState}
               appSettings={appSettings}
               onSettingsChange={handleSettingsChange}
-              rootPaths={rootPaths}
               isVisible={true}
-              onClose={() => setUI({ isLibraryExportPanelVisible: false })}
+              onClose={() => setUI({ isSettingsOpen: false })}
             />
           );
         case Panel.Adjustments:
           return <Controls />;
-        case Panel.Metadata:
-          return <MetadataPanel />;
         case Panel.Crop:
           return <CropPanel />;
         case Panel.Masks:
@@ -748,94 +448,30 @@ function App() {
           return null;
       }
     },
-    [
-      isResizing,
-      handleFolderTreeContextMenu,
-      handleAlbumTreeContextMenu,
-      handleSelectAlbum,
-      handleSelectSubfolder,
-      handleToggleFolder,
-      handleOpenFolder,
-      handleNavBack,
-      handleNavForward,
-      setUI,
-      isInstantTransition,
-      exportState,
-      multiSelectedPaths,
-      selectedImage,
-      setExportState,
-      appSettings,
-      handleSettingsChange,
-      rootPaths,
-    ],
+    [setUI, setExportState, selectedImage, appSettings, handleSettingsChange],
   );
 
-  const hasRoots = rootPaths && rootPaths.length > 0;
-  const hasMainContent = hasRoots || (activeView === 'editor' && !!selectedImage);
-
-  const shouldHideFolderTree = useCompactPanels || useWidePanels;
-  const isWgpuActive =
-    activeView === 'editor' &&
-    appSettings?.useWgpuRenderer !== false &&
-    selectedImage?.isReady &&
-    hasRenderedFirstFrame;
-  const useMacWindowShell = osPlatform === 'macos' && !appSettings?.decorations && !isWindowFullScreen && !isFullScreen;
+  const isWgpuActive = appSettings?.useWgpuRenderer !== false && selectedImage?.isReady && hasRenderedFirstFrame;
 
   const layoutSensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }));
   const handleDragStart = (e: any) => {
     if (e.active.data.current?.type === 'layout-tab') {
       setLayoutDragItem(e.active.data.current.panel as Panel);
-    } else if (e.active.data.current?.type === 'library-image') {
-      const path = e.active.data.current.path;
-      const multiSelected = useLibraryStore.getState().multiSelectedPaths;
-      const paths = multiSelected.includes(path) ? multiSelected : [path];
-      setActiveImageDragItem({ path, paths });
     }
   };
 
   const handleDragEnd = (e: any) => {
     setLayoutDragItem(null);
-    setActiveImageDragItem(null);
     const { active, over } = e;
 
     if (active.data.current?.type === 'layout-tab' && over?.data.current?.type === 'layout-region') {
       movePanel(active.data.current.panel as Panel, over.data.current.region as PanelRegion);
     }
-
-    if (active.data.current?.type === 'library-image' && over?.data.current?.type === 'folder') {
-      const targetFolder = over.data.current.path;
-      const sourcePaths = activeImageDragItem?.paths || [active.data.current.path];
-
-      transferFiles(JobKind.Move, sourcePaths, targetFolder)
-        .then(() => {
-          refreshAllFolderTrees();
-          handleLibraryRefresh();
-          useLibraryStore.getState().setLibrary({ multiSelectedPaths: [] });
-        })
-        .catch((err) => {
-          toast.error(`Failed to move files: ${err}`);
-        });
-    }
-
-    if (active.data.current?.type === 'library-image' && over?.data.current?.type === 'album') {
-      const targetAlbumId = over.data.current.id;
-      const sourcePaths = activeImageDragItem?.paths || [active.data.current.path];
-
-      invoke(Invokes.AddToAlbum, { albumId: targetAlbumId, paths: sourcePaths })
-        .then(() => invoke(Invokes.GetAlbums))
-        .then((updatedTree: any) => {
-          useLibraryStore.getState().setLibrary({ albumTree: updatedTree, multiSelectedPaths: [] });
-          handleLibraryRefresh();
-        })
-        .catch((err) => {
-          toast.error(`Failed to add to album: ${err}`);
-        });
-    }
   };
 
   const ActiveOverlayIcon = activeLayoutDragItem ? PANEL_ICONS[activeLayoutDragItem] : null;
   const effectiveLeftWidth = uiVisibility.leftPanel ? leftPanelWidth : 48;
-  const effectiveRightWidth = uiVisibility.rightPanel ? rightPanelWidth : useWidePanels ? 58 : 48;
+  const effectiveRightWidth = uiVisibility.rightPanel ? rightPanelWidth : 48;
 
   return (
     <>
@@ -850,7 +486,6 @@ function App() {
       <div
         className={clsx(
           'flex flex-col h-screen font-sans text-text-primary overflow-hidden select-none',
-          useMacWindowShell && 'macos-window-shell',
           isWgpuActive ? 'bg-transparent' : 'bg-bg-primary',
         )}
       >
@@ -868,8 +503,8 @@ function App() {
         <div
           className={clsx(
             'flex-1 flex flex-col min-h-0',
-            isLayoutReady && hasMainContent && !isInstantTransition && 'transition-all duration-300 ease-in-out',
-            [hasMainContent && (isFullScreen ? 'p-0 gap-0' : 'p-2 gap-2')],
+            !!selectedImage && !isInstantTransition && 'transition-all duration-300 ease-in-out',
+            (!!selectedImage && (isFullScreen ? 'p-0 gap-0' : 'p-2 gap-2')) || '',
           )}
         >
           <DndContext
@@ -880,7 +515,7 @@ function App() {
             measuring={DND_MEASURING}
           >
             <div className="flex flex-row grow h-full min-h-0">
-              {!shouldHideFolderTree && hasMainContent && (
+              {!useCompactPanels && (
                 <SidePanelArea
                   side="left"
                   width={effectiveLeftWidth}
@@ -889,7 +524,7 @@ function App() {
                   renderPanel={renderAppPanel}
                   onWidthChange={createResizeHandler('left', effectiveLeftWidth)}
                   onWidthReset={createResizeResetHandler('left')}
-                  isResizing={isResizing}
+                  isResizing={false}
                 />
               )}
               <div className="relative flex-1 flex flex-col min-w-0">
@@ -901,90 +536,37 @@ function App() {
                     onDone={finishExternalEdit}
                   />
                 )}
-                <div
-                  className={clsx(
-                    'flex-1 flex flex-col min-w-0 h-full',
-                    activeView === 'editor' && selectedImage ? 'flex' : 'hidden',
-                  )}
-                >
-                  {selectedImage && (
-                    <EditorView
-                      transformWrapperRef={transformWrapperRef}
-                      isResizing={isResizing}
-                      layoutMode={layoutMode}
-                      isAndroid={isAndroid}
-                      compactEditorPanelHeight={compactEditorPanelHeight}
-                      compactEditorPanelCollapsedHeight={compactEditorPanelCollapsedHeight}
-                      thumbnailAspectRatio={thumbnailAspectRatio}
-                      sortedImageList={sortedImageList}
-                      createResizeHandler={createResizeHandler}
-                      createResizeResetHandler={createResizeResetHandler}
-                      handleBackToLibrary={handleBackToLibrary}
-                      handleEditorContextMenu={handleEditorContextMenu}
-                      handleThumbnailContextMenu={handleThumbnailContextMenu}
-                      handleMainLibraryContextMenu={handleMainLibraryContextMenu}
-                      handleImageClick={handleImageClick}
-                      handleClearSelection={handleClearSelection}
-                      handleCopyAdjustments={handleCopyAdjustments}
-                      handlePasteAdjustments={handlePasteAdjustments}
-                      handleRate={handleRate}
-                      handleZoomChange={handleZoomChange}
-                      handlePanelSelect={handlePanelSelect}
-                      requestThumbnails={requestThumbnails}
-                      renderAppPanel={renderAppPanel}
-                    />
-                  )}
-                </div>
-                <div
-                  className={clsx(
-                    'flex-1 flex flex-col min-w-0 h-full',
-                    activeView === 'editor' && selectedImage ? 'hidden' : 'flex',
-                  )}
-                >
-                  <LibraryView
-                    sortedImageList={sortedImageList}
-                    groupBadgeInfo={groupBadgeInfo}
-                    thumbnailSize={thumbnailSize}
-                    thumbnailAspectRatio={thumbnailAspectRatio}
-                    libraryViewMode={libraryViewMode}
-                    isAndroid={isAndroid}
+                <div className="flex-1 flex flex-col min-w-0 h-full">
+                  <EditorView
+                    transformWrapperRef={transformWrapperRef}
+                    isResizing={false}
                     layoutMode={layoutMode}
-                    setThumbnailSize={setThumbnailSize}
-                    setThumbnailAspectRatio={setThumbnailAspectRatio}
-                    setLibraryViewMode={setLibraryViewMode}
-                    handleClearSelection={handleClearSelection}
-                    handleLibraryImageSingleClick={handleLibraryImageSingleClick}
-                    handleImageSelect={handleImageSelect}
-                    handleRate={handleRate}
-                    handleThumbnailContextMenu={handleThumbnailContextMenu}
-                    handleMainLibraryContextMenu={handleMainLibraryContextMenu}
-                    handleContinueSession={handleContinueSession}
-                    handleGoHome={handleGoHome}
-                    handleOpenFolder={handleOpenFolder}
-                    handleNavigateToFolder={(path) => handleSelectSubfolder(path, false, undefined, true)}
-                    handleImportClick={handleImportClick}
-                    handleLibraryRefresh={handleLibraryRefresh}
+                    isAndroid={isAndroid}
+                    compactEditorPanelHeight={compactEditorPanelHeight}
+                    compactEditorPanelCollapsedHeight={compactEditorPanelCollapsedHeight}
+                    createResizeHandler={createResizeHandler}
+                    createResizeResetHandler={createResizeResetHandler}
                     handleCopyAdjustments={handleCopyAdjustments}
                     handlePasteAdjustments={handlePasteAdjustments}
-                    handleResetAdjustments={handleResetAdjustments}
-                    requestThumbnails={requestThumbnails}
+                    handleZoomChange={handleZoomChange}
+                    handlePanelSelect={handlePanelSelect}
+                    handleEditorContextMenu={handleEditorContextMenu}
+                    renderAppPanel={renderAppPanel}
                   />
                 </div>
-                {isSettingsOpen && appSettings && hasRoots && (
+                {isSettingsOpen && appSettings && (
                   <div className="absolute inset-0 z-50 flex bg-bg-secondary rounded-lg">
                     <div className="w-full h-full flex flex-col p-4 lg:p-8 overflow-y-auto custom-scrollbar">
                       <SettingsPanel
                         appSettings={appSettings}
                         onBack={() => setUI({ isSettingsOpen: false })}
-                        onLibraryRefresh={handleLibraryRefresh}
                         onSettingsChange={handleSettingsChange}
-                        rootPaths={rootPaths}
                       />
                     </div>
                   </div>
                 )}
               </div>
-              {!useCompactPanels && hasMainContent && (
+              {!useCompactPanels && (
                 <SidePanelArea
                   side="right"
                   width={effectiveRightWidth}
@@ -993,18 +575,17 @@ function App() {
                   renderPanel={renderAppPanel}
                   onWidthChange={createResizeHandler('right', effectiveRightWidth)}
                   onWidthReset={createResizeResetHandler('right')}
-                  isResizing={isResizing}
-                  showAdditionalTabs={useWidePanels}
+                  isResizing={false}
+                  showAdditionalTabs={true}
                 />
               )}
             </div>
-            <DragOverlay modifiers={activeImageDragItem ? [imageDragModifier] : undefined} dropAnimation={null}>
+            <DragOverlay dropAnimation={null}>
               {activeLayoutDragItem && ActiveOverlayIcon ? (
                 <div className="w-10 h-10 bg-surface shadow-2xl rounded-md flex items-center justify-center text-text-primary ring-1 ring-border-color">
                   <ActiveOverlayIcon size={20} />
                 </div>
               ) : null}
-              {activeImageDragItem ? <ImageDragOverlayNode activeItem={activeImageDragItem} /> : null}
             </DragOverlay>
           </DndContext>
         </div>
@@ -1012,12 +593,6 @@ function App() {
           handleImageSelect={handleImageSelect}
           handleStartFocusStack={handleStartFocusStack}
           handleSaveFocusStack={handleSaveFocusStack}
-          handleCreateFolder={handleCreateFolder}
-          handleRenameFolder={handleRenameFolder}
-          handleSaveRename={handleSaveRename}
-          handleStartImport={handleStartImport}
-          handleCreateAlbumItem={handleCreateAlbumItem}
-          handleRenameAlbumItem={handleRenameAlbumItem}
         />
         <ToastContainer
           position="bottom-right"

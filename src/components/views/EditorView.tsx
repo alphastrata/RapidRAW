@@ -10,11 +10,9 @@ import { MobilePanelSwitcher } from '../panel/PanelSwitcher';
 
 import { useEditorStore } from '../../store/useEditorStore';
 import { useUIStore } from '../../store/useUIStore';
-import { useLibraryStore } from '../../store/useLibraryStore';
 import { useProcessStore } from '../../store/useProcessStore';
-import { getImageFlag } from '../../utils/imageFlags';
 
-import { ImageFile, Orientation, Panel, ThumbnailAspectRatio } from '../ui/AppProperties';
+import { Orientation } from '../ui/AppProperties';
 
 interface EditorViewProps {
   transformWrapperRef: RefObject<any>;
@@ -23,22 +21,13 @@ interface EditorViewProps {
   isAndroid: boolean;
   compactEditorPanelHeight: number;
   compactEditorPanelCollapsedHeight: number;
-  thumbnailAspectRatio: ThumbnailAspectRatio;
-  sortedImageList: ImageFile[];
   createResizeHandler: (stateKey: string, startSize: number) => (e: ReactPointerEvent<HTMLDivElement>) => void;
   createResizeResetHandler: (stateKey: string) => () => void;
-  handleBackToLibrary: () => void;
-  handleEditorContextMenu: (...args: any) => void;
-  handleThumbnailContextMenu: (...args: any) => void;
-  handleMainLibraryContextMenu?: (...args: any) => void;
-  handleImageClick: (...args: any) => void;
-  handleClearSelection: () => void;
   handleCopyAdjustments: () => void;
   handlePasteAdjustments: () => void;
-  handleRate: (...args: any) => void;
   handleZoomChange: (zoom: number) => void;
   handlePanelSelect: (panelId: any) => void;
-  requestThumbnails: any;
+  handleEditorContextMenu: (event: any) => void;
   renderAppPanel: (panelId: any) => React.ReactNode;
 }
 
@@ -49,22 +38,13 @@ export default function EditorView({
   isAndroid,
   compactEditorPanelHeight,
   compactEditorPanelCollapsedHeight,
-  thumbnailAspectRatio,
-  sortedImageList,
   createResizeHandler,
   createResizeResetHandler,
-  handleBackToLibrary,
-  handleEditorContextMenu,
-  handleThumbnailContextMenu,
-  handleMainLibraryContextMenu,
-  handleImageClick,
-  handleClearSelection,
   handleCopyAdjustments,
   handlePasteAdjustments,
-  handleRate,
   handleZoomChange,
   handlePanelSelect,
-  requestThumbnails,
+  handleEditorContextMenu,
   renderAppPanel,
 }: EditorViewProps) {
   const { selectedImage } = useEditorStore(
@@ -73,23 +53,12 @@ export default function EditorView({
     })),
   );
 
-  const { isFullScreen, isInstantTransition, uiVisibility, bottomPanelHeight, activePanel, setUI } = useUIStore(
+  const { isFullScreen, isInstantTransition, activePanel, setUI } = useUIStore(
     useShallow((state) => ({
       isFullScreen: state.isFullScreen,
       isInstantTransition: state.isInstantTransition,
-      uiVisibility: state.uiVisibility,
-      bottomPanelHeight: state.bottomPanelHeight,
       activePanel: state.activePanel,
       setUI: state.setUI,
-    })),
-  );
-
-  const { multiSelectedPaths, imageRatings, flag, isViewLoading } = useLibraryStore(
-    useShallow((state) => ({
-      multiSelectedPaths: state.multiSelectedPaths,
-      imageRatings: state.imageRatings,
-      flag: getImageFlag(state.imageList, selectedImage?.path),
-      isViewLoading: state.isViewLoading,
     })),
   );
 
@@ -100,47 +69,20 @@ export default function EditorView({
     })),
   );
 
-  const editorNode = (
-    <Editor
-      onBackToLibrary={handleBackToLibrary}
-      onContextMenu={handleEditorContextMenu}
-      onImageSelect={handleImageClick}
-      transformWrapperRef={transformWrapperRef}
-    />
-  );
+  const editorNode = <Editor onContextMenu={handleEditorContextMenu} transformWrapperRef={transformWrapperRef} />;
 
   const editorBottomBarComponent = (
     <BottomBar
-      filmstripHeight={bottomPanelHeight}
-      imageList={sortedImageList}
-      imageRatings={imageRatings}
       isCopied={isCopied}
       isCopyDisabled={!selectedImage}
-      isFilmstripVisible={uiVisibility.filmstrip}
-      isLoading={isViewLoading}
       isPasted={isPasted}
       isPasteDisabled={useEditorStore.getState().copiedAdjustments === null}
-      isRatingDisabled={!selectedImage}
-      isResizing={isResizing}
-      multiSelectedPaths={multiSelectedPaths}
-      onClearSelection={handleClearSelection}
-      onContextMenu={handleThumbnailContextMenu}
-      onEmptyAreaContextMenu={handleMainLibraryContextMenu}
       onCopy={handleCopyAdjustments}
       onOpenCopyPasteSettings={() => setUI({ isCopyPasteSettingsModalOpen: true })}
-      onImageSelect={handleImageClick}
       onPaste={() => handlePasteAdjustments()}
-      onRate={handleRate}
-      onRequestThumbnails={requestThumbnails}
       onZoomChange={handleZoomChange}
-      rating={imageRatings[selectedImage?.path || ''] || 0}
-      flag={flag}
       selectedImage={selectedImage ?? undefined}
-      showFilmstrip={layoutMode !== 'compact'}
-      layoutMode={layoutMode}
       showZoomControls={!isAndroid}
-      thumbnailAspectRatio={thumbnailAspectRatio}
-      totalImages={sortedImageList.length}
     />
   );
 
@@ -155,13 +97,6 @@ export default function EditorView({
         opacity: isFullScreen ? 0 : 1,
       }}
     >
-      {layoutMode !== 'compact' && (
-        <Resizer
-          direction={Orientation.Horizontal}
-          onMouseDown={createResizeHandler('bottom', bottomPanelHeight)}
-          onDoubleClick={createResizeResetHandler('bottom')}
-        />
-      )}
       {editorBottomBarComponent}
     </div>
   );

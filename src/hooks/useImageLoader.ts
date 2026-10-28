@@ -2,7 +2,6 @@ import { useEffect } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { toast } from 'react-toastify';
 import { useEditorStore } from '../store/useEditorStore';
-import { useLibraryStore } from '../store/useLibraryStore';
 import { useSettingsStore } from '../store/useSettingsStore';
 import { Invokes } from '../components/ui/AppProperties';
 import { INITIAL_ADJUSTMENTS, normalizeLoadedAdjustments } from '../utils/adjustments';
@@ -20,7 +19,6 @@ export function useImageLoader(cachedEditStateRef: React.RefObject<any>) {
 
   const setEditor = useEditorStore((s) => s.setEditor);
   const resetHistory = useEditorStore((s) => s.resetHistory);
-  const setLibrary = useLibraryStore((s) => s.setLibrary);
   const appSettings = useSettingsStore((s) => s.appSettings);
 
   const isWgpuActive = appSettings?.useWgpuRenderer !== false && selectedImage?.isReady && hasRenderedFirstFrame;
@@ -100,8 +98,8 @@ export function useImageLoader(cachedEditStateRef: React.RefObject<any>) {
             setEditor({ selectedImage: null });
           }
         } finally {
-          if (isEffectActive) {
-            setLibrary({ isViewLoading: false });
+          if (!isEffectActive) {
+            setEditor({ selectedImage: null });
           }
         }
       };
@@ -125,7 +123,6 @@ export function useImageLoader(cachedEditStateRef: React.RefObject<any>) {
     appSettings?.editorPreviewResolution,
     resetHistory,
     setEditor,
-    setLibrary,
   ]);
 
   useEffect(() => {

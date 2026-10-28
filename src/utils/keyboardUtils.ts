@@ -3,7 +3,7 @@ export interface KeybindDefinition {
   description: string;
   defaultCombo: string[];
   macDefaultCombo?: string[];
-  section: 'library' | 'view' | 'rating' | 'panels' | 'editing';
+  section: 'view' | 'panels' | 'editing';
 }
 
 export interface KeybindSection {
@@ -12,68 +12,23 @@ export interface KeybindSection {
 }
 
 export const KEYBIND_SECTIONS: KeybindSection[] = [
-  { id: 'library', label: 'settings.keybinds.sections.library' },
-  { id: 'editing', label: 'settings.keybinds.sections.editing' },
   { id: 'view', label: 'settings.keybinds.sections.view' },
-  { id: 'rating', label: 'settings.keybinds.sections.rating' },
   { id: 'panels', label: 'settings.keybinds.sections.panels' },
+  { id: 'editing', label: 'settings.keybinds.sections.editing' },
 ];
 
 export const KEYBIND_DEFINITIONS: KeybindDefinition[] = [
   {
-    action: 'open_image',
-    description: 'settings.keybinds.actions.open_image',
-    defaultCombo: ['Enter'],
-    section: 'library',
-  },
-  {
-    action: 'copy_files',
-    description: 'settings.keybinds.actions.copy_files',
-    defaultCombo: ['ctrl', 'shift', 'KeyC'],
-    section: 'library',
-  },
-  {
-    action: 'paste_files',
-    description: 'settings.keybinds.actions.paste_files',
-    defaultCombo: ['ctrl', 'shift', 'KeyV'],
-    section: 'library',
-  },
-  {
     action: 'copy_image_path',
     description: 'settings.keybinds.actions.copy_image_path',
     defaultCombo: ['ctrl', 'KeyL'],
-    section: 'library',
+    section: 'view',
   },
   {
-    action: 'select_all',
-    description: 'settings.keybinds.actions.select_all',
-    defaultCombo: ['ctrl', 'KeyA'],
-    section: 'library',
-  },
-  {
-    action: 'delete_selected',
-    description: 'settings.keybinds.actions.delete_selected',
-    defaultCombo: ['Delete'],
-    section: 'library',
-  },
-  {
-    action: 'delete_rejected',
-    description: 'settings.keybinds.actions.delete_rejected',
-    defaultCombo: ['ctrl', 'Backspace'],
-    macDefaultCombo: ['alt', 'Delete'],
-    section: 'library',
-  },
-  {
-    action: 'preview_prev',
-    description: 'settings.keybinds.actions.preview_prev',
-    defaultCombo: ['ArrowLeft'],
-    section: 'library',
-  },
-  {
-    action: 'preview_next',
-    description: 'settings.keybinds.actions.preview_next',
-    defaultCombo: ['ArrowRight'],
-    section: 'library',
+    action: 'open_new_image',
+    description: 'settings.keybinds.actions.open_new_image',
+    defaultCombo: ['ctrl', 'KeyO'],
+    section: 'view',
   },
   {
     action: 'zoom_in_step',
@@ -129,66 +84,6 @@ export const KEYBIND_DEFINITIONS: KeybindDefinition[] = [
     defaultCombo: ['KeyB'],
     section: 'view',
   },
-  { action: 'rate_0', description: 'settings.keybinds.actions.rate_0', defaultCombo: ['Digit0'], section: 'rating' },
-  { action: 'rate_1', description: 'settings.keybinds.actions.rate_1', defaultCombo: ['Digit1'], section: 'rating' },
-  { action: 'rate_2', description: 'settings.keybinds.actions.rate_2', defaultCombo: ['Digit2'], section: 'rating' },
-  { action: 'rate_3', description: 'settings.keybinds.actions.rate_3', defaultCombo: ['Digit3'], section: 'rating' },
-  { action: 'rate_4', description: 'settings.keybinds.actions.rate_4', defaultCombo: ['Digit4'], section: 'rating' },
-  { action: 'rate_5', description: 'settings.keybinds.actions.rate_5', defaultCombo: ['Digit5'], section: 'rating' },
-  {
-    action: 'toggle_pick',
-    description: 'settings.keybinds.actions.toggle_pick',
-    defaultCombo: ['shift', 'KeyP'],
-    section: 'rating',
-  },
-  {
-    action: 'toggle_reject',
-    description: 'settings.keybinds.actions.toggle_reject',
-    defaultCombo: ['KeyX'],
-    section: 'rating',
-  },
-  {
-    action: 'unflag',
-    description: 'settings.keybinds.actions.unflag',
-    defaultCombo: ['KeyU'],
-    section: 'rating',
-  },
-  {
-    action: 'color_label_none',
-    description: 'settings.keybinds.actions.color_label_none',
-    defaultCombo: ['shift', 'Digit0'],
-    section: 'rating',
-  },
-  {
-    action: 'color_label_red',
-    description: 'settings.keybinds.actions.color_label_red',
-    defaultCombo: ['shift', 'Digit1'],
-    section: 'rating',
-  },
-  {
-    action: 'color_label_yellow',
-    description: 'settings.keybinds.actions.color_label_yellow',
-    defaultCombo: ['shift', 'Digit2'],
-    section: 'rating',
-  },
-  {
-    action: 'color_label_green',
-    description: 'settings.keybinds.actions.color_label_green',
-    defaultCombo: ['shift', 'Digit3'],
-    section: 'rating',
-  },
-  {
-    action: 'color_label_blue',
-    description: 'settings.keybinds.actions.color_label_blue',
-    defaultCombo: ['shift', 'Digit4'],
-    section: 'rating',
-  },
-  {
-    action: 'color_label_purple',
-    description: 'settings.keybinds.actions.color_label_purple',
-    defaultCombo: ['shift', 'Digit5'],
-    section: 'rating',
-  },
   {
     action: 'toggle_adjustments',
     description: 'settings.keybinds.actions.toggle_adjustments',
@@ -211,18 +106,6 @@ export const KEYBIND_DEFINITIONS: KeybindDefinition[] = [
     action: 'toggle_ai',
     description: 'settings.keybinds.actions.toggle_ai',
     defaultCombo: ['KeyK'],
-    section: 'panels',
-  },
-  {
-    action: 'toggle_metadata',
-    description: 'settings.keybinds.actions.toggle_metadata',
-    defaultCombo: ['KeyI'],
-    section: 'panels',
-  },
-  {
-    action: 'toggle_folder_tree',
-    description: 'settings.keybinds.actions.toggle_folder_tree',
-    defaultCombo: ['KeyL'],
     section: 'panels',
   },
   {
@@ -250,28 +133,10 @@ export const KEYBIND_DEFINITIONS: KeybindDefinition[] = [
     section: 'panels',
   },
   {
-    action: 'toggle_bottom_panel',
-    description: 'settings.keybinds.actions.toggle_bottom_panel',
-    defaultCombo: ['ctrl', 'KeyJ'],
-    section: 'panels',
-  },
-  {
-    action: 'toggle_library_exif',
-    description: 'settings.keybinds.actions.toggle_library_exif',
-    defaultCombo: ['KeyT'],
-    section: 'library',
-  },
-  {
     action: 'open_settings',
     description: 'settings.keybinds.actions.open_settings',
     defaultCombo: ['ctrl', 'Comma'],
-    section: 'library',
-  },
-  {
-    action: 'focus_search',
-    description: 'settings.keybinds.actions.focus_search',
-    defaultCombo: ['ctrl', 'KeyF'],
-    section: 'library',
+    section: 'view',
   },
   { action: 'undo', description: 'settings.keybinds.actions.undo', defaultCombo: ['ctrl', 'KeyZ'], section: 'editing' },
   { action: 'redo', description: 'settings.keybinds.actions.redo', defaultCombo: ['ctrl', 'KeyY'], section: 'editing' },

@@ -1,5 +1,5 @@
 import { ExportPreset } from './ExportImportProperties';
-import { Adjustments, CopyPasteSettings } from '../../utils/adjustments';
+import { CopyPasteSettings } from '../../utils/adjustments';
 import { ToolType } from '../panel/right/Masks';
 import type { WhiteBalance, WhiteBalanceMode } from '../../utils/whiteBalance';
 
@@ -33,7 +33,6 @@ export const OPTION_SEPARATOR = 'separator';
 export enum Invokes {
   ApplyAdjustments = 'apply_adjustments',
   ApplyAdjustmentsToPaths = 'apply_adjustments_to_paths',
-  ApplyAutoAdjustmentsToPaths = 'apply_auto_adjustments_to_paths',
   ApplyAutoStraightenToPaths = 'apply_auto_straighten_to_paths',
   CalculateAutoAdjustments = 'calculate_auto_adjustments',
   SampleWhiteBalance = 'sample_white_balance',
@@ -41,14 +40,7 @@ export enum Invokes {
   CancelAiTask = 'cancel_ai_task',
   CancelExport = 'cancel_export',
   CheckAIConnectorStatus = 'check_ai_connector_status',
-  ClearAllSidecars = 'clear_all_sidecars',
   ClearAiDenoiseCache = 'clear_ai_denoise_cache',
-  ClearThumbnailCache = 'clear_thumbnail_cache',
-  CopyFiles = 'copy_files',
-  CreateFolder = 'create_folder',
-  CreateVirtualCopy = 'create_virtual_copy',
-  DeleteFolder = 'delete_folder',
-  DuplicateFile = 'duplicate_file',
   EstimateExportSizes = 'estimate_export_sizes',
   ExportImages = 'export_images',
   FrontendLog = 'frontend_log',
@@ -59,42 +51,22 @@ export enum Invokes {
   ClearAiMapsCache = 'clear_ai_maps_cache',
   ClearAiModels = 'clear_ai_models',
   ClearMetadataCache = 'clear_metadata_cache',
-  GetFolderTree = 'get_folder_tree',
-  GetFolderChildren = 'get_folder_children',
   GetLogFilePath = 'get_log_file_path',
-  GetPinnedFolderTrees = 'get_pinned_folder_trees',
   GetSupportedFileTypes = 'get_supported_file_types',
-  ImportFiles = 'import_files',
   InvokeGenerativeReplaceWithMaskDef = 'invoke_generative_replace_with_mask_def',
-
-  ListImagesInDir = 'list_images_in_dir',
-  ListImagesRecursive = 'list_images_recursive',
   LoadImage = 'load_image',
   LoadMetadata = 'load_metadata',
   LoadSettings = 'load_settings',
-  MoveFiles = 'move_files',
-  ReadExifForPaths = 'read_exif_for_paths',
-  RenameFiles = 'rename_files',
-  RenameFolder = 'rename_folder',
   ResetAdjustmentsForPaths = 'reset_adjustments_for_paths',
   SaveMetadataAndUpdateThumbnail = 'save_metadata_and_update_thumbnail',
   SaveSettings = 'save_settings',
-  SetColorLabelForPaths = 'set_color_label_for_paths',
-  SetRatingForPaths = 'set_rating_for_paths',
-  SetFlagForPaths = 'set_flag_for_paths',
-  ShowInFinder = 'show_in_finder',
   StitchFocusStack = 'stitch_focus_stack',
   SubscribeAnalytics = 'subscribe_analytics',
   SaveFocusStack = 'save_focus_stack',
   TestAIConnectorConnection = 'test_ai_connector_connection',
   UpdateWgpuTransform = 'update_wgpu_transform',
   ReleaseOriginalPreview = 'release_original_preview',
-  UpdateExifFields = 'update_exif_fields',
   SaveTempFile = 'save_temp_file',
-  GetAlbums = 'get_albums',
-  SaveAlbums = 'save_albums',
-  AddToAlbum = 'add_to_album',
-  GetAlbumImages = 'get_album_images',
 }
 
 export enum ExifOverlay {
@@ -109,29 +81,9 @@ export enum Panel {
   Crop = 'crop',
   Export = 'export',
   Masks = 'masks',
-  Metadata = 'metadata',
-  FolderTree = 'folderTree',
 }
 
 export type PanelRegion = 'leftTop' | 'leftBottom' | 'rightTop' | 'rightBottom';
-
-export enum RawStatus {
-  All = 'all',
-  NonRawOnly = 'nonRawOnly',
-  RawOnly = 'rawOnly',
-}
-
-export enum SortDirection {
-  Ascending = 'asc',
-  Descending = 'desc',
-}
-
-type FolderSortKey = 'name' | 'modified' | 'created' | 'imageCount';
-
-export interface FolderTreeSort {
-  key: FolderSortKey;
-  order: SortDirection;
-}
 
 export enum Theme {
   Arctic = 'arctic',
@@ -142,12 +94,6 @@ export enum Theme {
   MutedGreen = 'muted-green',
   Sepia = 'sepia',
   Snow = 'snow',
-}
-
-export enum ThumbnailAspectRatio {
-  Cover = 'cover',
-  Contain = 'contain',
-  Justified = 'justified',
 }
 
 export interface WorkspaceState {
@@ -173,14 +119,11 @@ export type CompareMode = 'toggle' | Exclude<CompareView, 'off'>;
 export interface AppSettings {
   aiCacheLimitGb?: number;
   aiMapsCacheLimitGb?: number;
-  thumbnailCacheLimitGb?: number;
   aiConnectorAddress?: string;
   aiGpuAcceleration?: boolean;
   aiProvider?: string;
   decorations?: any;
   editorPreviewResolution?: number;
-  smallThumbnailResolution?: number;
-  mediumThumbnailResolution?: number;
   enableZoomHifi?: boolean;
   useFullDpiRendering?: boolean;
   highResZoomMultiplier?: number;
@@ -188,19 +131,7 @@ export interface AppSettings {
   livePreviewQuality?: string;
   exportWorkerThreads?: number;
   exportMemoryLimit?: number;
-  enableAiTagging?: boolean;
-  aiTagCount?: number;
-  customAiTags?: string[];
-  filterCriteria?: FilterCriteria;
-  lastFolderState?: any;
-  pinnedFolders?: any;
-  lastRootPath: string | null;
-  rootFolders?: string[];
-  libraryViewMode?: LibraryViewMode;
-  sortCriteria?: SortCriteria;
   theme: Theme;
-  thumbnailSize?: ThumbnailSize;
-  thumbnailAspectRatio?: ThumbnailAspectRatio;
   uiVisibility?: UiVisibility;
   rawHighlightCompression?: number;
   processingBackend?: string;
@@ -209,8 +140,6 @@ export interface AppSettings {
   myLenses?: any;
   customAspectRatios?: CustomAspectRatio[];
   adjustmentLayout?: AdjustmentLayout;
-  enableFolderImageCounts?: boolean;
-  displayEditIcon?: boolean;
   linearRawMode?: string;
   enableXmpSync?: boolean;
   createXmpIfMissing?: boolean;
@@ -234,18 +163,10 @@ export interface AppSettings {
   copyPasteSettings?: CopyPasteSettings;
   enableFocusMode?: boolean;
   enableToolFocusMode?: boolean;
-  openTreeSections?: string[];
-  folderIcons?: Record<string, string>;
   exifOverlay?: ExifOverlay;
   language?: string;
   fontFamily?: string;
-  folderTreeSort?: FolderTreeSort;
-  taggingShortcuts?: string[];
-  libraryDisplayMode?: LibraryDisplayMode;
-  grouping?: GroupingMode;
-  requireMatchingExif?: boolean;
-  groupEditedFiles?: boolean;
-  groupPreferredType?: GroupPreference; // legacy
+  imageCacheSize?: number;
   alwaysDecodeRawThumbnails?: boolean;
   workspace?: WorkspaceState;
 }
@@ -254,88 +175,6 @@ export interface BrushSettings {
   feather: number;
   size: number;
   tool: ToolType;
-}
-
-export enum LibraryViewMode {
-  Flat = 'flat',
-  Recursive = 'recursive',
-}
-
-export const EditedStatus = {
-  All: 'all',
-  EditedOnly: 'editedOnly',
-  UneditedOnly: 'uneditedOnly',
-} as const;
-
-export type EditedStatus = (typeof EditedStatus)[keyof typeof EditedStatus];
-
-export const ImageFlag = {
-  Pick: 'pick',
-  Reject: 'reject',
-} as const;
-
-export type ImageFlag = (typeof ImageFlag)[keyof typeof ImageFlag];
-
-export const FlagStatus = {
-  All: 'all',
-  Picked: 'picked',
-  ExcludeRejected: 'excludeRejected',
-  Rejected: 'rejected',
-} as const;
-
-export type FlagStatus = (typeof FlagStatus)[keyof typeof FlagStatus];
-
-export type RatingOperator = 'gte' | 'eq' | 'lte';
-
-export const RATING_OPERATORS = {
-  lte: {
-    symbol: '≤',
-    next: 'eq',
-    labelKey: 'library.header.viewOptions.ratingOperator.lte',
-    suffixKey: 'library.filters.rating.andDownSuffix',
-  },
-  eq: {
-    symbol: '=',
-    next: 'gte',
-    labelKey: 'library.header.viewOptions.ratingOperator.eq',
-    suffixKey: 'library.filters.rating.onlySuffix',
-  },
-  gte: {
-    symbol: '≥',
-    next: 'lte',
-    labelKey: 'library.header.viewOptions.ratingOperator.gte',
-    suffixKey: 'library.filters.rating.andUpSuffix',
-  },
-} as const;
-
-export interface FilterCriteria {
-  colors: Array<string>;
-  rating: number;
-  ratingOperator?: RatingOperator;
-  rawStatus: RawStatus;
-  editedStatus?: EditedStatus;
-  flagStatus?: FlagStatus;
-}
-
-export interface Folder {
-  children: any;
-  id?: string | undefined;
-  name?: string | undefined;
-  imageCount?: number;
-}
-
-export interface ImageFile {
-  is_edited: boolean;
-  modified: number;
-  path: string;
-  rating: number;
-  flag: ImageFlag | null;
-  tags: Array<string> | null;
-  exif: { [key: string]: string } | null;
-  is_virtual_copy: boolean;
-  is_cloud_placeholder: boolean;
-  is_raw: boolean;
-  group_id: string | null;
 }
 
 export interface Option {
@@ -371,14 +210,8 @@ export interface SelectedImage {
   metadata?: any;
   original_base64?: string;
   path: string;
-  thumbnailUrl: string;
+  thumbnailUrl: string | null;
   width: number;
-}
-
-export interface SortCriteria {
-  key: string;
-  label?: string;
-  order: string;
 }
 
 export interface SupportedTypes {
@@ -391,12 +224,6 @@ export enum LibraryDisplayMode {
   List = 'list',
 }
 
-export enum ThumbnailSize {
-  Large = 'large',
-  Medium = 'medium',
-  Small = 'small',
-}
-
 export interface TransformState {
   positionX: number;
   positionY: number;
@@ -404,10 +231,8 @@ export interface TransformState {
 }
 
 export interface UiVisibility {
-  filmstrip: boolean;
   leftPanel: boolean;
   rightPanel: boolean;
-  quickFilter?: boolean;
 }
 
 export interface CollapsibleSectionsState {
@@ -436,25 +261,3 @@ export interface WaveformData {
   width: number;
 }
 
-interface KeybindHandler {
-  shouldFire?: () => boolean;
-  execute: (event: KeyboardEvent) => void;
-}
-
-export type AlbumItem = Album | AlbumGroup;
-
-export interface Album {
-  type: 'album';
-  id: string;
-  name: string;
-  icon?: string;
-  images: string[];
-}
-
-export interface AlbumGroup {
-  type: 'group';
-  id: string;
-  name: string;
-  icon?: string;
-  children: AlbumItem[];
-}

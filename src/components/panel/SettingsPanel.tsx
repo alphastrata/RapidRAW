@@ -78,9 +78,7 @@ interface SettingItemProps {
 interface SettingsPanelProps {
   appSettings: any;
   onBack(): void;
-  onLibraryRefresh(): void;
   onSettingsChange(settings: any): Promise<void>;
-  rootPaths: string[];
 }
 
 interface TestStatus {
@@ -346,9 +344,7 @@ const PreviewModeSwitch = ({ mode, onModeChange }: PreviewModeSwitchProps) => {
 export default function SettingsPanel({
   appSettings,
   onBack,
-  onLibraryRefresh,
   onSettingsChange,
-  rootPaths,
 }: SettingsPanelProps) {
   const { t } = useTranslation();
   const [confirmModalState, setConfirmModalState] = useState<ConfirmModalState>({
@@ -375,8 +371,6 @@ export default function SettingsPanel({
   const osPlatform = useOsPlatform();
   const [processingSettings, setProcessingSettings] = useState({
     editorPreviewResolution: appSettings?.editorPreviewResolution || 1920,
-    smallThumbnailResolution: appSettings?.smallThumbnailResolution || 480,
-    mediumThumbnailResolution: appSettings?.mediumThumbnailResolution || 1280,
     rawHighlightCompression: appSettings?.rawHighlightCompression ?? 2.5,
     baselineExposure: appSettings?.baselineExposure ?? DEFAULT_BASELINE_EXPOSURE,
     processingBackend: appSettings?.processingBackend || 'auto',
@@ -385,7 +379,6 @@ export default function SettingsPanel({
     useFullDpiRendering: appSettings?.useFullDpiRendering ?? false,
     useWgpuRenderer:
       appSettings?.useWgpuRenderer ?? (osPlatform === 'linux' || osPlatform === 'android' ? false : true),
-    thumbnailWorkerThreads: appSettings?.thumbnailWorkerThreads ?? 4,
     imageCacheSize: appSettings?.imageCacheSize ?? 5,
     rawPreprocessingColorNr: appSettings?.rawPreprocessingColorNr ?? 0.5,
     rawPreprocessingSharpening: appSettings?.rawPreprocessingSharpening ?? 0.35,
@@ -488,8 +481,6 @@ export default function SettingsPanel({
     }
     setProcessingSettings({
       editorPreviewResolution: appSettings?.editorPreviewResolution || 1920,
-      smallThumbnailResolution: appSettings?.smallThumbnailResolution || 480,
-      mediumThumbnailResolution: appSettings?.mediumThumbnailResolution || 1280,
       rawHighlightCompression: appSettings?.rawHighlightCompression ?? 2.5,
       baselineExposure: appSettings?.baselineExposure ?? DEFAULT_BASELINE_EXPOSURE,
       processingBackend: appSettings?.processingBackend || 'auto',
@@ -497,7 +488,6 @@ export default function SettingsPanel({
       highResZoomMultiplier: appSettings?.highResZoomMultiplier || 1.0,
       useFullDpiRendering: appSettings?.useFullDpiRendering ?? false,
       useWgpuRenderer: appSettings?.useWgpuRenderer ?? true,
-      thumbnailWorkerThreads: appSettings?.thumbnailWorkerThreads ?? 4,
       imageCacheSize: appSettings?.imageCacheSize ?? 5,
       rawPreprocessingColorNr: appSettings?.rawPreprocessingColorNr ?? 0.5,
       rawPreprocessingSharpening: appSettings?.rawPreprocessingSharpening ?? 0.35,
@@ -515,10 +505,7 @@ export default function SettingsPanel({
     setProcessingSettings((prev) => ({ ...prev, [key]: value }));
 
     if (
-      key === 'processingBackend' ||
-      key === 'linuxGpuOptimization' ||
-      key === 'useWgpuRenderer' ||
-      key === 'thumbnailWorkerThreads'
+      key === 'processingBackend' || key === 'linuxGpuOptimization' || key === 'useWgpuRenderer'
     ) {
       setRestartRequired(true);
     } else {
@@ -594,7 +581,6 @@ export default function SettingsPanel({
     onSettingsChange({ ...appSettings, myLenses: newLenses });
   };
 
-  const effectiveRootPaths = rootPaths?.length > 0 ? rootPaths : appSettings?.rootFolders || [];
 
   const handleTestConnection = async () => {
     if (!aiConnectorAddress) {
@@ -796,17 +782,6 @@ export default function SettingsPanel({
                         </AnimatePresence>
                       </div>
 
-                      <SettingItem
-                        label={t('settings.general.folderImageCounts')}
-                        description={t('settings.general.folderImageCountsDesc')}
-                      >
-                        <Switch
-                          checked={appSettings?.enableFolderImageCounts ?? false}
-                          id="folder-image-counts-toggle"
-                          label={t('settings.general.showImageCounts')}
-                          onChange={(checked) => onSettingsChange({ ...appSettings, enableFolderImageCounts: checked })}
-                        />
-                      </SettingItem>
 
                       <SettingItem
                         label={t('settings.general.neutralGreyCanvas')}
@@ -820,17 +795,6 @@ export default function SettingsPanel({
                         />
                       </SettingItem>
 
-                      <SettingItem
-                        label={t('settings.general.displayEditIcon')}
-                        description={t('settings.general.displayEditIconDesc')}
-                      >
-                        <Switch
-                          checked={appSettings?.displayEditIcon ?? true}
-                          id="display-edit-icon-toggle"
-                          label={t('settings.general.displayEditIcon')}
-                          onChange={(checked) => onSettingsChange({ ...appSettings, displayEditIcon: checked })}
-                        />
-                      </SettingItem>
 
                       <SettingItem
                         label={t('settings.general.focusMode')}
@@ -1409,43 +1373,8 @@ export default function SettingsPanel({
                         </AnimatePresence>
                       </div>
 
-                      <SettingItem
-                        description={t('settings.processing.smallThumbnailResDesc')}
-                        label={t('settings.processing.smallThumbnailRes')}
-                      >
-                        <Dropdown
-                          onChange={(value: any) => handleProcessingSettingChange('smallThumbnailResolution', value)}
-                          options={smallThumbnailResolutions}
-                          value={processingSettings.smallThumbnailResolution}
-                          triggerClassName="bg-bg-primary"
-                        />
-                      </SettingItem>
 
-                      <SettingItem
-                        description={t('settings.processing.mediumThumbnailResDesc')}
-                        label={t('settings.processing.mediumThumbnailRes')}
-                      >
-                        <Dropdown
-                          onChange={(value: any) => handleProcessingSettingChange('mediumThumbnailResolution', value)}
-                          options={mediumThumbnailResolutions}
-                          value={processingSettings.mediumThumbnailResolution}
-                          triggerClassName="bg-bg-primary"
-                        />
-                      </SettingItem>
 
-                      <SettingItem
-                        label={t('settings.processing.alwaysDecodeRaw')}
-                        description={t('settings.processing.alwaysDecodeRawDesc')}
-                      >
-                        <Switch
-                          checked={appSettings?.alwaysDecodeRawThumbnails ?? false}
-                          id="always-decode-raw-thumbnails-toggle"
-                          label={t('settings.processing.alwaysDecodeRawLabel')}
-                          onChange={(checked) => {
-                            onSettingsChange({ ...appSettings, alwaysDecodeRawThumbnails: checked });
-                          }}
-                        />
-                      </SettingItem>
 
                       <SettingItem
                         label={t('settings.processing.wgpu')}
@@ -1529,27 +1458,7 @@ export default function SettingsPanel({
                                 className="overflow-hidden"
                               >
                                 <div className="px-4 pb-4 pt-4 border-t border-surface/50 space-y-8">
-                                  <SettingItem
-                                    label={t('settings.processing.workerThreads')}
-                                    description={t('settings.processing.workerThreadsDesc')}
-                                  >
-                                    <Slider
-                                      label={t('settings.processing.threads')}
-                                      min={2}
-                                      max={10}
-                                      step={1}
-                                      value={processingSettings.thumbnailWorkerThreads}
-                                      defaultValue={4}
-                                      onChange={(e: any) =>
-                                        handleProcessingSettingChange(
-                                          'thumbnailWorkerThreads',
-                                          parseInt(e.target.value),
-                                        )
-                                      }
-                                      fillOrigin="min"
-                                    />
-                                  </SettingItem>
-
+            
                                   <SettingItem
                                     label={t('settings.processing.imageCache')}
                                     description={t('settings.processing.imageCacheDesc')}
@@ -1846,12 +1755,10 @@ export default function SettingsPanel({
                     </Text>
                     <DataManagementSettings
                       appSettings={appSettings}
-                      onLibraryRefresh={onLibraryRefresh}
                       onRequestConfirm={(request) =>
                         setConfirmModalState({ ...request, confirmVariant: 'destructive', isOpen: true })
                       }
                       onSettingsChange={onSettingsChange}
-                      rootPaths={effectiveRootPaths}
                     />
                   </div>
                 </motion.div>

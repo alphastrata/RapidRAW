@@ -3,12 +3,10 @@ import { listen } from '@tauri-apps/api/event';
 import { Channel, convertFileSrc, invoke } from '@tauri-apps/api/core';
 import { toast } from 'react-toastify';
 import { Status } from '../components/ui/ExportImportProperties';
-import { Invokes, Progress, WaveformData } from '../components/ui/AppProperties';
-import { MaskContainer } from '../utils/adjustments';
+import { Invokes, WaveformData } from '../components/ui/AppProperties';
 import { JobKind, JobStatus, useProcessStore } from '../store/useProcessStore';
 import { useEditorStore } from '../store/useEditorStore';
 import { useUIStore } from '../store/useUIStore';
-import { useLibraryStore } from '../store/useLibraryStore';
 
 const parseAnalyticsPacket = async (buffer: ArrayBuffer) => {
   const view = new DataView(buffer);
@@ -55,26 +53,16 @@ const parseAnalyticsPacket = async (buffer: ArrayBuffer) => {
 };
 
 interface TauriListenerProps {
-  refreshAllFolderTrees: () => void;
-  handleSelectSubfolder: (path: string, isNewRoot?: boolean, preloadedImages?: any[], expandParents?: boolean) => void;
   markGenerated: (path: string) => void;
 }
 
-export function useTauriListeners({
-  refreshAllFolderTrees,
-  handleSelectSubfolder,
-  markGenerated,
-}: TauriListenerProps) {
-  const refs = useRef({ refreshAllFolderTrees, handleSelectSubfolder, markGenerated });
+export function useTauriListeners({ markGenerated }: TauriListenerProps) {
+  const refs = useRef({ markGenerated });
   useEffect(() => {
-    refs.current = { refreshAllFolderTrees, handleSelectSubfolder, markGenerated };
+    refs.current = { markGenerated };
   });
   const thumbnailBuffer = useRef<Record<string, string>>({});
   const mediumThumbnailBuffer = useRef<Record<string, string>>({});
-  const ratingBuffer = useRef<Record<string, number>>({});
-  const editStatusBuffer = useRef<Record<string, boolean>>({});
-  const metadataBuffer = useRef<Record<string, { flag: any; tags: any }>>({});
-  const progressBuffer = useRef<{ current: number; total: number } | null>(null);
   const flushHandle = useRef<number | null>(null);
 
   useEffect(() => {
@@ -87,78 +75,15 @@ export function useTauriListeners({
 
       const pendingThumbs = thumbnailBuffer.current;
       const pendingMediumThumbs = mediumThumbnailBuffer.current;
-      const pendingRatings = ratingBuffer.current;
-      const pendingEdits = editStatusBuffer.current;
-      const pendingMetadata = metadataBuffer.current;
-      const pendingProgress = progressBuffer.current;
 
       thumbnailBuffer.current = {};
       mediumThumbnailBuffer.current = {};
-      ratingBuffer.current = {};
-      editStatusBuffer.current = {};
-      metadataBuffer.current = {};
-      progressBuffer.current = null;
 
-      const hasThumbs = Object.keys(pendingThumbs).length > 0;
-      if (hasThumbs || pendingProgress) {
-        useProcessStore.getState().setProcess((state) => {
-          const update: Partial<typeof state> = {};
-          if (hasThumbs) {
-            update.thumbnails = { ...state.thumbnails, ...pendingThumbs };
-            update.mediumThumbnails = { ...state.mediumThumbnails, ...pendingMediumThumbs };
-          }
-          if (
-            pendingProgress &&
-            (state.thumbnailProgress?.current !== pendingProgress.current ||
-              state.thumbnailProgress?.total !== pendingProgress.total)
-          ) {
-            update.thumbnailProgress = pendingProgress;
-          }
-          return update;
-        });
-      }
-
-      const ratingPaths = Object.keys(pendingRatings);
-      const editPaths = Object.keys(pendingEdits);
-      const metadataPaths = Object.keys(pendingMetadata);
-      if (ratingPaths.length === 0 && editPaths.length === 0 && metadataPaths.length === 0) return;
-
-      const libraryState = useLibraryStore.getState();
-
-      let nextRatings: Record<string, number> | null = null;
-      for (const path of ratingPaths) {
-        const rating = pendingRatings[path];
-        if (libraryState.imageRatings[path] !== rating || !(path in libraryState.imageRatings)) {
-          if (!nextRatings) nextRatings = { ...libraryState.imageRatings };
-          nextRatings[path] = rating;
-        }
-      }
-
-      let nextImageList: typeof libraryState.imageList | null = null;
-      if (editPaths.length > 0 || metadataPaths.length > 0) {
-        const list = libraryState.imageList;
-        for (let i = 0; i < list.length; i++) {
-          const img = list[i];
-          const hasEdit = img.path in pendingEdits;
-          const meta = pendingMetadata[img.path];
-          if (!hasEdit && !meta) continue;
-          const isEdited = hasEdit ? pendingEdits[img.path] : img.is_edited;
-          const flag = meta ? meta.flag : img.flag;
-          const tags = meta ? (meta.tags ?? img.tags) : img.tags;
-          if (isEdited === img.is_edited && flag === img.flag && tags === img.tags)
-            continue;
-          if (!nextImageList) nextImageList = list.slice();
-          nextImageList[i] = meta
-            ? { ...img, flag, is_edited: isEdited, tags }
-            : { ...img, is_edited: isEdited };
-        }
-      }
-
-      if (nextRatings || nextImageList) {
-        const update: Partial<typeof libraryState> = {};
-        if (nextRatings) update.imageRatings = nextRatings;
-        if (nextImageList) update.imageList = nextImageList;
-        libraryState.setLibrary(update);
+      if (Object.keys(pendingThumbs).length > 0) {
+        useProcessStore.getState().setProcess((state) => ({
+          thumbnails: { ...state.thumbnails, ...pendingThumbs },
+          mediumThumbnails: { ...state.mediumThumbnails, ...pendingMediumThumbs },
+        }));
       }
     };
 
@@ -177,19 +102,9 @@ export function useTauriListeners({
       listen('external-edit-session', (event: any) => {
         if (isEffectActive) useProcessStore.getState().setProcess({ externalEditSession: event.payload });
       }),
-      listen('thumbnail-progress', (event: any) => {
-        if (!isEffectActive) return;
-        progressBuffer.current = { current: event.payload.current, total: event.payload.total };
-        scheduleFlush();
-      }),
-      listen('thumbnail-generation-complete', () => {
-        if (!isEffectActive) return;
-        progressBuffer.current = null;
-        useProcessStore.getState().setProcess({ thumbnailProgress: { current: 0, total: 0 } });
-      }),
       listen('thumbnail-generated', (event: any) => {
         if (!isEffectActive) return;
-        const { path, thumbnailPath, previewPath, rating, is_edited, data } = event.payload;
+        const { path, thumbnailPath, previewPath, data } = event.payload;
 
         if (thumbnailPath && previewPath) {
           thumbnailBuffer.current[path] = convertFileSrc(thumbnailPath.replace(/\\/g, '/'));
@@ -200,24 +115,9 @@ export function useTauriListeners({
           mediumThumbnailBuffer.current[path] = data;
           refs.current.markGenerated(path);
         }
-        if (rating !== undefined) {
-          ratingBuffer.current[path] = rating;
-        }
-        if (is_edited !== undefined) {
-          editStatusBuffer.current[path] = is_edited;
-        }
-        if (thumbnailPath || data || rating !== undefined || is_edited !== undefined) {
+        if (thumbnailPath || data) {
           scheduleFlush();
         }
-      }),
-      listen('image-metadata-loaded', (event: any) => {
-        if (!isEffectActive) return;
-        const { path, rating, flag, is_edited, tags } = event.payload;
-
-        ratingBuffer.current[path] = rating;
-        editStatusBuffer.current[path] = is_edited;
-        metadataBuffer.current[path] = { flag, tags };
-        scheduleFlush();
       }),
       listen<string>('ai-model-download-start', (event) => {
         if (isEffectActive)
@@ -258,39 +158,6 @@ export function useTauriListeners({
       }),
       listen('export-cancelled', () => {
         if (isEffectActive) useProcessStore.getState().setExportState({ status: Status.Cancelled });
-      }),
-      listen('import-start', (event: any) => {
-        if (isEffectActive)
-          useProcessStore.getState().setImportState({
-            errorMessage: '',
-            path: '',
-            progress: { current: 0, total: event.payload.total },
-            status: Status.Importing,
-          });
-      }),
-      listen('import-progress', (event: any) => {
-        if (isEffectActive)
-          useProcessStore.getState().setImportState({
-            path: event.payload.path,
-            progress: { current: event.payload.current, total: event.payload.total },
-          });
-      }),
-      listen('import-complete', () => {
-        if (isEffectActive) {
-          useProcessStore.getState().setImportState({ status: Status.Success });
-          refs.current.refreshAllFolderTrees();
-          const currentPath = useLibraryStore.getState().currentFolderPath;
-          if (currentPath) {
-            refs.current.handleSelectSubfolder(currentPath, false);
-          }
-        }
-      }),
-      listen('import-error', (event: any) => {
-        if (isEffectActive)
-          useProcessStore.getState().setImportState({
-            status: Status.Error,
-            errorMessage: typeof event.payload === 'string' ? event.payload : 'Unknown error',
-          });
       }),
       listen<{ path: string; progress: number }>('ai-denoise-progress', (event) => {
         if (!isEffectActive) return;
@@ -397,10 +264,6 @@ export function useTauriListeners({
       }
       thumbnailBuffer.current = {};
       mediumThumbnailBuffer.current = {};
-      ratingBuffer.current = {};
-      editStatusBuffer.current = {};
-      metadataBuffer.current = {};
-      progressBuffer.current = null;
       listeners.forEach((p) => p.then((unlisten) => unlisten()));
     };
   }, []);

@@ -35,8 +35,6 @@ interface FocusStackModalState {
 }
 
 const ALL_PANELS: Panel[] = [
-  Panel.Metadata,
-  Panel.FolderTree,
   Panel.Export,
   Panel.Adjustments,
   Panel.Crop,
@@ -45,8 +43,6 @@ const ALL_PANELS: Panel[] = [
 ];
 
 const DEFAULT_PANEL_DEFAULT_REGIONS: Record<Panel, PanelRegion> = {
-  [Panel.Metadata]: 'leftTop',
-  [Panel.FolderTree]: 'leftTop',
   [Panel.Export]: 'leftTop',
   [Panel.Adjustments]: 'rightTop',
   [Panel.Crop]: 'rightTop',
@@ -67,13 +63,13 @@ export function reconcileWorkspace(savedWorkspace: WorkspaceState | undefined): 
     leftTopHeight: DEFAULT_PANEL_SECTION_HEIGHT,
     rightTopHeight: DEFAULT_PANEL_SECTION_HEIGHT,
     panelLayout: {
-      leftTop: [Panel.Metadata, Panel.FolderTree, Panel.Export],
+      leftTop: [Panel.Export],
       leftBottom: [],
       rightTop: [Panel.Adjustments, Panel.Crop, Panel.Masks, Panel.Ai],
       rightBottom: [],
     },
     activePanels: {
-      leftTop: Panel.FolderTree,
+      leftTop: Panel.Export,
       leftBottom: null,
       rightTop: Panel.Adjustments,
       rightBottom: null,
@@ -154,13 +150,11 @@ export const isPanelVisible = (state: UIState, panel: Panel) =>
   );
 
 export interface UIState {
-  activeView: string;
   isFullScreen: boolean;
   isWindowFullScreen: boolean;
   isInstantTransition: boolean;
   isLayoutReady: boolean;
   uiVisibility: UiVisibility;
-  isLibraryExportPanelVisible: boolean;
   isSettingsOpen: boolean;
 
   leftPanelWidth: number;
@@ -187,20 +181,7 @@ export interface UIState {
   collapsibleSectionsState: CollapsibleSectionsState;
   cropSectionsState: CropSectionsState;
 
-  isCreateFolderModalOpen: boolean;
-  isRenameFolderModalOpen: boolean;
-  isRenameFileModalOpen: boolean;
-  renameTargetPaths: Array<string>;
-  isImportModalOpen: boolean;
   isCopyPasteSettingsModalOpen: boolean;
-  importTargetFolder: string | null;
-  importSourcePaths: Array<string>;
-  folderActionTarget: string | null;
-
-  isCreateAlbumModalOpen: boolean;
-  isCreateAlbumGroupModalOpen: boolean;
-  isRenameAlbumModalOpen: boolean;
-  albumActionTarget: string | null;
 
   confirmModalState: ConfirmModalState;
   focusStackModalState: FocusStackModalState;
@@ -218,13 +199,11 @@ export interface UIState {
 }
 
 export const useUIStore = create<UIState>((set, get) => ({
-  activeView: 'library',
   isFullScreen: false,
   isWindowFullScreen: false,
   isInstantTransition: false,
   isLayoutReady: false,
-  uiVisibility: { filmstrip: true, leftPanel: true, rightPanel: true, quickFilter: false },
-  isLibraryExportPanelVisible: false,
+  uiVisibility: { leftPanel: true, rightPanel: true },
   isSettingsOpen: false,
 
   leftPanelWidth: DEFAULT_PANEL_WIDTH,
@@ -235,13 +214,13 @@ export const useUIStore = create<UIState>((set, get) => ({
   compactEditorPanelHeightOverride: null,
 
   panelLayout: {
-    leftTop: [Panel.Metadata, Panel.FolderTree, Panel.Export],
+    leftTop: [Panel.Export],
     leftBottom: [],
     rightTop: [Panel.Adjustments, Panel.Crop, Panel.Masks, Panel.Ai],
     rightBottom: [],
   },
   activePanels: {
-    leftTop: Panel.FolderTree,
+    leftTop: Panel.Export,
     leftBottom: null,
     rightTop: Panel.Adjustments,
     rightBottom: null,
@@ -265,19 +244,7 @@ export const useUIStore = create<UIState>((set, get) => ({
   collapsibleSectionsState: { basic: true, color: false, curves: true, details: false, effects: false },
   cropSectionsState: { transform: false, lens: false },
 
-  isCreateFolderModalOpen: false,
-  isRenameFolderModalOpen: false,
-  isRenameFileModalOpen: false,
-  renameTargetPaths: [],
-  isImportModalOpen: false,
   isCopyPasteSettingsModalOpen: false,
-  importTargetFolder: null,
-  importSourcePaths: [],
-  folderActionTarget: null,
-  isCreateAlbumModalOpen: false,
-  isCreateAlbumGroupModalOpen: false,
-  isRenameAlbumModalOpen: false,
-  albumActionTarget: null,
 
   confirmModalState: { isOpen: false },
   focusStackModalState: {
@@ -436,7 +403,7 @@ export const useUIStore = create<UIState>((set, get) => ({
       panelLayout: defaultWorkspace.panelLayout,
       activePanels: defaultWorkspace.activePanels,
       panelSwitcherPlacement: defaultWorkspace.panelSwitcherPlacement,
-      uiVisibility: { filmstrip: true, leftPanel: true, rightPanel: true, quickFilter: false },
+      uiVisibility: { leftPanel: true, rightPanel: true },
       activePanel: defaultWorkspace.activePanels.rightTop || null,
       renderedPanel: defaultWorkspace.activePanels.rightTop || null,
     });

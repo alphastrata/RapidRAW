@@ -5,7 +5,6 @@ import throttle from 'lodash.throttle';
 import { useEditorStore } from '../store/useEditorStore';
 import { useUIStore } from '../store/useUIStore';
 import { useSettingsStore } from '../store/useSettingsStore';
-import { useLibraryStore } from '../store/useLibraryStore';
 import { Adjustments, COPYABLE_ADJUSTMENT_KEYS } from '../utils/adjustments';
 import { Invokes, Panel } from '../components/ui/AppProperties';
 import { debouncedSave, getOriginalAdjustments } from './useEditorActions';
@@ -47,10 +46,8 @@ export function useImageProcessing(
   const compareView = useEditorStore((state) => state.compareView);
   const setEditor = useEditorStore((state) => state.setEditor);
 
-  const activeView = useUIStore((state) => state.activeView);
   const activePanel = useUIStore((state) => state.activePanel);
   const appSettings = useSettingsStore((state) => state.appSettings);
-  const multiSelectedPaths = useLibraryStore((state) => state.multiSelectedPaths);
 
   const uncroppedJobIdRef = useRef(0);
   const latestUncroppedJobIdRef = useRef(0);
@@ -127,7 +124,7 @@ export function useImageProcessing(
     async (targetRes?: number) => {
       const { selectedImage: image, adjustments: currentAdjustments, compareView: view } = useEditorStore.getState();
       const ui = useUIStore.getState();
-      if (view === 'off' || !image?.isReady || ui.activeView !== 'editor' || ui.activePanel === Panel.Crop) return;
+      if (view === 'off' || !image?.isReady || ui.activePanel === Panel.Crop) return;
 
       const originalAdjustments = getOriginalAdjustments(currentAdjustments);
       const { useWgpuRenderer } = useSettingsStore.getState().appSettings ?? {};
@@ -348,10 +345,10 @@ export function useImageProcessing(
   );
 
   useEffect(() => {
-    if (activeView === 'editor' && activePanel === Panel.Crop && selectedImage?.isReady) {
+    if (activePanel === Panel.Crop && selectedImage?.isReady) {
       generateUncroppedPreview(adjustments);
     }
-  }, [activeView, adjustments, activePanel, selectedImage?.isReady, generateUncroppedPreview]);
+  }, [adjustments, activePanel, selectedImage?.isReady, generateUncroppedPreview]);
 
   const calculateTargetRes = useCallback(() => {
     const baseTargetRes = appSettings?.editorPreviewResolution || 1920;
@@ -404,7 +401,7 @@ export function useImageProcessing(
   );
 
   useEffect(() => {
-    if (activeView === 'editor' && selectedImage?.isReady && displaySize.width > 0 && !isSliderDragging) {
+    if (selectedImage?.isReady && displaySize.width > 0 && !isSliderDragging) {
       let baseRes = calculateTargetRes();
       if (originalSize.width > 0 && originalSize.height > 0) {
         const maxRes = Math.max(originalSize.width, originalSize.height);
@@ -421,7 +418,6 @@ export function useImageProcessing(
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
-    activeView,
     displaySize.width,
     displaySize.height,
     calculateTargetRes,
@@ -437,7 +433,6 @@ export function useImageProcessing(
     if (isComparing && currentResRef.current > 0) renderOriginal(currentResRef.current);
   }, [
     isComparing,
-    activeView,
     activePanel,
     selectedImage?.path,
     selectedImage?.isReady,
@@ -465,7 +460,7 @@ export function useImageProcessing(
     const targetRes = calculateTargetRes();
     const renderAdjustments = previewOverride ?? adjustments;
 
-    if (activeView !== 'editor') {
+    if (!selectedImage) {
       if (isSliderDragging) return;
     }
 
@@ -493,7 +488,7 @@ export function useImageProcessing(
         if (hasAdjustmentsChanged) {
           debouncedSave(selectedImage.path, adjustments);
 
-          const otherPaths = multiSelectedPaths.filter((p) => p !== selectedImage.path);
+          const otherPaths: string[] = [];
           if (appSettings?.copyPasteSettings?.autoSync && otherPaths.length > 0) {
             const delta: Partial<Adjustments> = {};
             const includedKeys = appSettings?.copyPasteSettings?.includedAdjustments || COPYABLE_ADJUSTMENT_KEYS;
@@ -522,13 +517,11 @@ export function useImageProcessing(
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
-    activeView,
     adjustments,
     previewOverride,
     selectedImage?.path,
     selectedImage?.isReady,
     isSliderDragging,
-    multiSelectedPaths,
     appSettings?.enableLivePreviews,
     appSettings?.enableBaselineExposure,
     appSettings?.baselineExposure,

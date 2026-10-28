@@ -32,7 +32,6 @@ import { CompareView, Panel, TransformState, Invokes } from '../ui/AppProperties
 import { useEditorStore } from '../../store/useEditorStore';
 import { useSettingsStore } from '../../store/useSettingsStore';
 import { useUIStore } from '../../store/useUIStore';
-import { useLibraryStore } from '../../store/useLibraryStore';
 import { useAiMasking } from '../../hooks/useAiMasking';
 import { useEditorActions, withRotation } from '../../hooks/useEditorActions';
 
@@ -149,21 +148,19 @@ interface WgpuRenderState {
 }
 
 interface EditorProps {
-  onBackToLibrary(): void;
   onContextMenu(event: any): void;
-  onImageSelect?(path: string, event?: any): void;
   transformWrapperRef: any;
 }
 
-export default function Editor({ onBackToLibrary, onContextMenu, onImageSelect, transformWrapperRef }: EditorProps) {
+export default function Editor({ onContextMenu, transformWrapperRef }: EditorProps) {
   const appSettings = useSettingsStore((s) => s.appSettings);
   const osPlatform = useSettingsStore((s) => s.osPlatform);
   const isFullScreen = useUIStore((s) => s.isFullScreen);
   const activePanel = useUIStore((s) => s.activePanel);
   const isInstantTransition = useUIStore((s) => s.isInstantTransition);
   const setUI = useUIStore((s) => s.setUI);
-  const isLoading = useLibraryStore((s) => s.isViewLoading);
   const selectedImage = useEditorStore((s) => s.selectedImage);
+  const isLoading = selectedImage ? !selectedImage.isReady : false;
   const adjustments = useEditorStore(useShallow((s) => omitTonalAdjustments(s.adjustments)));
   const adjustmentsHistory = useEditorStore((s) => s.history);
   const adjustmentsHistoryIndex = useEditorStore((s) => s.historyIndex);
@@ -2528,8 +2525,7 @@ export default function Editor({ onBackToLibrary, onContextMenu, onImageSelect, 
           canUndo={canUndo}
           isAndroid={isAndroid}
           isLoading={isLoading}
-          onBackToLibrary={onBackToLibrary}
-          onImageSelect={onImageSelect}
+
           onRedo={redo}
           onToggleFullScreen={toggleFullScreen}
           onToggleCompare={toggleCompare}

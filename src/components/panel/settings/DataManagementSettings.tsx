@@ -2,7 +2,7 @@ import { ReactNode, useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { invoke } from '@tauri-apps/api/core';
 import clsx from 'clsx';
-import { FolderOpen, Loader2, RefreshCw, RotateCcw, Trash2 } from 'lucide-react';
+import { Loader2, RefreshCw, RotateCcw, Trash2 } from 'lucide-react';
 import Text from '../../ui/Text';
 import { TextColors, TextVariants, TextWeights } from '../../../types/typography';
 import { AppSettings, Invokes } from '../../ui/AppProperties';
@@ -10,7 +10,6 @@ import { useUIStore } from '../../../store/useUIStore';
 import { formatBytes } from '../../../utils/formatBytes';
 
 interface StorageUsage {
-  thumbnails: number;
   aiDenoise: number;
   aiMaps: number;
   metadata: number;
@@ -30,14 +29,6 @@ interface StorageItem {
 }
 
 const storageItems: StorageItem[] = [
-  {
-    key: 'thumbnails',
-    color: 'bg-[#8796a8]',
-    limit: {
-      get: (settings) => settings?.thumbnailCacheLimitGb ?? 10,
-      set: (settings, gb) => ({ ...settings, thumbnailCacheLimitGb: gb }),
-    },
-  },
   {
     key: 'aiDenoise',
     color: 'bg-[#9d93ad]',
@@ -70,10 +61,8 @@ export interface DataConfirmRequest {
 
 interface DataManagementSettingsProps {
   appSettings: AppSettings | null;
-  onLibraryRefresh(): void;
   onRequestConfirm(request: DataConfirmRequest): void;
   onSettingsChange(settings: AppSettings): void | Promise<void>;
-  rootPaths: string[];
 }
 
 type Status = { text: string; error?: boolean } | null;
@@ -229,10 +218,8 @@ function Row({
 
 export default function DataManagementSettings({
   appSettings,
-  onLibraryRefresh,
   onRequestConfirm,
   onSettingsChange,
-  rootPaths,
 }: DataManagementSettingsProps) {
   const { t } = useTranslation();
   const [usage, setUsage] = useState<StorageUsage | null>(null);
@@ -285,11 +272,6 @@ export default function DataManagementSettings({
   };
 
   const clearActions: Record<ClearableKey, { invoke: Invokes; message: string; success: string }> = {
-    thumbnails: {
-      invoke: Invokes.ClearThumbnailCache,
-      message: t('settings.data.modals.cacheMessage'),
-      success: t('settings.data.statuses.cacheSuccess'),
-    },
     aiDenoise: {
       invoke: Invokes.ClearAiDenoiseCache,
       message: t('settings.data.modals.aiDenoiseMessage'),
@@ -320,24 +302,7 @@ export default function DataManagementSettings({
       onConfirm: () =>
         run(key, async () => {
           await invoke(clearActions[key].invoke);
-          if (key === 'thumbnails') onLibraryRefresh();
           return clearActions[key].success;
-        }),
-    });
-
-  const clearSidecars = () =>
-    onRequestConfirm({
-      confirmText: t('settings.data.modals.confirmDeleteAllEdits'),
-      message: `${t('settings.data.modals.sidecarMessage')}\n\n${rootPaths.join('\n')}`,
-      title: t('settings.data.modals.confirmTitle'),
-      onConfirm: () =>
-        run('sidecars', async () => {
-          let total = 0;
-          for (const root of rootPaths) {
-            total += await invoke<number>(Invokes.ClearAllSidecars, { rootPath: root });
-          }
-          onLibraryRefresh();
-          return t('settings.data.statuses.sidecarSuccess', { count: total });
         }),
     });
 
@@ -416,8 +381,8 @@ export default function DataManagementSettings({
                   key === 'logs' ? (
                     <ActionButton
                       disabled={!logPath}
-                      icon={<FolderOpen size={13} />}
-                      onClick={() => logPath && invoke(Invokes.ShowInFinder, { path: logPath })}
+                      icon={<RotateCcw size={13} />}
+                      onClick={() => refreshUsage()}
                     >
                       {t('settings.data.show')}
                     </ActionButton>
@@ -460,28 +425,6 @@ export default function DataManagementSettings({
           {t('settings.data.libraryAndWorkspace')}
         </Text>
         <div className="divide-y divide-border-color">
-          <Row
-            title={t('settings.data.deleteEdits')}
-            description={
-              rootPaths.length > 0 ? (
-                <span data-tooltip={rootPaths.join('\n')}>{t('settings.data.deleteEditsDesc')}</span>
-              ) : (
-                t('settings.data.noFolders')
-              )
-            }
-            status={statuses.sidecars}
-            action={
-              <ActionButton
-                danger
-                busy={busy.sidecars}
-                disabled={rootPaths.length === 0}
-                icon={<Trash2 size={13} />}
-                onClick={clearSidecars}
-              >
-                {t('settings.data.delete')}
-              </ActionButton>
-            }
-          />
           <Row
             title={t('settings.data.resetLayoutTitle')}
             description={t('settings.data.resetLayoutDesc')}

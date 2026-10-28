@@ -6,7 +6,6 @@ import { useTranslation } from 'react-i18next';
 import { TFunction } from 'i18next';
 import { SignalHigh, SignalLow, SignalMedium } from 'lucide-react';
 import { useEditorStore } from '../store/useEditorStore';
-import { useLibraryStore } from '../store/useLibraryStore';
 import { useSettingsStore } from '../store/useSettingsStore';
 import { useProcessStore } from '../store/useProcessStore';
 import { useUIStore } from '../store/useUIStore';
@@ -122,19 +121,12 @@ const getCompareState = (mode: CompareMode, adjustments: Adjustments) =>
 
 export const reloadAdjustmentsForPaths = async (paths: string[]) => {
   const { selectedImage, setEditor, resetHistory } = useEditorStore.getState();
-  const { libraryActivePath, setLibrary } = useLibraryStore.getState();
   if (selectedImage && paths.includes(selectedImage.path)) {
     const meta: any = await invoke(Invokes.LoadMetadata, { path: selectedImage.path });
     if (meta.adjustments && !meta.adjustments.is_null) {
       const normalized = normalizeLoadedAdjustments(meta.adjustments);
       setEditor({ adjustments: normalized });
       resetHistory(normalized);
-    }
-  }
-  if (libraryActivePath && paths.includes(libraryActivePath)) {
-    const meta: any = await invoke(Invokes.LoadMetadata, { path: libraryActivePath });
-    if (meta.adjustments && !meta.adjustments.is_null) {
-      setLibrary({ libraryActiveAdjustments: normalizeLoadedAdjustments(meta.adjustments) });
     }
   }
 };
@@ -286,9 +278,8 @@ export function useEditorActions() {
 
   const handleResetAdjustments = useCallback(
     (paths?: string[]) => {
-      const { multiSelectedPaths, libraryActivePath, setLibrary } = useLibraryStore.getState();
       const { selectedImage, resetHistory } = useEditorStore.getState();
-      const pathsToReset = paths || multiSelectedPaths;
+      const pathsToReset = paths?.length ? paths : selectedImage ? [selectedImage.path] : [];
       if (pathsToReset.length === 0) return;
 
       pathsToReset.forEach((p) => globalImageCache.delete(p));
@@ -296,8 +287,6 @@ export function useEditorActions() {
 
       invoke(Invokes.ResetAdjustmentsForPaths, { paths: pathsToReset })
         .then(() => {
-          if (libraryActivePath && pathsToReset.includes(libraryActivePath))
-            setLibrary({ libraryActiveAdjustments: { ...INITIAL_ADJUSTMENTS } });
           if (selectedImage && pathsToReset.includes(selectedImage.path)) {
             const resetData = { ...INITIAL_ADJUSTMENTS, aiPatches: [] };
             resetHistory(resetData);
@@ -310,17 +299,14 @@ export function useEditorActions() {
   );
 
   const handleAutoLensCorrection = useCallback((paths?: string[]) => {
-    const { multiSelectedPaths } = useLibraryStore.getState();
     const { selectedImage } = useEditorStore.getState();
 
     const pathsToUpdate =
       paths && paths.length > 0
         ? paths
-        : multiSelectedPaths.length > 0
-          ? multiSelectedPaths
-          : selectedImage
-            ? [selectedImage.path]
-            : [];
+        : selectedImage
+          ? [selectedImage.path]
+          : [];
 
     if (pathsToUpdate.length === 0) return;
 
@@ -334,7 +320,7 @@ export function useEditorActions() {
   const handleAutoStraightenPaths = useCallback(
     (paths: string[]) => {
       const { selectedImage } = useEditorStore.getState();
-      const editingPath = useUIStore.getState().activeView === 'editor' ? selectedImage?.path : undefined;
+      const editingPath = selectedImage?.path;
       const batchPaths = paths.filter((path) => path !== editingPath);
       if (batchPaths.length < paths.length) {
         handleAutoStraighten();
@@ -351,7 +337,7 @@ export function useEditorActions() {
   const handleEnableAdjustments = useCallback(
     (paths: string[], patch: Partial<Adjustments>) => {
       const { selectedImage } = useEditorStore.getState();
-      const editingPath = useUIStore.getState().activeView === 'editor' ? selectedImage?.path : undefined;
+      const editingPath = selectedImage?.path;
       const batchPaths = paths.filter((path) => path !== editingPath);
       if (batchPaths.length < paths.length) {
         setAdjustments((prev: Adjustments) => ({ ...prev, ...patch }));
@@ -368,12 +354,9 @@ export function useEditorActions() {
   const handleCopyAdjustments = useCallback(async (pathOrEvent?: string | any) => {
     const pathOverride = typeof pathOrEvent === 'string' ? pathOrEvent : undefined;
     const { selectedImage, adjustments } = useEditorStore.getState();
-    const { libraryActivePath, multiSelectedPaths } = useLibraryStore.getState();
     let sourceAdjustments: any = null;
 
-    const editingPath = useUIStore.getState().activeView === 'editor' ? selectedImage?.path : undefined;
-    const pathToCopyFrom =
-      pathOverride || editingPath || libraryActivePath || multiSelectedPaths[0] || selectedImage?.path;
+    const pathToCopyFrom = pathOverride || selectedImage?.path;
 
     if (selectedImage && pathToCopyFrom === selectedImage.path) {
       sourceAdjustments = adjustments;
@@ -407,13 +390,12 @@ export function useEditorActions() {
   const handlePasteAdjustments = useCallback(
     (paths?: string[]) => {
       const { copiedAdjustments, selectedImage } = useEditorStore.getState();
-      const { multiSelectedPaths } = useLibraryStore.getState();
       const { appSettings } = useSettingsStore.getState();
       const { setProcess } = useProcessStore.getState();
 
       if (!copiedAdjustments || !appSettings) return;
 
-      const { mode, includedAdjustments } = appSettings.copyPasteSettings;
+      const { mode, includedAdjustments } = appSettings.copyPasteSettings ?? { mode: PasteMode.Merge, includedAdjustments: COPYABLE_ADJUSTMENT_KEYS };
       const adjustmentsToApply: Partial<Adjustments> = {};
 
       for (const key of includedAdjustments) {
@@ -440,8 +422,7 @@ export function useEditorActions() {
         return;
       }
 
-      const pathsToUpdate =
-        paths || (multiSelectedPaths.length > 0 ? multiSelectedPaths : selectedImage ? [selectedImage.path] : []);
+      const pathsToUpdate = paths || (selectedImage ? [selectedImage.path] : []);
       if (pathsToUpdate.length === 0) return;
 
       pathsToUpdate.forEach((p) => globalImageCache.delete(p));

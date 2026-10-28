@@ -3,7 +3,7 @@ import { invoke } from '@tauri-apps/api/core';
 import { useUIStore } from '../store/useUIStore';
 import { Invokes } from '../components/ui/AppProperties';
 
-export function useProductivityActions(refreshImageList: () => Promise<void>) {
+export function useProductivityActions() {
   const setUI = useUIStore((state) => state.setUI);
 
   const handleStartFocusStack = useCallback(
@@ -38,14 +38,13 @@ export function useProductivityActions(refreshImageList: () => Promise<void>) {
       const savedPath: string = await invoke(Invokes.SaveFocusStack, {
         firstPathStr: focusStackModalState.sourcePaths[0],
       });
-      await refreshImageList();
       return savedPath;
     } catch (err) {
       console.error('Failed to save focus stack:', err);
       setUI((state) => ({ focusStackModalState: { ...state.focusStackModalState, error: String(err) } }));
       throw err;
     }
-  }, [refreshImageList, setUI]);
+  }, [setUI]);
 
   return {
     handleStartFocusStack,
