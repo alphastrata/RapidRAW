@@ -1,0 +1,29 @@
+[package]
+name = "app"
+edition = "2024"
+publish = false
+
+[[bin]]
+name = "rapidraw"
+path = "src/main.rs"
+
+[features]
+default = ["json"]
+json = ["dep:serde_json"]
+
+[lints.clippy]
+pedantic = "warn"
+perf = "deny"
+
+[dependencies]
+engine = { path = "../engine", features = ["json"] }
+eframe.workspace = true
+egui.workspace = true
+craft-ui.workspace = true
+anyhow = "1.0.104"
+dirs = "6"
+rfd = "0.17"
+image = "0.25.10"
+log = "0.4"
+env_logger = "0.11.8"
+serde_json = { version = "1.0", optional = true }

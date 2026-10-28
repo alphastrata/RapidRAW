@@ -1,21 +1,24 @@
 set shell := ["bash", "-cu"]
 
-export ORT_DYLIB_PATH := justfile_directory() + "/src-tauri/resources/libonnxruntime.so"
+export ORT_DYLIB_PATH := justfile_directory() + "/resources/libonnxruntime.so"
 export MODELS_DIR := env_var_or_default("RAPIDRAW_MODELS_DIR", env_var_or_default("HOME", "") + "/.local/share/io.github.CyberTimon.RapidRAW/models")
 
 default := "check"
 
-# toolchain + all dev deps (bun, nightly, nextest, typos, onnx models)
+# onnxruntime dylib + models + dev deps (nightly, nextest, typos, hf)
 @setup:
-    bun install
     rustup toolchain install nightly
     cargo-nextest --version >/dev/null 2>&1 || cargo install cargo-nextest --locked
     typos --version >/dev/null 2>&1 || cargo install typos-cli --locked
     hf --version >/dev/null 2>&1 || (uv tool install --upgrade 'huggingface_hub[cli]' || true)
-    mkdir -p {{ MODELS_DIR }}
+    mkdir -p {{ MODELS_DIR }} resources
+    [ -e {{ ORT_DYLIB_PATH }} ] || hf download CyberTimon/RapidRAW-Models \
+        libonnxruntime-linux-x86_64.so --repo-type model \
+        --local-dir . \
+        || echo "dylib skipped; engine falls back to ORT_DYLIB_PATH"
     hf download CyberTimon/RapidRAW-Models --local-dir {{ MODELS_DIR }} \
         || echo "models skipped; fetch with: hf download CyberTimon/RapidRAW-Models --local-dir {{ MODELS_DIR }}"
-    echo "onnx runtime downloads/verifies on the first cargo build"
+    mv -f libonnxruntime-linux-x86_64.so {{ ORT_DYLIB_PATH }} 2>/dev/null || true
 
 # list recipes
 @default:
@@ -34,9 +37,8 @@ default := "check"
 @test:
     cargo nextest run --workspace
 
-# frontend + backend build
+# build the app
 @build:
-    bun run build
     cargo build --workspace
 
 # lint, test, build
@@ -47,22 +49,11 @@ default := "check"
     export XDG_RUNTIME_DIR="${XDG_RUNTIME_DIR:-/run/user/$(id -u)}"
     export WAYLAND_DISPLAY="${WAYLAND_DISPLAY:-$(ls "$XDG_RUNTIME_DIR" 2>/dev/null | grep -oE 'wayland-[0-9]+' | tail -1)}"
     export DISPLAY="${DISPLAY:-:0}"
-    bun run start
+    cargo run -p app
 
-# run the app with camera tethering
-@run-tethering:
-    export XDG_RUNTIME_DIR="${XDG_RUNTIME_DIR:-/run/user/$(id -u)}"
-    export WAYLAND_DISPLAY="${WAYLAND_DISPLAY:-$(ls "$XDG_RUNTIME_DIR" 2>/dev/null | grep -oE 'wayland-[0-9]+' | tail -1)}"
-    export DISPLAY="${DISPLAY:-:0}"
-    bun run start:tethering
-
-# cpu image/pipeline benchmarks (e.g. `just bench image_ops`)
-@bench bench="image_ops":
-    cargo bench -p RapidRAW --bench {{ bench }}
-
-# onnx model benchmarks (models via `hf download CyberTimon/RapidRAW-Models`)
-@bench-ai bench="ai_ops":
-    cargo bench -p RapidRAW --bench {{ bench }}
+# cpu image/pipeline benchmarks (e.g. `just bench ai_ops`)
+@bench bench="ai_ops":
+    cargo bench -p app --bench {{ bench }}
 
 # simd kernel benches (nightly)
 @bench-simd:
@@ -79,4 +70,3 @@ default := "check"
 # format rust + check frontend types
 @fmt:
     cargo fmt --all
-    bunx tsc --noEmit
