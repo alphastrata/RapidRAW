@@ -516,18 +516,6 @@ fn generate_blocking(
         },
     )?;
 
-    let state = host.app_state();
-    let is_open = state
-        .original_image
-        .lock()
-        .unwrap_or_else(std::sync::PoisonError::into_inner)
-        .as_ref()
-        .is_some_and(|loaded| loaded.path == loaded_image.path);
-    if !is_open {
-        host.add_to_thumbnail_queue(&state, 1);
-        host.regenerate_thumbnails(vec![loaded_image.path.clone()], true);
-    }
-
     Ok(())
 }
 

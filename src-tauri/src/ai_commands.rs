@@ -16,7 +16,6 @@ use crate::app_settings::load_settings;
 use crate::app_state::{AiTaskGuard, AppState};
 use crate::cache_utils::GEOMETRY_KEYS;
 use crate::effect_maps::EffectMapKind;
-use crate::get_cached_full_warped_image;
 
 #[tauri::command]
 pub fn cancel_ai_task(task_id: String, state: tauri::State<'_, AppState>) -> Result<(), String> {
@@ -157,7 +156,8 @@ pub async fn generate_ai_depth_mask(
     .map_err(|e| e.to_string())?;
     check_cancelled(&guard)?;
 
-    let warped_image = get_cached_full_warped_image(&state, &js_adjustments)?;
+    let warped_image =
+        engine::preview_cache::get_cached_full_warped_image(&state, &js_adjustments)?;
     check_cancelled(&guard)?;
 
     let transform = MaskTransform {

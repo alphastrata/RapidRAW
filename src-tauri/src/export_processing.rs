@@ -1477,12 +1477,7 @@ pub async fn run_headless_export(
 
     let mut paths = Vec::new();
     if source_path.is_dir() {
-        let images = crate::file_management::list_images_recursive(
-            session.source.clone(),
-            app_handle.clone(),
-        )
-        .await?;
-        paths = images.into_iter().map(|img| img.path).collect();
+        paths = crate::file_management::list_supported_images_recursive(session.source.clone());
     } else {
         paths.push(session.source.clone());
     }

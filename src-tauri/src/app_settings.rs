@@ -54,13 +54,6 @@ fn read_settings_from_disk(app_handle: &AppHandle) -> Result<AppSettings, String
     let default_included = default_included_adjustments();
     let mut settings_modified = false;
 
-    if settings.root_folders.is_empty()
-        && let Some(last) = &settings.last_root_path
-    {
-        settings.root_folders.push(last.clone());
-        settings_modified = true;
-    }
-
     #[cfg(target_os = "linux")]
     if !settings.linux_gpu_optimization_migrated_v1.unwrap_or(false) {
         if settings.linux_gpu_optimization == Some(true) {
