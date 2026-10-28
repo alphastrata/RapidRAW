@@ -11,8 +11,47 @@ use host::{APP_ID, RapidHost};
 use std::sync::mpsc;
 use std::sync::Arc;
 
+/// A bare SSH/dev shell often has neither Wayland nor X11 set; probe the
+/// runtime directory for a Wayland socket, else fall back to X11 :0.
+fn graphics_env_fallback() {
+    if std::env::var_os("WAYLAND_DISPLAY").is_some()
+        || std::env::var_os("WAYLAND_SOCKET").is_some()
+        || std::env::var_os("DISPLAY").is_some()
+    {
+        return;
+    }
+    let uid = std::process::Command::new("id")
+        .arg("-u")
+        .output()
+        .ok()
+        .and_then(|out| String::from_utf8(out.stdout).ok())
+        .map(|s| s.trim().to_string())
+        .unwrap_or_default();
+    let runtime = std::env::var("XDG_RUNTIME_DIR")
+        .unwrap_or_else(|_| format!("/run/user/{uid}"));
+    let socket = std::fs::read_dir(&runtime)
+        .ok()
+        .and_then(|entries| {
+            entries
+                .flatten()
+                .filter_map(|e| e.file_name().into_string().ok())
+                .filter(|name| name.starts_with("wayland-"))
+                .last()
+        });
+    match socket {
+        // SAFETY: single-threaded start-up; no other code reads the environment concurrently.
+        Some(socket) => unsafe {
+            std::env::set_var("WAYLAND_DISPLAY", &socket);
+            std::env::set_var("XDG_RUNTIME_DIR", &runtime);
+        },
+        None => unsafe { std::env::set_var("DISPLAY", ":0") },
+    }
+    log::debug!("graphics fallback applied");
+}
+
 fn main() -> eframe::Result {
     env_logger::init();
+    graphics_env_fallback();
     let host = Arc::new(RapidHost::new());
     let (pick_tx, picks) = std::sync::mpsc::channel();
     let pick_sender = pick_tx.clone();
