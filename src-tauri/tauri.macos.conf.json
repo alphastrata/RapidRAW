@@ -1,7 +1,0 @@
-{
-  "bundle": {
-    "macOS": {
-      "minimumSystemVersion": "13.0"
-    }
-  }
-}
