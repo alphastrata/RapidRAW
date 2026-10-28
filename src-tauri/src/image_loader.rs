@@ -133,8 +133,6 @@ pub async fn load_image(
         as_shot,
     });
 
-    crate::ai_jobs::prioritize(&app_handle, &path);
-
     Ok(LoadImageResult {
         width: orig_width,
         height: orig_height,

@@ -46,8 +46,10 @@ use crate::image_processing::{
     get_all_adjustments_from_json, perform_auto_analysis, resolve_render_options,
 };
 use crate::mask_generation::MaskDefinition;
-use crate::preset_converter;
-use crate::tagging::COLOR_TAG_PREFIX;
+
+// Colour labels are stored as tags sidecar-side; the prefix must match XMP
+// subject entries written by prior versions.
+const COLOR_TAG_PREFIX: &str = "color:";
 
 fn resolve_thumbnail_cache_dir(app_handle: &AppHandle) -> std::result::Result<PathBuf, String> {
     let cache_dir = app_handle
@@ -103,7 +105,6 @@ struct ImageFileMetadata {
     rating: u8,
     flag: Option<ImageFlag>,
     is_raw: bool,
-    needs_ai: bool,
 }
 
 pub fn rating_and_edited(path_str: &str, settings: &AppSettings) -> (u8, bool) {
@@ -141,14 +142,12 @@ fn resolve_image_metadata(
     let tm_override = crate::image_processing::resolve_tonemapper_override(settings, is_raw);
     let is_edited =
         crate::image_processing::is_image_edited(&metadata.adjustments, is_raw, tm_override);
-    let needs_ai = crate::ai_jobs::needs_generation(&metadata.adjustments, image_path);
     ImageFileMetadata {
         is_edited,
         tags: metadata.tags,
         rating: metadata.rating,
         flag: metadata.flag,
         is_raw,
-        needs_ai,
     }
 }
 
@@ -161,7 +160,6 @@ fn emit_image_metadata_loaded(app_handle: &AppHandle, path: &str, metadata: &Ima
             "flag": metadata.flag,
             "is_edited": metadata.is_edited,
             "tags": metadata.tags,
-            "needs_ai": metadata.needs_ai,
         }),
     );
 }
@@ -236,61 +234,6 @@ pub fn start_metadata_workers(app_handle: tauri::AppHandle) {
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct Preset {
-    pub id: String,
-    pub name: String,
-    pub adjustments: Value,
-    #[serde(rename = "includeMasks", skip_serializing_if = "Option::is_none")]
-    pub include_masks: Option<bool>,
-    #[serde(
-        rename = "includeCropTransform",
-        skip_serializing_if = "Option::is_none"
-    )]
-    pub include_crop_transform: Option<bool>,
-    #[serde(rename = "presetType", skip_serializing_if = "Option::is_none")]
-    pub preset_type: Option<String>,
-}
-
-#[derive(Serialize)]
-struct ExportPresetFile<'a> {
-    creator: &'a str,
-    presets: &'a [PresetItem],
-}
-
-#[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct PresetFolder {
-    pub id: String,
-    pub name: String,
-    pub children: Vec<Preset>,
-}
-
-#[derive(Serialize, Deserialize, Debug, Clone)]
-#[serde(rename_all = "camelCase")]
-pub enum PresetItem {
-    Preset(Preset),
-    Folder(PresetFolder),
-}
-
-#[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct PresetFile {
-    pub presets: Vec<PresetItem>,
-}
-
-#[derive(Serialize, Debug, Clone)]
-#[serde(rename_all = "camelCase")]
-pub struct PresetImportFailure {
-    pub file_name: String,
-    pub error: String,
-}
-
-#[derive(Serialize, Debug, Clone)]
-#[serde(rename_all = "camelCase")]
-pub struct PresetImportResult {
-    pub presets: Vec<PresetItem>,
-    pub failures: Vec<PresetImportFailure>,
-}
-
-#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct ImageFile {
     pub path: String,
     modified: u64,
@@ -303,8 +246,6 @@ pub struct ImageFile {
     is_cloud_placeholder: bool,
     is_raw: bool,
     group_id: Option<String>,
-    #[serde(default)]
-    needs_ai: bool,
 }
 
 impl ImageFile {
@@ -322,7 +263,6 @@ impl ImageFile {
             is_cloud_placeholder: true,
             is_raw,
             group_id: None,
-            needs_ai: false,
         }
     }
 }
@@ -599,7 +539,6 @@ fn build_image_file(
                 rating: 0,
                 flag: None,
                 is_raw: crate::formats::is_raw_file(source_path),
-                needs_ai: false,
             }
         } else {
             resolve_image_metadata(
@@ -623,7 +562,6 @@ fn build_image_file(
         rating: metadata.rating,
         flag: metadata.flag,
         is_cloud_placeholder,
-        needs_ai: metadata.needs_ai,
     }
 }
 
@@ -2534,17 +2472,13 @@ pub fn save_metadata_and_update_thumbnail(
 ) -> Result<(), String> {
     let (source_path, sidecar_path) = parse_virtual_path(&path);
     let lens_db = state.lens_db.lock().unwrap().clone();
-    let source_id = crate::ai_jobs::source_id(&source_path);
-    let mut stripped_ai_results = false;
-    let mut had_ai_work = false;
-
+    let source_id = engine::ai_results::source_id(&source_path);
     let metadata =
         crate::exif_processing::update_sidecar(&sidecar_path, &source_path, |metadata| {
             crate::exif_processing::fill_missing_exif(metadata, &source_path);
-            had_ai_work = crate::ai_jobs::needs_generation(&metadata.adjustments, &source_path);
             let mut final_adjustments = adjustments;
             if let Some(source_id) = &source_id {
-                stripped_ai_results = crate::ai_jobs::reconcile_ai_results(
+                engine::ai_results::reconcile_ai_results(
                     &mut final_adjustments,
                     &metadata.adjustments,
                     source_id,
@@ -2559,13 +2493,6 @@ pub fn save_metadata_and_update_thumbnail(
             metadata.adjustments = final_adjustments;
         })
         .map_err(|e| e.to_string())?;
-
-    if stripped_ai_results {
-        crate::ai_jobs::enqueue(&app_handle, std::slice::from_ref(&path), true);
-    } else if had_ai_work && !crate::ai_jobs::needs_generation(&metadata.adjustments, &source_path)
-    {
-        crate::ai_jobs::resolve(&app_handle, std::slice::from_ref(&path));
-    }
 
     if let Ok(settings) = load_settings(app_handle.clone())
         && settings.enable_xmp_sync.unwrap_or(false)
@@ -2655,17 +2582,10 @@ pub async fn apply_adjustments_to_paths(
         .unwrap()
         .clone();
 
-    let regenerates_ai = crate::ai_jobs::has_ai_results(&adjustments);
-    if regenerates_ai {
-        crate::ai_jobs::reserve(&paths);
-    }
+    let regenerates_ai = engine::ai_results::has_ai_results(&adjustments);
 
     tauri::async_runtime::spawn_blocking(move || {
-        let reserved_paths = paths.clone();
-        let jobs_app_handle = app_handle.clone();
-        let ai_work = std::sync::Mutex::new(Vec::new());
-        let ai_work_ref = &ai_work;
-        update_sidecars_and_thumbnails(paths, app_handle, move |path, source_path, metadata| {
+        update_sidecars_and_thumbnails(paths, app_handle, move |_path, source_path, metadata| {
             crate::exif_processing::fill_missing_exif(metadata, source_path);
 
             if metadata.adjustments.is_null() {
@@ -2674,10 +2594,10 @@ pub async fn apply_adjustments_to_paths(
 
             let mut pasted = adjustments.clone();
             let source_id = regenerates_ai
-                .then(|| crate::ai_jobs::source_id(source_path))
+                .then(|| engine::ai_results::source_id(source_path))
                 .flatten();
             if let Some(source_id) = &source_id {
-                crate::ai_jobs::reconcile_ai_results(
+                engine::ai_results::reconcile_ai_results(
                     &mut pasted,
                     &metadata.adjustments,
                     source_id,
@@ -2699,17 +2619,7 @@ pub async fn apply_adjustments_to_paths(
                 lens_db.as_deref(),
             );
 
-            if let Some(source_id) = &source_id
-                && crate::ai_jobs::has_pending_jobs(&metadata.adjustments, path, source_id)
-            {
-                ai_work_ref.lock().unwrap().push(path.to_string());
-            }
         });
-
-        if regenerates_ai {
-            crate::ai_jobs::enqueue(&jobs_app_handle, &ai_work.into_inner().unwrap(), false);
-            crate::ai_jobs::release(&reserved_paths);
-        }
     })
     .await
     .map_err(|e| e.to_string())
@@ -2753,22 +2663,14 @@ fn update_sidecars_and_thumbnails(
         );
     });
 
-    let resolved_ai = std::sync::Mutex::new(Vec::new());
     paths
         .par_iter()
         .for_each_with(updated_tx, |updated_tx, path| {
             let (source_path, sidecar_path) = parse_virtual_path(path);
-            let mut had_ai_work = false;
             match crate::exif_processing::update_sidecar(&sidecar_path, &source_path, |metadata| {
-                had_ai_work = crate::ai_jobs::needs_generation(&metadata.adjustments, &source_path);
                 update(path, &source_path, metadata)
             }) {
                 Ok(metadata) => {
-                    if had_ai_work
-                        && !crate::ai_jobs::needs_generation(&metadata.adjustments, &source_path)
-                    {
-                        resolved_ai.lock().unwrap().push(path.clone());
-                    }
                     if enable_xmp_sync {
                         sync_metadata_to_xmp(&source_path, &metadata, create_xmp_if_missing);
                     }
@@ -2779,7 +2681,6 @@ fn update_sidecars_and_thumbnails(
             let _ = updated_tx.send(path.clone());
         });
 
-    crate::ai_jobs::resolve(&app_handle, &resolved_ai.into_inner().unwrap());
 }
 
 const RAM_PER_BATCH_DECODE_BYTES: u64 = 2 * 1024 * 1024 * 1024;
@@ -3159,8 +3060,6 @@ pub fn set_flag_for_paths(
 
 #[tauri::command]
 pub async fn load_metadata(path: String, app_handle: AppHandle) -> Result<ImageMetadata, String> {
-    let (source_path, _) = parse_virtual_path(&path);
-
     tauri::async_runtime::spawn_blocking(move || {
         let settings = load_settings(app_handle).unwrap_or_default();
         let enable_xmp_sync = settings.enable_xmp_sync.unwrap_or(false);
@@ -3175,10 +3074,10 @@ pub async fn load_metadata(path: String, app_handle: AppHandle) -> Result<ImageM
                 });
         }
 
-        if crate::ai_jobs::has_ai_results(&metadata.adjustments)
-            && let Some(source_id) = crate::ai_jobs::source_id(&source_path)
+        if engine::ai_results::has_ai_results(&metadata.adjustments)
+            && let Some(source_id) = engine::ai_results::source_id(&source_path)
         {
-            crate::ai_jobs::reconcile_ai_results(
+            engine::ai_results::reconcile_ai_results(
                 &mut metadata.adjustments,
                 &Value::Null,
                 &source_id,
@@ -3190,37 +3089,6 @@ pub async fn load_metadata(path: String, app_handle: AppHandle) -> Result<ImageM
     })
     .await
     .map_err(|e| format!("Task failed: {}", e))
-}
-
-fn get_presets_path(app_handle: &AppHandle) -> Result<std::path::PathBuf, String> {
-    let presets_dir = app_handle
-        .path()
-        .app_data_dir()
-        .map_err(|e| e.to_string())?
-        .join("presets");
-
-    if !presets_dir.exists() {
-        fs::create_dir_all(&presets_dir).map_err(|e| e.to_string())?;
-    }
-
-    Ok(presets_dir.join("presets.json"))
-}
-
-#[tauri::command]
-pub fn load_presets(app_handle: AppHandle) -> Result<Vec<PresetItem>, String> {
-    let path = get_presets_path(&app_handle)?;
-    if !path.exists() {
-        return Ok(Vec::new());
-    }
-    let content = fs::read_to_string(path).map_err(|e| e.to_string())?;
-    serde_json::from_str(&content).map_err(|e| e.to_string())
-}
-
-#[tauri::command]
-pub fn save_presets(presets: Vec<PresetItem>, app_handle: AppHandle) -> Result<(), String> {
-    let path = get_presets_path(&app_handle)?;
-    let json_string = serde_json::to_string_pretty(&presets).map_err(|e| e.to_string())?;
-    fs::write(path, json_string).map_err(|e| e.to_string())
 }
 
 fn get_internal_library_root_path(app_handle: &AppHandle) -> Result<std::path::PathBuf, String> {
@@ -3241,225 +3109,6 @@ pub fn get_or_create_internal_library_root(app_handle: AppHandle) -> Result<Stri
     let library_root = get_internal_library_root_path(&app_handle)?;
 
     Ok(library_root.to_string_lossy().to_string())
-}
-
-fn preset_file_display_name(file_path: &str) -> String {
-    Path::new(file_path)
-        .file_name()
-        .map(|name| name.to_string_lossy().to_string())
-        .unwrap_or_else(|| file_path.to_string())
-}
-
-fn collect_top_level_preset_names(items: &[PresetItem]) -> HashSet<String> {
-    items
-        .iter()
-        .map(|item| match item {
-            PresetItem::Preset(p) => p.name.clone(),
-            PresetItem::Folder(f) => f.name.clone(),
-        })
-        .collect()
-}
-
-fn parse_preset_file(file_path: &str) -> Result<Vec<PresetItem>, String> {
-    let lower_path = file_path.to_lowercase();
-    let is_legacy = lower_path.ends_with(".xmp") || lower_path.ends_with(".lrtemplate");
-
-    if !is_legacy {
-        let content = fs::read_to_string(file_path)
-            .map_err(|e| format!("Failed to read preset file: {}", e))?;
-        let preset_file: PresetFile = serde_json::from_str(&content)
-            .map_err(|e| format!("Failed to parse preset file: {}", e))?;
-        return Ok(preset_file.presets);
-    }
-
-    let content = fs::read_to_string(file_path)
-        .map_err(|e| format!("Failed to read legacy preset file: {}", e))?;
-
-    let xmp_content = if lower_path.ends_with(".lrtemplate") {
-        if let Some(caps) = regex!(r#"(?s)s.xmp = "(.*)""#).captures(&content) {
-            caps.get(1)
-                .map(|m| m.as_str().replace(r#"\""#, r#"""#))
-                .unwrap_or(content)
-        } else {
-            content
-        }
-    } else {
-        content
-    };
-
-    let converted_preset = preset_converter::convert_xmp_to_preset(&xmp_content)?;
-    Ok(vec![PresetItem::Preset(converted_preset)])
-}
-
-fn merge_imported_items(
-    target: &mut Vec<PresetItem>,
-    taken_names: &mut HashSet<String>,
-    imported: Vec<PresetItem>,
-) {
-    for mut imported_item in imported {
-        let original_name = match &mut imported_item {
-            PresetItem::Preset(p) => {
-                p.id = Uuid::new_v4().to_string();
-                p.name.clone()
-            }
-            PresetItem::Folder(f) => {
-                f.id = Uuid::new_v4().to_string();
-                for child in &mut f.children {
-                    child.id = Uuid::new_v4().to_string();
-                }
-                f.name.clone()
-            }
-        };
-
-        let mut new_name = original_name.clone();
-        let mut counter = 1;
-        while taken_names.contains(&new_name) {
-            new_name = format!("{} ({})", original_name, counter);
-            counter += 1;
-        }
-
-        match &mut imported_item {
-            PresetItem::Preset(p) => p.name = new_name.clone(),
-            PresetItem::Folder(f) => f.name = new_name.clone(),
-        }
-
-        taken_names.insert(new_name);
-        target.push(imported_item);
-    }
-}
-
-fn import_preset_file_into_library(
-    file_path: &str,
-    app_handle: AppHandle,
-) -> Result<Vec<PresetItem>, String> {
-    let imported = parse_preset_file(file_path)?;
-
-    let mut current_presets = load_presets(app_handle.clone())?;
-    let mut taken_names = collect_top_level_preset_names(&current_presets);
-    merge_imported_items(&mut current_presets, &mut taken_names, imported);
-
-    save_presets(current_presets.clone(), app_handle)?;
-    Ok(current_presets)
-}
-
-#[tauri::command]
-pub fn handle_import_presets_from_file(
-    file_path: String,
-    app_handle: AppHandle,
-) -> Result<Vec<PresetItem>, String> {
-    import_preset_file_into_library(&file_path, app_handle)
-}
-
-#[tauri::command]
-pub fn handle_import_legacy_presets_from_file(
-    file_path: String,
-    app_handle: AppHandle,
-) -> Result<Vec<PresetItem>, String> {
-    import_preset_file_into_library(&file_path, app_handle)
-}
-
-#[tauri::command]
-pub fn handle_import_presets_from_files(
-    file_paths: Vec<String>,
-    app_handle: AppHandle,
-) -> Result<PresetImportResult, String> {
-    let mut current_presets = load_presets(app_handle.clone())?;
-    let mut taken_names = collect_top_level_preset_names(&current_presets);
-
-    let mut failures: Vec<PresetImportFailure> = Vec::new();
-    let mut library_changed = false;
-
-    for file_path in &file_paths {
-        match parse_preset_file(file_path) {
-            Ok(imported) => {
-                library_changed |= !imported.is_empty();
-                merge_imported_items(&mut current_presets, &mut taken_names, imported);
-            }
-            Err(error) => failures.push(PresetImportFailure {
-                file_name: preset_file_display_name(file_path),
-                error,
-            }),
-        }
-    }
-
-    if library_changed {
-        save_presets(current_presets.clone(), app_handle)?;
-    }
-
-    Ok(PresetImportResult {
-        presets: current_presets,
-        failures,
-    })
-}
-
-#[tauri::command]
-pub fn handle_export_presets_to_file(
-    presets_to_export: Vec<PresetItem>,
-    file_path: String,
-) -> Result<(), String> {
-    let preset_file = ExportPresetFile {
-        creator: "Anonymous",
-        presets: &presets_to_export,
-    };
-
-    let json_string = serde_json::to_string_pretty(&preset_file)
-        .map_err(|e| format!("Failed to serialize presets: {}", e))?;
-    fs::write(file_path, json_string).map_err(|e| format!("Failed to write preset file: {}", e))
-}
-
-#[tauri::command]
-pub fn save_community_preset(
-    name: String,
-    adjustments: Value,
-    app_handle: AppHandle,
-    include_masks: Option<bool>,
-    include_crop_transform: Option<bool>,
-    preset_type: Option<String>,
-) -> Result<(), String> {
-    let mut current_presets = load_presets(app_handle.clone())?;
-
-    let community_folder_name = "Community";
-    let community_folder_id = match current_presets.iter_mut().find(|item| {
-        if let PresetItem::Folder(f) = item {
-            f.name == community_folder_name
-        } else {
-            false
-        }
-    }) {
-        Some(PresetItem::Folder(folder)) => folder.id.clone(),
-        _ => {
-            let new_folder_id = Uuid::new_v4().to_string();
-            let new_folder = PresetItem::Folder(PresetFolder {
-                id: new_folder_id.clone(),
-                name: community_folder_name.to_string(),
-                children: Vec::new(),
-            });
-            current_presets.insert(0, new_folder);
-            new_folder_id
-        }
-    };
-
-    let new_preset = Preset {
-        id: Uuid::new_v4().to_string(),
-        name,
-        adjustments,
-        include_masks,
-        include_crop_transform,
-        preset_type: preset_type.or(Some("style".to_string())),
-    };
-
-    if let Some(PresetItem::Folder(folder)) = current_presets.iter_mut().find(|item| {
-        if let PresetItem::Folder(f) = item {
-            f.id == community_folder_id
-        } else {
-            false
-        }
-    }) {
-        folder.children.retain(|p| p.name != new_preset.name);
-        folder.children.push(new_preset);
-    }
-
-    save_presets(current_presets, app_handle)
 }
 
 #[tauri::command]

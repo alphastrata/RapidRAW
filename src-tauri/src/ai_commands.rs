@@ -2,46 +2,21 @@ use crate::host::TauriHost;
 use std::collections::hash_map::DefaultHasher;
 use std::hash::{Hash, Hasher};
 use std::io::Cursor;
-use std::sync::{Arc, Mutex};
+use std::sync::Mutex;
 
 use base64::{Engine as _, engine::general_purpose};
 use image::{DynamicImage, GenericImageView, GrayImage, ImageFormat};
-use serde::Serialize;
-use serde_json::{Value, json};
 
 use crate::ai_connector;
 use crate::ai_processing::{
-    AiDepthMaskParameters, AiFaceMaskParameters, AiForegroundMaskParameters, AiMaskModel, AiModels,
-    AiSkyMaskParameters, AiState, AiSubjectMaskParameters, AiTextMaskParameters, CachedDepthMap,
-    ESAM3_FACE_SCORE_THRESHOLD, ESAM3_SKY_REFINE_EPS, ESAM3_SKY_SCORE_THRESHOLD,
-    ESAM3_TEXT_REFINE_EPS, ESAM3_TEXT_SCORE_THRESHOLD, Esam3Features, ImageEmbeddings,
-    generate_image_embeddings, get_or_init_ai_models, run_birefnet_model, run_depth_anything_model,
-    run_esam3_boxes, run_esam3_decoder, run_esam3_image_encoder, run_esam3_zoomed_decoder,
-    run_sam_decoder,
+    AiDepthMaskParameters, AiMaskModel, AiModels, AiState, CachedDepthMap, get_or_init_ai_models,
+    run_depth_anything_model,
 };
 use crate::app_settings::load_settings;
 use crate::app_state::{AiTaskGuard, AppState};
 use crate::cache_utils::GEOMETRY_KEYS;
 use crate::effect_maps::EffectMapKind;
-use crate::face_masking::{FaceAnalysis, FacePart, analyze_faces, compose_face_mask};
 use crate::get_cached_full_warped_image;
-
-const NO_FOREGROUND_FOUND: &str = "No foreground found";
-const NO_SKY_FOUND: &str = "No sky found";
-const NO_MATCH_FOUND: &str = "No match found for";
-const NO_FACES_FOUND: &str = "No faces found";
-const NO_RESULT_ERRORS: [&str; 4] = [
-    NO_FOREGROUND_FOUND,
-    NO_SKY_FOUND,
-    NO_MATCH_FOUND,
-    NO_FACES_FOUND,
-];
-
-fn is_no_result_error(error: &str) -> bool {
-    NO_RESULT_ERRORS
-        .iter()
-        .any(|prefix| error.starts_with(prefix))
-}
 
 #[tauri::command]
 pub fn cancel_ai_task(task_id: String, state: tauri::State<'_, AppState>) -> Result<(), String> {
@@ -61,46 +36,7 @@ fn encode_to_base64_png(image: &GrayImage) -> Result<String, String> {
     Ok(format!("data:image/png;base64,{}", base64_str))
 }
 
-pub use engine::mask_generation::MaskTransform;
-
-pub fn to_json<T: Serialize>(params: T) -> Result<Value, String> {
-    serde_json::to_value(params).map_err(|e| e.to_string())
-}
-
-pub fn or_empty_mask(
-    result: Result<Value, String>,
-    transform: MaskTransform,
-    ai_source: Option<String>,
-) -> Result<(Value, Option<String>), String> {
-    match result {
-        Err(error) if is_no_result_error(&error) => {
-            let mut params = json!({
-                "maskDataBase64": encode_to_base64_png(&GrayImage::new(1, 1))?,
-                "rotation": transform.rotation,
-                "flipHorizontal": transform.flip_horizontal,
-                "flipVertical": transform.flip_vertical,
-                "orientationSteps": transform.orientation_steps,
-            });
-            if let Some(ai_source) = ai_source {
-                params["aiSource"] = json!(ai_source);
-            }
-            Ok((params, Some(error)))
-        }
-        result => result.map(|params| (params, None)),
-    }
-}
-
-fn mask_command_result(
-    result: Result<Value, String>,
-    transform: MaskTransform,
-    ai_source: Option<String>,
-) -> Result<Value, String> {
-    let (mut params, no_result) = or_empty_mask(result, transform, ai_source)?;
-    if let Some(error) = no_result {
-        params["noResult"] = json!(error);
-    }
-    Ok(params)
-}
+use engine::mask_generation::MaskTransform;
 
 pub fn ai_cache_key(path: &str, adjustments: &serde_json::Value) -> String {
     let mut hasher = blake3::Hasher::new();
@@ -118,7 +54,7 @@ pub fn ai_cache_key(path: &str, adjustments: &serde_json::Value) -> String {
 
 fn loaded_source_id(state: &tauri::State<'_, AppState>) -> Option<String> {
     let loaded = state.original_image.lock().unwrap().clone()?;
-    crate::ai_jobs::source_id_for(&loaded.path)
+    engine::ai_results::source_id_for(&loaded.path)
 }
 
 fn check_cancelled(guard: &Option<AiTaskGuard>) -> Result<(), String> {
@@ -126,198 +62,6 @@ fn check_cancelled(guard: &Option<AiTaskGuard>) -> Result<(), String> {
         return Err("Task cancelled".to_string());
     }
     Ok(())
-}
-
-pub fn generate_foreground_mask(
-    models: &AiModels,
-    warped_image: &DynamicImage,
-    transform: MaskTransform,
-    ai_source: Option<String>,
-) -> Result<AiForegroundMaskParameters, String> {
-    let mask = run_birefnet_model(
-        warped_image,
-        &*models.birefnet().map_err(|e| e.to_string())?,
-    )
-    .map_err(|e| e.to_string())?;
-    if mask.iter().all(|&v| v < 128) {
-        return Err(NO_FOREGROUND_FOUND.to_string());
-    }
-
-    Ok(AiForegroundMaskParameters {
-        mask_data_base64: Some(encode_to_base64_png(&mask)?),
-        rotation: Some(transform.rotation),
-        flip_horizontal: Some(transform.flip_horizontal),
-        flip_vertical: Some(transform.flip_vertical),
-        orientation_steps: Some(transform.orientation_steps),
-        ai_source,
-    })
-}
-
-fn cached_esam3_features(
-    ai_state: &Mutex<Option<AiState>>,
-    models: &AiModels,
-    cache_key: &str,
-    warped_image: &DynamicImage,
-) -> Result<Arc<Esam3Features>, String> {
-    if let Some(cached) = ai_state
-        .lock()
-        .unwrap()
-        .as_ref()
-        .and_then(|s| s.esam3_features.clone())
-        .filter(|cached| cached.path_hash == cache_key)
-    {
-        return Ok(cached);
-    }
-
-    let mut features = run_esam3_image_encoder(
-        warped_image,
-        &*models.esam3_image_encoder().map_err(|e| e.to_string())?,
-    )
-    .map_err(|e| e.to_string())?;
-    features.path_hash = cache_key.to_string();
-    let features = Arc::new(features);
-
-    if let Some(state) = ai_state.lock().unwrap().as_mut() {
-        state.esam3_features = Some(features.clone());
-    }
-    Ok(features)
-}
-
-pub fn generate_sky_mask(
-    ai_state: &Mutex<Option<AiState>>,
-    models: &AiModels,
-    cache_key: &str,
-    warped_image: &DynamicImage,
-    transform: MaskTransform,
-    ai_source: Option<String>,
-) -> Result<AiSkyMaskParameters, String> {
-    let features = cached_esam3_features(ai_state, models, cache_key, warped_image)?;
-    let prompt = models.esam3_sky_prompt().map_err(|e| e.to_string())?;
-    let mask = run_esam3_decoder(
-        &*models.esam3_decoder().map_err(|e| e.to_string())?,
-        &features,
-        &prompt,
-        warped_image,
-        ESAM3_SKY_SCORE_THRESHOLD,
-        ESAM3_SKY_REFINE_EPS,
-    )
-    .map_err(|e| e.to_string())?
-    .ok_or_else(|| NO_SKY_FOUND.to_string())?;
-
-    Ok(AiSkyMaskParameters {
-        mask_data_base64: Some(encode_to_base64_png(&mask)?),
-        rotation: Some(transform.rotation),
-        flip_horizontal: Some(transform.flip_horizontal),
-        flip_vertical: Some(transform.flip_vertical),
-        orientation_steps: Some(transform.orientation_steps),
-        ai_source,
-    })
-}
-
-pub fn generate_text_mask(
-    ai_state: &Mutex<Option<AiState>>,
-    models: &AiModels,
-    cache_key: &str,
-    warped_image: &DynamicImage,
-    prompt: &str,
-    transform: MaskTransform,
-    ai_source: Option<String>,
-) -> Result<AiTextMaskParameters, String> {
-    let features = cached_esam3_features(ai_state, models, cache_key, warped_image)?;
-    let text_prompt = models
-        .esam3_text_prompt(prompt)
-        .map_err(|e| e.to_string())?;
-    let mask = run_esam3_zoomed_decoder(
-        &*models.esam3_image_encoder().map_err(|e| e.to_string())?,
-        &*models.esam3_decoder().map_err(|e| e.to_string())?,
-        &features,
-        &text_prompt,
-        warped_image,
-        ESAM3_TEXT_SCORE_THRESHOLD,
-        ESAM3_TEXT_REFINE_EPS,
-    )
-    .map_err(|e| e.to_string())?
-    .ok_or_else(|| format!("{} \"{}\"", NO_MATCH_FOUND, prompt.trim()))?;
-
-    Ok(AiTextMaskParameters {
-        prompt: prompt.to_string(),
-        mask_data_base64: Some(encode_to_base64_png(&mask)?),
-        rotation: Some(transform.rotation),
-        flip_horizontal: Some(transform.flip_horizontal),
-        flip_vertical: Some(transform.flip_vertical),
-        orientation_steps: Some(transform.orientation_steps),
-        ai_source,
-    })
-}
-
-fn cached_face_analysis(
-    ai_state: &Mutex<Option<AiState>>,
-    models: &AiModels,
-    cache_key: &str,
-    warped_image: &DynamicImage,
-    transform: MaskTransform,
-) -> Result<Arc<FaceAnalysis>, String> {
-    if let Some(cached) = ai_state
-        .lock()
-        .unwrap()
-        .as_ref()
-        .and_then(|s| s.face_analysis.clone())
-        .filter(|cached| cached.path_hash == cache_key)
-    {
-        return Ok(cached);
-    }
-
-    let features = cached_esam3_features(ai_state, models, cache_key, warped_image)?;
-    let detections = run_esam3_boxes(
-        &*models.esam3_decoder().map_err(|e| e.to_string())?,
-        &features,
-        &*models.esam3_face_prompt().map_err(|e| e.to_string())?,
-        ESAM3_FACE_SCORE_THRESHOLD,
-    )
-    .map_err(|e| e.to_string())?;
-    let analysis = Arc::new(
-        analyze_faces(
-            warped_image,
-            &detections,
-            &*models.face_landmarks().map_err(|e| e.to_string())?,
-            &*models.face_segmenter().map_err(|e| e.to_string())?,
-            -(transform.orientation_steps as f32) * std::f32::consts::FRAC_PI_2,
-            cache_key.to_string(),
-        )
-        .map_err(|e| e.to_string())?,
-    );
-
-    if let Some(state) = ai_state.lock().unwrap().as_mut() {
-        state.face_analysis = Some(analysis.clone());
-    }
-    Ok(analysis)
-}
-
-pub fn generate_face_mask(
-    ai_state: &Mutex<Option<AiState>>,
-    models: &AiModels,
-    cache_key: &str,
-    warped_image: &DynamicImage,
-    parts: &[String],
-    transform: MaskTransform,
-    ai_source: Option<String>,
-) -> Result<AiFaceMaskParameters, String> {
-    let analysis = cached_face_analysis(ai_state, models, cache_key, warped_image, transform)?;
-    if analysis.faces.is_empty() {
-        return Err(NO_FACES_FOUND.to_string());
-    }
-    let face_parts: Vec<FacePart> = parts.iter().filter_map(|p| FacePart::from_id(p)).collect();
-    let mask = compose_face_mask(warped_image, &analysis, &face_parts);
-
-    Ok(AiFaceMaskParameters {
-        parts: parts.to_vec(),
-        mask_data_base64: Some(encode_to_base64_png(&mask)?),
-        rotation: Some(transform.rotation),
-        flip_horizontal: Some(transform.flip_horizontal),
-        flip_vertical: Some(transform.flip_vertical),
-        orientation_steps: Some(transform.orientation_steps),
-        ai_source,
-    })
 }
 
 fn cached_depth_estimate(
@@ -353,7 +97,8 @@ fn cached_depth_estimate(
     Ok(depth)
 }
 
-pub fn generate_depth_mask(
+#[allow(clippy::too_many_arguments)]
+fn generate_depth_mask(
     ai_state: &Mutex<Option<AiState>>,
     models: &AiModels,
     cache_key: &str,
@@ -379,287 +124,6 @@ pub fn generate_depth_mask(
         ai_source,
         ..params
     })
-}
-
-fn cached_image_embeddings(
-    ai_state: &Mutex<Option<AiState>>,
-    models: &AiModels,
-    cache_key: &str,
-    warped_image: &DynamicImage,
-) -> Result<ImageEmbeddings, String> {
-    if let Some(cached) = ai_state
-        .lock()
-        .unwrap()
-        .as_ref()
-        .and_then(|s| s.embeddings.clone())
-        .filter(|cached| cached.path_hash == cache_key)
-    {
-        return Ok(cached);
-    }
-
-    let mut embeddings = generate_image_embeddings(
-        warped_image,
-        &*models.sam_encoder().map_err(|e| e.to_string())?,
-    )
-    .map_err(|e| e.to_string())?;
-    embeddings.path_hash = cache_key.to_string();
-
-    if let Some(state) = ai_state.lock().unwrap().as_mut() {
-        state.embeddings = Some(embeddings.clone());
-    }
-    Ok(embeddings)
-}
-
-
-#[allow(clippy::too_many_arguments)]
-pub fn generate_subject_mask(
-    ai_state: &Mutex<Option<AiState>>,
-    models: &AiModels,
-    cache_key: &str,
-    warped_image: &DynamicImage,
-    start_point: (f64, f64),
-    end_point: (f64, f64),
-    skip_refinement: bool,
-    transform: MaskTransform,
-    ai_source: Option<String>,
-) -> Result<AiSubjectMaskParameters, String> {
-    let embeddings = cached_image_embeddings(ai_state, models, cache_key, warped_image)?;
-    let (unrotated_start, unrotated_end) =
-        transform.unrotate_box(start_point, end_point, embeddings.original_size);
-
-    let mask_bitmap = run_sam_decoder(
-        &*models.sam_decoder().map_err(|e| e.to_string())?,
-        &embeddings,
-        unrotated_start,
-        unrotated_end,
-        (!skip_refinement).then_some(warped_image),
-    )
-    .map_err(|e| e.to_string())?;
-
-    let (box_space_width, box_space_height) = transform.box_space(embeddings.original_size);
-
-    Ok(AiSubjectMaskParameters {
-        start_x: start_point.0,
-        start_y: start_point.1,
-        end_x: end_point.0,
-        end_y: end_point.1,
-        mask_data_base64: Some(encode_to_base64_png(&mask_bitmap)?),
-        rotation: Some(transform.rotation),
-        flip_horizontal: Some(transform.flip_horizontal),
-        flip_vertical: Some(transform.flip_vertical),
-        orientation_steps: Some(transform.orientation_steps),
-        box_space_width: Some(box_space_width),
-        box_space_height: Some(box_space_height),
-        ai_source,
-    })
-}
-
-#[allow(clippy::too_many_arguments)]
-#[tauri::command]
-pub async fn generate_ai_foreground_mask(
-    js_adjustments: serde_json::Value,
-    rotation: f32,
-    flip_horizontal: bool,
-    flip_vertical: bool,
-    orientation_steps: u8,
-    task_id: Option<String>,
-    state: tauri::State<'_, AppState>,
-    app_handle: tauri::AppHandle,
-) -> Result<Value, String> {
-    let guard = task_id.map(|id| AiTaskGuard::new(&state.active_ai_tasks, id));
-    check_cancelled(&guard)?;
-
-    let models = get_or_init_ai_models(
-        &*TauriHost::host(app_handle.clone()),
-        &state.ai_state,
-        &state.ai_init_lock,
-        AiMaskModel::Foreground,
-    )
-    .await
-    .map_err(|e| e.to_string())?;
-    check_cancelled(&guard)?;
-
-    let warped_image = get_cached_full_warped_image(&state, &js_adjustments)?;
-    check_cancelled(&guard)?;
-
-    let transform = MaskTransform {
-        rotation,
-        flip_horizontal,
-        flip_vertical,
-        orientation_steps,
-    };
-    let ai_source = loaded_source_id(&state);
-    let params = mask_command_result(
-        generate_foreground_mask(&models, &warped_image, transform, ai_source.clone())
-            .and_then(to_json),
-        transform,
-        ai_source,
-    )?;
-    check_cancelled(&guard)?;
-    Ok(params)
-}
-
-#[allow(clippy::too_many_arguments)]
-#[tauri::command]
-pub async fn generate_ai_sky_mask(
-    js_adjustments: serde_json::Value,
-    path: String,
-    rotation: f32,
-    flip_horizontal: bool,
-    flip_vertical: bool,
-    orientation_steps: u8,
-    task_id: Option<String>,
-    state: tauri::State<'_, AppState>,
-    app_handle: tauri::AppHandle,
-) -> Result<Value, String> {
-    let guard = task_id.map(|id| AiTaskGuard::new(&state.active_ai_tasks, id));
-    check_cancelled(&guard)?;
-
-    let models = get_or_init_ai_models(
-        &*TauriHost::host(app_handle.clone()),
-        &state.ai_state,
-        &state.ai_init_lock,
-        AiMaskModel::Sky,
-    )
-    .await
-    .map_err(|e| e.to_string())?;
-    check_cancelled(&guard)?;
-
-    let warped_image = get_cached_full_warped_image(&state, &js_adjustments)?;
-    check_cancelled(&guard)?;
-
-    let transform = MaskTransform {
-        rotation,
-        flip_horizontal,
-        flip_vertical,
-        orientation_steps,
-    };
-    let ai_source = loaded_source_id(&state);
-    let params = mask_command_result(
-        generate_sky_mask(
-            &state.ai_state,
-            &models,
-            &ai_cache_key(&path, &js_adjustments),
-            &warped_image,
-            transform,
-            ai_source.clone(),
-        )
-        .and_then(to_json),
-        transform,
-        ai_source,
-    )?;
-    check_cancelled(&guard)?;
-    Ok(params)
-}
-
-#[allow(clippy::too_many_arguments)]
-#[tauri::command]
-pub async fn generate_ai_text_mask(
-    js_adjustments: serde_json::Value,
-    path: String,
-    prompt: String,
-    rotation: f32,
-    flip_horizontal: bool,
-    flip_vertical: bool,
-    orientation_steps: u8,
-    task_id: Option<String>,
-    state: tauri::State<'_, AppState>,
-    app_handle: tauri::AppHandle,
-) -> Result<Value, String> {
-    let guard = task_id.map(|id| AiTaskGuard::new(&state.active_ai_tasks, id));
-    check_cancelled(&guard)?;
-
-    let models = get_or_init_ai_models(
-        &*TauriHost::host(app_handle.clone()),
-        &state.ai_state,
-        &state.ai_init_lock,
-        AiMaskModel::Text,
-    )
-    .await
-    .map_err(|e| e.to_string())?;
-    check_cancelled(&guard)?;
-
-    let warped_image = get_cached_full_warped_image(&state, &js_adjustments)?;
-    check_cancelled(&guard)?;
-
-    let transform = MaskTransform {
-        rotation,
-        flip_horizontal,
-        flip_vertical,
-        orientation_steps,
-    };
-    let ai_source = loaded_source_id(&state);
-    let params = mask_command_result(
-        generate_text_mask(
-            &state.ai_state,
-            &models,
-            &ai_cache_key(&path, &js_adjustments),
-            &warped_image,
-            &prompt,
-            transform,
-            ai_source.clone(),
-        )
-        .and_then(to_json),
-        transform,
-        ai_source,
-    )?;
-    check_cancelled(&guard)?;
-    Ok(params)
-}
-
-#[allow(clippy::too_many_arguments)]
-#[tauri::command]
-pub async fn generate_ai_face_mask(
-    js_adjustments: serde_json::Value,
-    path: String,
-    parts: Vec<String>,
-    rotation: f32,
-    flip_horizontal: bool,
-    flip_vertical: bool,
-    orientation_steps: u8,
-    task_id: Option<String>,
-    state: tauri::State<'_, AppState>,
-    app_handle: tauri::AppHandle,
-) -> Result<Value, String> {
-    let guard = task_id.map(|id| AiTaskGuard::new(&state.active_ai_tasks, id));
-    check_cancelled(&guard)?;
-
-    let models = get_or_init_ai_models(
-        &*TauriHost::host(app_handle.clone()),
-        &state.ai_state,
-        &state.ai_init_lock,
-        AiMaskModel::Face,
-    )
-    .await
-    .map_err(|e| e.to_string())?;
-    check_cancelled(&guard)?;
-
-    let warped_image = get_cached_full_warped_image(&state, &js_adjustments)?;
-    check_cancelled(&guard)?;
-
-    let transform = MaskTransform {
-        rotation,
-        flip_horizontal,
-        flip_vertical,
-        orientation_steps,
-    };
-    let ai_source = loaded_source_id(&state);
-    let params = mask_command_result(
-        generate_face_mask(
-            &state.ai_state,
-            &models,
-            &ai_cache_key(&path, &js_adjustments),
-            &warped_image,
-            &parts,
-            transform,
-            ai_source.clone(),
-        )
-        .and_then(to_json),
-        transform,
-        ai_source,
-    )?;
-    check_cancelled(&guard)?;
-    Ok(params)
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -723,92 +187,6 @@ pub async fn generate_ai_depth_mask(
     Ok(params)
 }
 
-#[allow(clippy::too_many_arguments)]
-#[tauri::command]
-pub async fn generate_ai_subject_mask(
-    js_adjustments: serde_json::Value,
-    path: String,
-    start_point: (f64, f64),
-    end_point: (f64, f64),
-    rotation: f32,
-    flip_horizontal: bool,
-    flip_vertical: bool,
-    orientation_steps: u8,
-    skip_refinement: Option<bool>,
-    task_id: Option<String>,
-    state: tauri::State<'_, AppState>,
-    app_handle: tauri::AppHandle,
-) -> Result<AiSubjectMaskParameters, String> {
-    let guard = task_id.map(|id| AiTaskGuard::new(&state.active_ai_tasks, id));
-    check_cancelled(&guard)?;
-
-    let models = get_or_init_ai_models(
-        &*TauriHost::host(app_handle.clone()),
-        &state.ai_state,
-        &state.ai_init_lock,
-        AiMaskModel::Subject,
-    )
-    .await
-    .map_err(|e| e.to_string())?;
-    check_cancelled(&guard)?;
-
-    let warped_image = get_cached_full_warped_image(&state, &js_adjustments)?;
-    check_cancelled(&guard)?;
-
-    let transform = MaskTransform {
-        rotation,
-        flip_horizontal,
-        flip_vertical,
-        orientation_steps,
-    };
-    let params = generate_subject_mask(
-        &state.ai_state,
-        &models,
-        &ai_cache_key(&path, &js_adjustments),
-        &warped_image,
-        start_point,
-        end_point,
-        skip_refinement.unwrap_or(false),
-        transform,
-        loaded_source_id(&state),
-    )?;
-    check_cancelled(&guard)?;
-    Ok(params)
-}
-
-#[tauri::command]
-pub async fn precompute_ai_subject_mask(
-    js_adjustments: serde_json::Value,
-    path: String,
-    state: tauri::State<'_, AppState>,
-    app_handle: tauri::AppHandle,
-) -> Result<(), String> {
-    let models = get_or_init_ai_models(
-        &*TauriHost::host(app_handle.clone()),
-        &state.ai_state,
-        &state.ai_init_lock,
-        AiMaskModel::Subject,
-    )
-    .await
-    .map_err(|e| e.to_string())?;
-
-    let cache_key = ai_cache_key(&path, &js_adjustments);
-    let is_cached = state
-        .ai_state
-        .lock()
-        .unwrap()
-        .as_ref()
-        .and_then(|s| s.embeddings.as_ref())
-        .is_some_and(|cached| cached.path_hash == cache_key);
-    if is_cached {
-        return Ok(());
-    }
-
-    let warped_image = get_cached_full_warped_image(&state, &js_adjustments)?;
-    cached_image_embeddings(&state.ai_state, &models, &cache_key, &warped_image)?;
-    Ok(())
-}
-
 pub async fn generate_effect_map(
     app_handle: &tauri::AppHandle,
     kind: EffectMapKind,
@@ -856,7 +234,7 @@ async fn generate_loaded_effect_map(
     app_handle: tauri::AppHandle,
 ) -> Result<String, String> {
     let loaded_image = get_loaded_image(&state)?;
-    let source_id = crate::ai_jobs::source_id_for(&loaded_image.path)
+    let source_id = engine::ai_results::source_id_for(&loaded_image.path)
         .ok_or("Unable to identify the loaded image")?;
     let source_image = crate::mask_generation::build_converted_source_image(
         &loaded_image.image,

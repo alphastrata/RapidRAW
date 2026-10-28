@@ -100,10 +100,6 @@ impl Host for TauriHost {
         );
     }
 
-    fn release_deferred(&self, path: &str) {
-        crate::ai_jobs::release_deferred(path);
-    }
-
     fn on_exit(&self) {
         crate::register_exit_handler();
     }

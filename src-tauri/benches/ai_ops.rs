@@ -7,7 +7,6 @@ use image::{DynamicImage, GenericImageView, GrayImage, Luma, Rgb, RgbImage};
 use ort::session::Session;
 use rapidraw_lib::ai_processing;
 use rapidraw_lib::ai_processing::ImageEmbeddings;
-use rapidraw_lib::tagging::generate_tags_with_clip;
 use tokenizers::Tokenizer;
 
 const MODELS_DIR: &str = "RAPIDRAW_MODELS_DIR";
@@ -127,20 +126,7 @@ fn sam_decoder_point(b: Bencher) {
     });
 }
 
-#[divan::bench]
-fn clip_tagging_512(b: Bencher) {
-    let img = image(512, 341);
-    b.bench(|| {
-        generate_tags_with_clip(
-            black_box(&img),
-            black_box(&CLIP),
-            black_box(&CLIP_TOKENIZER),
-            black_box(None),
-            8,
-        )
-        .unwrap()
-    })
-}
+
 
 fn main() {
     println!("models dir: {}", models_dir().display());
