@@ -1,5 +1,6 @@
 [workspace]
 members = ["app", "engine", "simd_optimised/kernels"]
+exclude = ["vendor"]
 resolver = "3"
 [workspace.lints.clippy]
 pedantic = "warn"
@@ -18,24 +19,18 @@ egui = { version = "0.37", default-features = false, features = [
     "default_fonts",
     "monochrome_emoji_fonts",
 ] }
-craft-ui = { git = "https://github.com/storytold/craft-libs", rev = "92d392cff132eaf53e13afff77f38b5c11b73aa0" }
+craft-ui = { path = "vendor/craft-libs/crates/ui" }
 
 [patch.crates-io]
-ecolor = { git = "https://github.com/storytold/egui.git", rev = "6d518fc799681571963842f95b55a6b68431b15a" }
-emath = { git = "https://github.com/storytold/egui.git", rev = "6d518fc799681571963842f95b55a6b68431b15a" }
-epaint = { git = "https://github.com/storytold/egui.git", rev = "6d518fc799681571963842f95b55a6b68431b15a" }
-epaint_default_fonts = { git = "https://github.com/storytold/egui.git", rev = "6d518fc799681571963842f95b55a6b68431b15a" }
-egui = { git = "https://github.com/storytold/egui.git", rev = "6d518fc799681571963842f95b55a6b68431b15a" }
-egui-winit = { git = "https://github.com/storytold/egui.git", rev = "6d518fc799681571963842f95b55a6b68431b15a" }
-egui-wgpu = { git = "https://github.com/storytold/egui.git", rev = "6d518fc799681571963842f95b55a6b68431b15a" }
-egui_glow = { git = "https://github.com/storytold/egui.git", rev = "6d518fc799681571963842f95b55a6b68431b15a" }
-egui_extras = { git = "https://github.com/storytold/egui.git", rev = "6d518fc799681571963842f95b55a6b68431b15a" }
-egui_kittest = { git = "https://github.com/storytold/egui.git", rev = "6d518fc799681571963842f95b55a6b68431b15a" }
-egui_system_font_provider = { git = "https://github.com/storytold/egui.git", rev = "6d518fc799681571963842f95b55a6b68431b15a" }
-eframe = { git = "https://github.com/storytold/egui.git", rev = "6d518fc799681571963842f95b55a6b68431b15a" }
-egui_demo_lib = { git = "https://github.com/storytold/egui.git", rev = "6d518fc799681571963842f95b55a6b68431b15a" }
-egui_inspection = { git = "https://github.com/storytold/egui.git", rev = "6d518fc799681571963842f95b55a6b68431b15a" }
-winit = { git = "https://github.com/storytold/winit.git", rev = "a517b3846ee8457d84ee4975110bfda6797c44dc" }
+ecolor = { path = "vendor/egui/crates/ecolor" }
+emath = { path = "vendor/egui/crates/emath" }
+epaint = { path = "vendor/egui/crates/epaint" }
+epaint_default_fonts = { path = "vendor/egui/crates/epaint_default_fonts" }
+egui = { path = "vendor/egui/crates/egui" }
+egui-winit = { path = "vendor/egui/crates/egui-winit" }
+egui-wgpu = { path = "vendor/egui/crates/egui-wgpu" }
+eframe = { path = "vendor/egui/crates/eframe" }
+winit = { path = "vendor/winit" }
 
 [profile.dev]
 opt-level = 3
