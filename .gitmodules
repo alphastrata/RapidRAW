@@ -1,0 +1,15 @@
+[submodule "vendor/egui"]
+	path = vendor/egui
+	url = https://github.com/storytold/egui
+	branch = 6d518fc799681571963842f95b55a6b68431b15a
+[submodule "vendor/winit"]
+	path = vendor/winit
+	url = https://github.com/storytold/winit
+	branch = a517b3846ee8457d84ee4975110bfda6797c44dc
+[submodule "vendor/craft-libs"]
+	path = vendor/craft-libs
+	url = https://github.com/storytold/craft-libs
+	branch = 92d392cff132eaf53e13afff77f38b5c11b73aa0
+[submodule "vendor/rawler"]
+	path = vendor/rawler
+	url = https://github.com/CyberTimon/RapidRAW-DngLab
