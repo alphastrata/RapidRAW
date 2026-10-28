@@ -1,10 +1,9 @@
 use std::borrow::Cow;
-use std::collections::HashMap;
 use std::fs;
 use std::io::{Cursor, Seek, Write};
-use std::path::{Path, PathBuf};
+use std::path::Path;
+use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
-use std::sync::{Arc, Mutex};
 
 use image::codecs::jpeg::{JpegEncoder, PixelDensity};
 use image::codecs::png::PngEncoder;
@@ -48,229 +47,27 @@ use crate::{
     hydrate_adjustments, load_settings,
 };
 
-use engine::export_geometry as export_geom;
-pub use engine::export_geometry::{
-    BorderBasis, BorderOptions, ExportGeometry, ExportSettings, PadOptions, ResizeMode,
-    ResizeOptions, WatermarkAnchor, WatermarkSettings,
-};
 pub use engine::launch_request::TiffBitDepth;
 
+#[derive(Clone, Default, serde::Deserialize, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ExportSettings {
+    pub filename_template: Option<String>,
+    pub jpeg_quality: u8,
+    pub tiff_bit_depth: TiffBitDepth,
+    pub keep_metadata: bool,
+    pub preserve_timestamps: bool,
+    pub export_masks: bool,
+    pub strip_gps: bool,
+    pub destination_type: Option<String>,
+    pub subfolder: Option<String>,
+    pub dpi: Option<u16>,
+}
+
 #[derive(Clone)]
-pub(crate) enum ExportAdjustmentsMode {
-    UseSidecars {
-        active_path: Option<String>,
-        active_adjustments: Option<Value>,
-    },
-    GlobalOverride(Value),
-}
-
-struct WatermarkCacheEntry {
-    path: String,
-    modified: Option<std::time::SystemTime>,
-    len: Option<u64>,
-    image: Arc<DynamicImage>,
-    scaled: Option<((u32, u32), Arc<DynamicImage>)>,
-}
-
-static WATERMARK_CACHE: Mutex<Option<WatermarkCacheEntry>> = Mutex::new(None);
-
-struct WatermarkCacheGuard;
-
-impl Drop for WatermarkCacheGuard {
-    fn drop(&mut self) {
-        *WATERMARK_CACHE.lock().unwrap_or_else(|e| e.into_inner()) = None;
-    }
-}
-
-fn load_watermark_image(path: &str) -> Result<Arc<DynamicImage>, String> {
-    let metadata = fs::metadata(path).ok();
-    let modified = metadata.as_ref().and_then(|m| m.modified().ok());
-    let len = metadata.as_ref().map(|m| m.len());
-    let mut cache = WATERMARK_CACHE.lock().unwrap_or_else(|e| e.into_inner());
-    if let Some(entry) = cache.as_ref()
-        && entry.path == path
-        && entry.modified.is_some()
-        && entry.modified == modified
-        && entry.len == len
-    {
-        return Ok(Arc::clone(&entry.image));
-    }
-    let image =
-        Arc::new(image::open(path).map_err(|e| format!("Failed to open watermark image: {}", e))?);
-    *cache = Some(WatermarkCacheEntry {
-        path: path.to_string(),
-        modified,
-        len,
-        image: Arc::clone(&image),
-        scaled: None,
-    });
-    Ok(image)
-}
-
-fn scaled_watermark_image(
-    path: &str,
-    watermark_img: &Arc<DynamicImage>,
-    new_wm_w: u32,
-    new_wm_h: u32,
-) -> Arc<DynamicImage> {
-    {
-        let cache = WATERMARK_CACHE.lock().unwrap_or_else(|e| e.into_inner());
-        if let Some(entry) = cache.as_ref()
-            && entry.path == path
-            && Arc::ptr_eq(&entry.image, watermark_img)
-            && let Some((size, scaled)) = &entry.scaled
-            && *size == (new_wm_w, new_wm_h)
-        {
-            return Arc::clone(scaled);
-        }
-    }
-    let scaled = Arc::new(watermark_img.resize_exact(
-        new_wm_w,
-        new_wm_h,
-        image::imageops::FilterType::Lanczos3,
-    ));
-    let mut cache = WATERMARK_CACHE.lock().unwrap_or_else(|e| e.into_inner());
-    if let Some(entry) = cache.as_mut()
-        && entry.path == path
-        && Arc::ptr_eq(&entry.image, watermark_img)
-    {
-        entry.scaled = Some(((new_wm_w, new_wm_h), Arc::clone(&scaled)));
-    }
-    scaled
-}
-
-fn apply_watermark(
-    base_image: &mut DynamicImage,
-    watermark_settings: &WatermarkSettings,
-) -> Result<(), String> {
-    let watermark_img = load_watermark_image(&watermark_settings.path)?;
-
-    let (base_w, base_h) = base_image.dimensions();
-    let (new_wm_w, new_wm_h) = export_geom::watermark_scaled_dims(
-        base_w,
-        base_h,
-        watermark_img.width(),
-        watermark_img.height(),
-        watermark_settings.scale,
-    );
-
-    if new_wm_w == 0 || new_wm_h == 0 {
-        return Ok(());
-    }
-
-    let scaled_watermark =
-        scaled_watermark_image(&watermark_settings.path, &watermark_img, new_wm_w, new_wm_h);
-    export_geom::composite_watermark(
-        base_image,
-        &scaled_watermark,
-        &watermark_settings.anchor,
-        watermark_settings.spacing,
-        watermark_settings.opacity,
-    );
-
-    Ok(())
-}
-
-fn relative_dir_is_safe(rel_dir: &Path) -> bool {
-    rel_dir.components().all(|component| {
-        matches!(
-            component,
-            std::path::Component::Normal(_) | std::path::Component::CurDir
-        )
-    })
-}
-
-#[cfg(windows)]
-fn component_matches(left: std::path::Component<'_>, right: std::path::Component<'_>) -> bool {
-    left.as_os_str()
-        .to_string_lossy()
-        .eq_ignore_ascii_case(&right.as_os_str().to_string_lossy())
-}
-
-#[cfg(not(windows))]
-fn component_matches(left: std::path::Component<'_>, right: std::path::Component<'_>) -> bool {
-    left == right
-}
-
-fn strip_prefix_preserving_source_case(source_path: &Path, base_path: &Path) -> Option<PathBuf> {
-    let source_components: Vec<_> = source_path.components().collect();
-    let base_components: Vec<_> = base_path.components().collect();
-
-    if base_components.len() > source_components.len() {
-        return None;
-    }
-
-    if !source_components
-        .iter()
-        .zip(base_components.iter())
-        .all(|(source, base)| component_matches(*source, *base))
-    {
-        return None;
-    }
-
-    Some(source_components[base_components.len()..].iter().collect())
-}
-
-fn relative_export_dir_for_preserved_folders(
-    source_path: &Path,
-    base_origin_folders: &[String],
-) -> Option<PathBuf> {
-    base_origin_folders
-        .iter()
-        .filter_map(|base| {
-            let base_path = Path::new(base);
-            strip_prefix_preserving_source_case(source_path, base_path)
-                .map(|rel_path| (base_path.components().count(), rel_path))
-        })
-        .max_by_key(|(component_count, _)| *component_count)
-        .and_then(|(_, rel_path)| {
-            let rel_dir = rel_path.parent().unwrap_or_else(|| Path::new(""));
-            if relative_dir_is_safe(rel_dir) {
-                Some(rel_dir.to_path_buf())
-            } else {
-                None
-            }
-        })
-}
-
-fn apply_export_geometry(
-    image: DynamicImage,
-    export_settings: &ExportSettings,
-) -> Result<(DynamicImage, ExportGeometry), String> {
-    export_geom::apply_export_geometry(image, export_settings).map_err(|e| e.to_string())
-}
-
-fn apply_export_geometry_and_watermark(
-    image: DynamicImage,
-    export_settings: &ExportSettings,
-) -> Result<(DynamicImage, ExportGeometry), String> {
-    let (mut image, geometry) = apply_export_geometry(image, export_settings)?;
-
-    if let Some(watermark_settings) = &export_settings.watermark {
-        apply_watermark(&mut image, watermark_settings)?;
-    }
-    Ok((image, geometry))
-}
-
-const FALLBACK_EXPORT_MEMORY: u64 = 4 * 1024 * 1024 * 1024;
-
-fn estimate_export_memory(
-    source_path: &str,
-    is_raw: bool,
-    loaded_dimensions: Option<(u32, u32)>,
-    mask_count: usize,
-) -> u64 {
-    let pixels = loaded_dimensions
-        .map(|(w, h)| w as u64 * h as u64)
-        .or_else(|| crate::memory_budget::image_pixel_count(Path::new(source_path), is_raw));
-
-    let Some(pixels) = pixels else {
-        return FALLBACK_EXPORT_MEMORY;
-    };
-
-    let bytes_per_pixel = if is_raw { 48 } else { 40 }
-        + 6 * mask_count.min(crate::image_processing::MAX_MASKS) as u64;
-    pixels * bytes_per_pixel
+pub(crate) struct CurrentEditAdjustments {
+    pub active_path: Option<String>,
+    pub active_adjustments: Option<Value>,
 }
 
 fn ensure_export_not_cancelled(cancellation_token: &AtomicBool) -> Result<(), String> {
@@ -289,36 +86,27 @@ enum ExportCancellationRequest {
 }
 
 struct ExportTaskGuard {
-    task_token: Arc<Mutex<Option<Arc<AtomicBool>>>>,
+    task_token: Arc<std::sync::Mutex<Option<Arc<AtomicBool>>>>,
     cancellation_token: Arc<AtomicBool>,
     app_handle: Option<tauri::AppHandle>,
 }
 
 impl ExportTaskGuard {
-    fn new(
-        task_token: Arc<Mutex<Option<Arc<AtomicBool>>>>,
+    fn with_app_handle(
+        task_token: Arc<std::sync::Mutex<Option<Arc<AtomicBool>>>>,
         cancellation_token: Arc<AtomicBool>,
+        app_handle: tauri::AppHandle,
     ) -> Self {
         Self {
             task_token,
             cancellation_token,
-            app_handle: None,
+            app_handle: Some(app_handle),
         }
-    }
-
-    fn with_app_handle(
-        task_token: Arc<Mutex<Option<Arc<AtomicBool>>>>,
-        cancellation_token: Arc<AtomicBool>,
-        app_handle: tauri::AppHandle,
-    ) -> Self {
-        let mut guard = Self::new(task_token, cancellation_token);
-        guard.app_handle = Some(app_handle);
-        guard
     }
 }
 
 fn register_export_task(
-    task_token: &Mutex<Option<Arc<AtomicBool>>>,
+    task_token: &std::sync::Mutex<Option<Arc<AtomicBool>>>,
 ) -> Result<Arc<AtomicBool>, String> {
     let mut active_token = task_token.lock().unwrap();
     if active_token.is_some() {
@@ -331,7 +119,7 @@ fn register_export_task(
 }
 
 fn request_export_cancellation<F>(
-    task_token: &Mutex<Option<Arc<AtomicBool>>>,
+    task_token: &std::sync::Mutex<Option<Arc<AtomicBool>>>,
     on_requested: F,
 ) -> ExportCancellationRequest
 where
@@ -351,7 +139,7 @@ where
 }
 
 fn finish_export_task<F>(
-    task_token: &Mutex<Option<Arc<AtomicBool>>>,
+    task_token: &std::sync::Mutex<Option<Arc<AtomicBool>>>,
     cancellation_token: &Arc<AtomicBool>,
     on_finish: F,
 ) -> bool
@@ -537,7 +325,7 @@ fn process_image_for_export(
     app_handle: &tauri::AppHandle,
     output_format: &str,
 ) -> Result<DynamicImage, String> {
-    let processed_image = process_image_for_export_pipeline(
+    process_image_for_export_pipeline(
         path,
         base_image,
         js_adjustments,
@@ -547,9 +335,7 @@ fn process_image_for_export(
         "process_image_for_export",
         app_handle,
         render_output_precision(output_format, export_settings),
-    )?;
-
-    apply_export_geometry_and_watermark(processed_image, export_settings).map(|(image, _)| image)
+    )
 }
 
 fn build_single_mask_adjustments(all: &AllAdjustments, mask_index: usize) -> AllAdjustments {
@@ -797,7 +583,7 @@ fn export_masks_for_image(
             .and_then(|s| s.to_str())
             .unwrap_or("jpg");
 
-        for (i, _) in mask_bitmaps.iter().enumerate() {
+        for (i, mask_bitmap) in mask_bitmaps.iter().enumerate() {
             ensure_export_not_cancelled(cancellation_token)?;
             let single_adjustments = build_single_mask_adjustments(&all_adjustments, i);
             let full_white_mask = ImageBuffer::from_fn(img_w, img_h, |_, _| Luma([255u8]));
@@ -821,21 +607,18 @@ fn export_masks_for_image(
             .map_err(|e| e.to_string())?;
             ensure_export_not_cancelled(cancellation_token)?;
 
-            let (with_options, geometry) =
-                apply_export_geometry_and_watermark(processed, export_settings)?;
-
-            let alpha_scaled = imageops::resize(
-                &mask_bitmaps[i],
-                geometry.photo_w,
-                geometry.photo_h,
-                imageops::FilterType::Lanczos3,
-            );
-
-            let alpha_resized: GrayImage = if geometry.is_identity() {
-                alpha_scaled
-            } else {
-                export_geom::place_photo_on_canvas(&alpha_scaled, &geometry, Luma([0u8]), None)
-            };
+            let (final_w, final_h) = processed.dimensions();
+            let alpha_resized: GrayImage =
+                if (mask_bitmap.width(), mask_bitmap.height()) == (final_w, final_h) {
+                    mask_bitmap.clone()
+                } else {
+                    imageops::resize(
+                        mask_bitmap,
+                        final_w,
+                        final_h,
+                        imageops::FilterType::Lanczos3,
+                    )
+                };
             ensure_export_not_cancelled(cancellation_token)?;
 
             let mask_image_path =
@@ -843,7 +626,7 @@ fn export_masks_for_image(
             let mask_alpha_path = output_dir.join(format!("{}_mask_{}_alpha.png", stem, i));
 
             save_image_with_metadata(
-                &with_options,
+                &processed,
                 &mask_image_path,
                 source_path_str,
                 export_xmp,
@@ -928,21 +711,38 @@ fn export_adjustments_as_lut(
     Ok(cube_lut)
 }
 
-#[allow(clippy::too_many_arguments)]
+fn estimate_export_memory(
+    source_path: &str,
+    is_raw: bool,
+    loaded_dimensions: Option<(u32, u32)>,
+    mask_count: usize,
+) -> u64 {
+    const FALLBACK_EXPORT_MEMORY: u64 = 4 * 1024 * 1024 * 1024;
+
+    let pixels = loaded_dimensions
+        .map(|(w, h)| w as u64 * h as u64)
+        .or_else(|| crate::memory_budget::image_pixel_count(Path::new(source_path), is_raw));
+
+    let Some(pixels) = pixels else {
+        return FALLBACK_EXPORT_MEMORY;
+    };
+
+    let bytes_per_pixel = if is_raw { 48 } else { 40 }
+        + 6 * mask_count.min(crate::image_processing::MAX_MASKS) as u64;
+    pixels * bytes_per_pixel
+}
 pub(crate) async fn export_images_impl(
     paths: Vec<String>,
     output_folder_or_file: String,
     is_explicit_file_path: bool,
-    base_origin_folders: Vec<String>,
     export_settings: ExportSettings,
     output_format: String,
-    adjustments_mode: ExportAdjustmentsMode,
+    adjustments_mode: CurrentEditAdjustments,
     state: tauri::State<'_, AppState>,
     app_handle: tauri::AppHandle,
     completion_tx: Option<tokio::sync::oneshot::Sender<Result<(), usize>>>,
 ) -> Result<(), String> {
     let cancellation_token = register_export_task(&state.export_task_token)?;
-    *WATERMARK_CACHE.lock().unwrap_or_else(|e| e.into_inner()) = None;
     let task_guard = ExportTaskGuard::with_app_handle(
         Arc::clone(&state.export_task_token),
         Arc::clone(&cancellation_token),
@@ -966,137 +766,52 @@ pub(crate) async fn export_images_impl(
     }
 
     let context = Arc::new(context);
-    let progress_counter = Arc::new(AtomicUsize::new(0));
-
-    let available_cores = std::thread::available_parallelism()
-        .map(|n| n.get())
-        .unwrap_or(1);
-
-    let mut sys = sysinfo::System::new();
-    sys.refresh_memory();
-
-    let app_settings = load_settings(app_handle.clone()).unwrap_or_default();
-    let memory_limit = app_settings.export_memory_limit.unwrap_or(80).clamp(25, 95);
-
-    let available_ram = sys.available_memory();
-    let available_ram_gb = available_ram as f64 / 1024.0 / 1024.0 / 1024.0;
-    let memory_budget = crate::memory_budget::MemoryBudget::new(
-        (available_ram as f64 * memory_limit as f64 / 100.0) as u64,
-    );
-
-    let num_threads = if paths.len() == 1 {
-        1
-    } else {
-        match app_settings.export_worker_threads {
-            Some(threads) if threads > 0 => (threads as usize).clamp(1, 8),
-            _ => available_cores.clamp(1, 4),
-        }
-    };
-
-    log::info!(
-        "Batch Export: {} cores, {:.1} GB free RAM -> up to {} threads",
-        available_cores,
-        available_ram_gb,
-        num_threads
-    );
 
     let _export_task = tokio::spawn(async move {
-        let _watermark_cache_guard = WatermarkCacheGuard;
         let _task_guard = task_guard;
         let output_folder_path = std::path::Path::new(&output_folder_or_file);
         let total_paths = paths.len();
+        let progress_counter = Arc::new(AtomicUsize::new(0));
         let settings = load_settings(app_handle.clone()).unwrap_or_default();
 
-        let mut base_path_counts: HashMap<String, usize> = HashMap::new();
-        let mut export_items = Vec::with_capacity(total_paths);
+        let mut export_errors: Vec<String> = Vec::new();
 
-        for (i, path_str) in paths.into_iter().enumerate() {
-            let (source_path, _) = parse_virtual_path(&path_str);
-            let source_str = source_path.to_string_lossy().to_string();
-            let count = base_path_counts.entry(source_str.clone()).or_insert(0);
-            *count += 1;
-
-            let mut explicit_vc = None;
-            if let Some(idx) = path_str.rfind("vc=") {
-                let id_str = path_str[idx + 3..].split('&').next().unwrap_or("");
-                if let Ok(id) = id_str.parse::<u32>() {
-                    explicit_vc = Some(id);
-                }
-            }
-            if explicit_vc.is_none() {
-                let lower = path_str.to_lowercase();
-                if let Some(idx) = lower.rfind("_vc") {
-                    let id_str: String = lower[idx + 3..]
-                        .chars()
-                        .take_while(|c| c.is_ascii_digit())
-                        .collect();
-                    if let Ok(id) = id_str.parse::<u32>() {
-                        explicit_vc = Some(id);
-                    }
-                }
-            }
-            export_items.push((i, path_str, *count, explicit_vc));
-        }
-
-        let used_paths = Arc::new(Mutex::new(std::collections::HashSet::new()));
-        let semaphore = Arc::new(tokio::sync::Semaphore::new(num_threads));
-        let mut join_handles = Vec::new();
-
-        for (global_index, image_path_str, appearance_count, explicit_vc) in export_items {
+        for (global_index, image_path_str) in paths.into_iter().enumerate() {
             if cancellation_token.load(Ordering::SeqCst) {
-                break;
-            }
-            let permit = semaphore.clone().acquire_owned().await.unwrap();
-            if cancellation_token.load(Ordering::SeqCst) {
-                drop(permit);
                 break;
             }
 
             let app_handle_clone = app_handle.clone();
             let context_clone = Arc::clone(&context);
-            let progress_counter_clone = Arc::clone(&progress_counter);
             let output_folder_path = output_folder_path.to_path_buf();
-            let base_origin_folders = base_origin_folders.clone();
             let export_settings = export_settings.clone();
             let output_format = output_format.clone();
-            let settings = settings.clone();
             let cancellation_token_clone = Arc::clone(&cancellation_token);
             let adjustments_mode = adjustments_mode.clone();
-            let used_paths_clone = Arc::clone(&used_paths);
-            let memory_budget = Arc::clone(&memory_budget);
+            let progress_counter_clone = Arc::clone(&progress_counter);
+            let settings = settings.clone();
+            let memory_budget = crate::memory_budget::MemoryBudget::new(u64::MAX);
 
-            let handle = tokio::task::spawn_blocking(move || {
+            let result = tokio::task::spawn_blocking(move || {
                 ensure_export_not_cancelled(&cancellation_token_clone)?;
 
                 let state = app_handle_clone.state::<AppState>();
                 let (source_path, sidecar_path) = parse_virtual_path(&image_path_str);
                 let source_path_str = source_path.to_string_lossy().to_string();
 
-                let is_current_edit = match &adjustments_mode {
-                    ExportAdjustmentsMode::UseSidecars { active_path, .. } => {
-                        Some(&source_path_str) == active_path.as_ref()
-                    }
-                    ExportAdjustmentsMode::GlobalOverride(_) => false,
-                };
+                let active_path = &adjustments_mode.active_path;
+                let is_current_edit = Some(&source_path_str) == active_path.as_ref();
 
                 let sidecar = crate::exif_processing::load_sidecar(&sidecar_path);
                 let export_xmp = crate::exif_processing::ExportXmp::from_metadata(&sidecar);
 
-                let mut js_adjustments = match &adjustments_mode {
-                    ExportAdjustmentsMode::UseSidecars {
-                        active_adjustments, ..
-                    } => {
-                        if is_current_edit {
-                            if let Some(adj) = active_adjustments {
-                                adj.clone()
-                            } else {
-                                sidecar.adjustments
-                            }
-                        } else {
-                            sidecar.adjustments
-                        }
-                    }
-                    ExportAdjustmentsMode::GlobalOverride(adj) => adj.clone(),
+                let mut js_adjustments = if is_current_edit {
+                    adjustments_mode
+                        .active_adjustments
+                        .clone()
+                        .unwrap_or(sidecar.adjustments)
+                } else {
+                    sidecar.adjustments
                 };
 
                 hydrate_adjustments(&state, &mut js_adjustments);
@@ -1109,19 +824,13 @@ pub(crate) async fn export_images_impl(
                     .as_deref()
                     .unwrap_or("{original_filename}_edited");
 
-                let mut new_stem = generate_filename_from_template(
+                let new_stem = generate_filename_from_template(
                     filename_template,
                     original_path,
                     global_index + 1,
                     total_paths,
                     &file_date,
                 );
-
-                if let Some(vc_id) = explicit_vc {
-                    new_stem = format!("{}_VC{:02}", new_stem, vc_id);
-                } else if appearance_count > 1 {
-                    new_stem = format!("{}_VC{:02}", new_stem, appearance_count - 1);
-                }
 
                 let new_filename = format!("{}.{}", new_stem, output_format);
 
@@ -1132,12 +841,7 @@ pub(crate) async fn export_images_impl(
                             .unwrap_or(std::path::Path::new(""))
                             .to_path_buf();
                         if let Some(sub) = &export_settings.subfolder {
-                            let mut trimmed = sub.trim();
-
-                            while trimmed.starts_with('/') || trimmed.starts_with('\\') {
-                                trimmed = &trimmed[1..];
-                            }
-
+                            let trimmed = sub.trim().trim_start_matches(['/', '\\']);
                             if !trimmed.is_empty() {
                                 dir = dir.join(trimmed);
                             }
@@ -1154,23 +858,6 @@ pub(crate) async fn export_images_impl(
                         dir.join(&new_filename)
                     } else if is_explicit_file_path && total_paths == 1 {
                         output_folder_path.clone()
-                    } else if export_settings.preserve_folders {
-                        if let Some(rel_dir) = relative_export_dir_for_preserved_folders(
-                            source_path.as_path(),
-                            &base_origin_folders,
-                        ) {
-                            let full_dir = output_folder_path.join(rel_dir);
-                            if let Err(e) = std::fs::create_dir_all(&full_dir) {
-                                return Err(format!(
-                                    "Failed to create export subdirectory '{}': {}",
-                                    full_dir.display(),
-                                    e
-                                ));
-                            }
-                            full_dir.join(&new_filename)
-                        } else {
-                            output_folder_path.join(&new_filename)
-                        }
                     } else {
                         output_folder_path.join(&new_filename)
                     };
@@ -1178,20 +865,18 @@ pub(crate) async fn export_images_impl(
                 let extension = output_format.to_lowercase();
 
                 if !(is_explicit_file_path && total_paths == 1) {
-                    let mut used = used_paths_clone.lock().unwrap();
                     let parent_dir = output_path
                         .parent()
                         .unwrap_or(std::path::Path::new(""))
                         .to_path_buf();
                     let mut counter = 1;
 
-                    while output_path.exists() || used.contains(&output_path) {
+                    while output_path.exists() {
                         let incremented_filename =
                             format!("{}_{}.{}", new_stem, counter, extension);
                         output_path = parent_dir.join(&incremented_filename);
                         counter += 1;
                     }
-                    used.insert(output_path.clone());
                 }
 
                 let result: Result<(), String> = (|| {
@@ -1232,25 +917,19 @@ pub(crate) async fn export_images_impl(
                             .map(|loaded| (loaded.image.width(), loaded.image.height())),
                         js_adjustments["masks"].as_array().map_or(0, |m| m.len()),
                     );
-                    let Some(_export_reservation) =
-                        memory_budget.reserve(estimated_memory, Some(&cancellation_token_clone))
-                    else {
-                        return Err("Export cancelled".to_string());
-                    };
                     let Some(_app_reservation) = state
                         .memory_budget
                         .reserve(estimated_memory, Some(&cancellation_token_clone))
                     else {
                         return Err("Export cancelled".to_string());
                     };
+                    let Some(_export_reservation) =
+                        memory_budget.reserve(estimated_memory, Some(&cancellation_token_clone))
+                    else {
+                        return Err("Export cancelled".to_string());
+                    };
 
-                    let cached_patched = loaded_image.as_ref().and_then(|loaded_image| {
-                        crate::cached_patched_image(&state, &loaded_image.image, &js_adjustments)
-                    });
-
-                    let base_image: Cow<DynamicImage> = if let Some(patched) = &cached_patched {
-                        Cow::Borrowed(patched)
-                    } else if let Some(loaded_image) = &loaded_image {
+                    let base_image: Cow<DynamicImage> = if let Some(loaded_image) = &loaded_image {
                         prepare_base_image_cow(
                             &loaded_image.image,
                             &loaded_image.path,
@@ -1283,7 +962,7 @@ pub(crate) async fn export_images_impl(
                             }
                         })
                     };
-                    let mut base_image = Some(base_image);
+
                     ensure_export_not_cancelled(&cancellation_token_clone)?;
 
                     let mut main_export_adjustments = js_adjustments.clone();
@@ -1300,7 +979,7 @@ pub(crate) async fn export_images_impl(
 
                     let final_image = process_image_for_export(
                         &source_path_str,
-                        base_image.as_ref().unwrap(),
+                        base_image.as_ref(),
                         &main_export_adjustments,
                         &export_settings,
                         &context_clone,
@@ -1309,9 +988,6 @@ pub(crate) async fn export_images_impl(
                         &app_handle_clone,
                         actual_output_format,
                     )?;
-                    if !export_settings.export_masks {
-                        base_image = None;
-                    }
                     ensure_export_not_cancelled(&cancellation_token_clone)?;
                     save_image_with_metadata(
                         &final_image,
@@ -1327,11 +1003,9 @@ pub(crate) async fn export_images_impl(
                     }
                     ensure_export_not_cancelled(&cancellation_token_clone)?;
 
-                    if export_settings.export_masks
-                        && let Some(base_image) = &base_image
-                    {
+                    if export_settings.export_masks {
                         export_masks_for_image(
-                            base_image,
+                            base_image.as_ref(),
                             &js_adjustments,
                             &export_settings,
                             &output_path,
@@ -1348,6 +1022,8 @@ pub(crate) async fn export_images_impl(
                     Ok(())
                 })();
 
+                ensure_export_not_cancelled(&cancellation_token_clone)?;
+
                 if !cancellation_token_clone.load(Ordering::SeqCst) {
                     let current_progress =
                         progress_counter_clone.fetch_add(1, Ordering::SeqCst) + 1;
@@ -1361,55 +1037,37 @@ pub(crate) async fn export_images_impl(
                     );
                 }
 
-                drop(permit);
-                if cancellation_token_clone.load(Ordering::SeqCst) {
-                    Err("Export cancelled".to_string())
-                } else {
-                    result
+                result
+            })
+            .await;
+
+            match result {
+                Ok(res) => {
+                    if let Err(e) = res {
+                        export_errors.push(e);
+                    }
                 }
-            });
-
-            join_handles.push(handle);
-        }
-
-        let mut results = Vec::new();
-        for handle in join_handles {
-            match handle.await {
-                Ok(res) => results.push(res),
-                Err(e) => results.push(Err(format!("Thread crashed: {}", e))),
+                Err(e) => export_errors.push(format!("Export worker failed: {}", e)),
             }
         }
 
-        let errors: Vec<String> = results.into_iter().filter_map(Result::err).collect();
-        let error_count = errors.len();
-        let export_state = app_handle.state::<AppState>();
+        let error_count = export_errors.len();
         let finalized = finish_export_task(
-            &export_state.export_task_token,
+            &app_handle.state::<AppState>().export_task_token,
             &cancellation_token,
             |cancelled| {
                 if cancelled {
-                    log::info!("Batch export cancelled and worker cleanup completed");
+                    log::info!("Export cancelled and worker cleanup completed");
                     let _ = app_handle.emit("export-cancelled", ());
                     return;
                 }
 
-                for error in &errors {
+                for error in &export_errors {
                     log::error!("Export error: {}", error);
-                    if total_paths == 1 {
-                        let _ = app_handle.emit("export-error", error.clone());
-                    }
+                    let _ = app_handle.emit("export-error", error.clone());
                 }
 
-                if error_count > 0 && total_paths > 1 {
-                    let _ = app_handle.emit(
-                        "export-error",
-                        format!("{error_count} of {total_paths} exports failed"),
-                    );
-                } else if error_count == 0 {
-                    let _ = app_handle.emit(
-                        "batch-export-progress",
-                        serde_json::json!({ "current": total_paths, "total": total_paths, "path": "" }),
-                    );
+                if error_count == 0 {
                     let _ = app_handle.emit("export-complete", ());
                 }
             },
@@ -1431,13 +1089,11 @@ pub(crate) async fn export_images_impl(
     Ok(())
 }
 
-#[allow(clippy::too_many_arguments)]
 #[tauri::command]
 pub async fn export_images(
     paths: Vec<String>,
     output_folder_or_file: String,
     is_explicit_file_path: bool,
-    base_origin_folders: Vec<String>,
     export_settings: ExportSettings,
     output_format: String,
     current_edit_path: Option<String>,
@@ -1449,10 +1105,9 @@ pub async fn export_images(
         paths,
         output_folder_or_file,
         is_explicit_file_path,
-        base_origin_folders,
         export_settings,
         output_format,
-        ExportAdjustmentsMode::UseSidecars {
+        CurrentEditAdjustments {
             active_path: current_edit_path,
             active_adjustments: current_edit_adjustments,
         },
@@ -1461,108 +1116,6 @@ pub async fn export_images(
         None,
     )
     .await
-}
-
-pub async fn run_headless_export(
-    session: crate::launch_request::HeadlessExportSession,
-    app_handle: tauri::AppHandle,
-) -> Result<(), String> {
-    cli_println!("Starting headless export...");
-    let state = app_handle.state::<crate::AppState>();
-
-    let source_path = std::path::Path::new(&session.source);
-    if !source_path.exists() {
-        return Err(format!("Source path does not exist: {}", session.source));
-    }
-
-    let mut paths = Vec::new();
-    if source_path.is_dir() {
-        paths = crate::file_management::list_supported_images_recursive(session.source.clone());
-    } else {
-        paths.push(session.source.clone());
-    }
-
-    if paths.is_empty() {
-        return Err("No supported images found at the source path.".to_string());
-    }
-
-    let output_path = std::path::Path::new(&session.output);
-    let is_explicit_file_path =
-        paths.len() == 1 && output_path.extension().is_some() && !output_path.is_dir();
-
-    if is_explicit_file_path {
-        if let Some(parent) = output_path.parent() {
-            std::fs::create_dir_all(parent)
-                .map_err(|e| format!("Failed to create output parent directory: {}", e))?;
-        }
-    } else {
-        std::fs::create_dir_all(&session.output)
-            .map_err(|e| format!("Failed to create output directory: {}", e))?;
-    }
-
-    cli_println!("Found {} images to export. Processing...", paths.len());
-
-    let export_settings = ExportSettings {
-        jpeg_quality: session.quality,
-        tiff_bit_depth: session.tiff_bit_depth,
-        resize: None,
-        border: None,
-        pad: None,
-        keep_metadata: session.keep_metadata,
-        preserve_timestamps: true,
-        strip_gps: false,
-        filename_template: None,
-        watermark: None,
-        export_masks: false,
-        preserve_folders: true,
-        destination_type: None,
-        subfolder: None,
-        dpi: None,
-    };
-
-    let mut custom_adjustments = None;
-    if let Some(adj_path) = &session.adjustments_override {
-        let content = std::fs::read_to_string(adj_path)
-            .map_err(|e| format!("Failed to read adjustments file: {}", e))?;
-        let json: serde_json::Value = serde_json::from_str(&content)
-            .map_err(|e| format!("Failed to parse adjustments JSON: {}", e))?;
-        custom_adjustments = Some(json);
-        cli_println!(
-            "Loaded custom adjustments to override sidecars from: {}",
-            adj_path
-        );
-    }
-
-    let (tx, rx) = tokio::sync::oneshot::channel();
-
-    let mode = if let Some(adj) = custom_adjustments {
-        ExportAdjustmentsMode::GlobalOverride(adj)
-    } else {
-        ExportAdjustmentsMode::UseSidecars {
-            active_path: None,
-            active_adjustments: None,
-        }
-    };
-
-    export_images_impl(
-        paths,
-        session.output,
-        is_explicit_file_path,
-        vec![session.source],
-        export_settings,
-        session.format,
-        mode,
-        state.clone(),
-        app_handle.clone(),
-        Some(tx),
-    )
-    .await?;
-
-    match rx.await {
-        Ok(Ok(())) => Ok(()),
-        Ok(Err(errors)) => Err(format!("Export completed with {} errors.", errors)),
-        Err(_) => Err("Export task panicked or was cancelled.".to_string()),
-    }
 }
 
 #[tauri::command]
@@ -1719,12 +1272,9 @@ pub async fn estimate_export_sizes(
             &adjustments_clone,
         );
 
-        let (final_full_w, final_full_h) =
-            export_geom::compute_export_output_size(full_w, full_h, &export_settings);
-
         let (processed_preview_w, processed_preview_h) = processed_preview.dimensions();
         let pixel_ratio = if processed_preview_w > 0 && processed_preview_h > 0 {
-            (final_full_w as f64 * final_full_h as f64)
+            (full_w as f64 * full_h as f64)
                 / (processed_preview_w as f64 * processed_preview_h as f64)
         } else {
             1.0
@@ -1857,12 +1407,9 @@ pub async fn estimate_export_sizes(
         let full_w = (shrunk_w as f32 / raw_scale_factor).round() as u32;
         let full_h = (shrunk_h as f32 / raw_scale_factor).round() as u32;
 
-        let (final_full_w, final_full_h) =
-            export_geom::compute_export_output_size(full_w, full_h, &export_settings);
-
         let (processed_preview_w, processed_preview_h) = processed_preview.dimensions();
         let pixel_ratio = if processed_preview_w > 0 && processed_preview_h > 0 {
-            (final_full_w as f64 * final_full_h as f64)
+            (full_w as f64 * full_h as f64)
                 / (processed_preview_w as f64 * processed_preview_h as f64)
         } else {
             1.0

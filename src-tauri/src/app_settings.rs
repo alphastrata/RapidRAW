@@ -22,7 +22,6 @@ pub fn get_settings_path(app_handle: &AppHandle) -> Result<PathBuf, String> {
     Ok(settings_dir.join("settings.json"))
 }
 
-
 static SETTINGS_CACHE: LazyLock<Mutex<Option<AppSettings>>> = LazyLock::new(|| Mutex::new(None));
 
 fn settings_cache() -> std::sync::MutexGuard<'static, Option<AppSettings>> {

@@ -203,138 +203,8 @@ impl Default for CopyPasteSettings {
     }
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
-#[serde(rename_all = "camelCase")]
-pub struct ExportPreset {
-    pub id: String,
-    pub name: String,
-    pub file_format: String,
-    pub jpeg_quality: u8,
-    pub enable_resize: bool,
-    pub resize_mode: String,
-    pub resize_value: u32,
-    pub dont_enlarge: bool,
-    pub keep_metadata: bool,
-    pub strip_gps: bool,
-    pub filename_template: String,
-    pub enable_watermark: bool,
-    pub watermark_path: Option<String>,
-    pub watermark_anchor: Option<String>,
-    pub watermark_scale: u32,
-    pub watermark_spacing: u32,
-    pub watermark_opacity: u32,
-    #[serde(default)]
-    pub export_masks: Option<bool>,
-    #[serde(default)]
-    pub preserve_folders: Option<bool>,
-    #[serde(default)]
-    pub enable_pad: Option<bool>,
-    #[serde(default)]
-    pub pad_ratio_width: Option<f32>,
-    #[serde(default)]
-    pub pad_ratio_height: Option<f32>,
-    #[serde(default)]
-    pub pad_color: Option<String>,
-    #[serde(default)]
-    pub enable_border: Option<bool>,
-    #[serde(default)]
-    pub border_basis: Option<String>,
-    #[serde(default)]
-    pub border_horizontal_percent: Option<f32>,
-    #[serde(default)]
-    pub border_vertical_percent: Option<f32>,
-    #[serde(default)]
-    pub border_color: Option<String>,
-    #[serde(default)]
-    pub last_export_path: Option<String>,
-    #[serde(default)]
-    pub destination_type: Option<String>,
-    #[serde(default)]
-    pub subfolder: Option<String>,
-    #[serde(default)]
-    pub tiff_bit_depth: Option<u8>,
-    #[serde(default)]
-    pub preserve_timestamps: Option<bool>,
-}
-
-#[must_use]
-pub fn default_export_presets() -> Vec<ExportPreset> {
-    vec![
-        ExportPreset {
-            id: "default-hq".to_string(),
-            name: "High Quality".to_string(),
-            file_format: "jpeg".to_string(),
-            jpeg_quality: 95,
-            enable_resize: false,
-            resize_mode: "longEdge".to_string(),
-            resize_value: 2048,
-            dont_enlarge: true,
-            keep_metadata: true,
-            strip_gps: false,
-            filename_template: "{original_filename}".to_string(),
-            enable_watermark: false,
-            watermark_path: None,
-            watermark_anchor: Some("bottomRight".to_string()),
-            watermark_scale: 10,
-            watermark_spacing: 5,
-            watermark_opacity: 75,
-            export_masks: Some(false),
-            preserve_folders: Some(false),
-            enable_pad: Some(false),
-            pad_ratio_width: Some(1.0),
-            pad_ratio_height: Some(1.0),
-            pad_color: Some("#ffffff".to_string()),
-            enable_border: Some(false),
-            border_basis: Some("longEdge".to_string()),
-            border_horizontal_percent: Some(2.0),
-            border_vertical_percent: Some(2.0),
-            border_color: Some("#ffffff".to_string()),
-            last_export_path: None,
-            destination_type: Some("customFolder".to_string()),
-            subfolder: Some(String::new()),
-            tiff_bit_depth: Some(16),
-            preserve_timestamps: Some(false),
-        },
-        ExportPreset {
-            id: "default-fast".to_string(),
-            name: "Fast (Web)".to_string(),
-            file_format: "jpeg".to_string(),
-            jpeg_quality: 80,
-            enable_resize: true,
-            resize_mode: "width".to_string(),
-            resize_value: 2048,
-            dont_enlarge: true,
-            keep_metadata: false,
-            strip_gps: true,
-            filename_template: "{original_filename}_web".to_string(),
-            enable_watermark: false,
-            watermark_path: None,
-            watermark_anchor: Some("bottomRight".to_string()),
-            watermark_scale: 10,
-            watermark_spacing: 5,
-            watermark_opacity: 75,
-            export_masks: Some(false),
-            preserve_folders: Some(false),
-            enable_pad: Some(false),
-            pad_ratio_width: Some(1.0),
-            pad_ratio_height: Some(1.0),
-            pad_color: Some("#ffffff".to_string()),
-            enable_border: Some(false),
-            border_basis: Some("longEdge".to_string()),
-            border_horizontal_percent: Some(2.0),
-            border_vertical_percent: Some(2.0),
-            border_color: Some("#ffffff".to_string()),
-            last_export_path: None,
-            destination_type: Some("customFolder".to_string()),
-            subfolder: Some(String::new()),
-            tiff_bit_depth: Some(16),
-            preserve_timestamps: Some(false),
-        },
-    ]
-}
-
 #[derive(Serialize, Deserialize, Debug, Clone, Default)]
-#[serde(rename_all = "camelCase", default)]
+#[serde(rename_all = "camelCase")]
 pub struct AdjustmentLayout {
     pub section_order: Vec<String>,
     pub hidden_sections: Vec<String>,
@@ -465,8 +335,6 @@ pub struct AppSettings {
     pub linux_gpu_optimization: Option<bool>,
     #[serde(default)]
     pub linux_gpu_optimization_migrated_v1: Option<bool>,
-    #[serde(default = "default_export_presets")]
-    pub export_presets: Vec<ExportPreset>,
     #[serde(default)]
     pub my_lenses: Option<Vec<MyLens>>,
     #[serde(default = "default_linear_raw_mode")]
@@ -563,7 +431,6 @@ impl Default for AppSettings {
             processing_backend: Some("auto".to_string()),
             linux_gpu_optimization: Some(false),
             linux_gpu_optimization_migrated_v1: Some(true),
-            export_presets: default_export_presets(),
             my_lenses: Some(Vec::new()),
             high_res_zoom_multiplier: Some(1.0),
             linear_raw_mode: default_linear_raw_mode(),
