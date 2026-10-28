@@ -1,9 +1,7 @@
 import { create } from 'zustand';
 import {
-  ImageFile,
   Panel,
   UiVisibility,
-  CullingSuggestions,
   PanelRegion,
   WorkspaceState,
   CollapsibleSectionsState,
@@ -26,20 +24,6 @@ interface ConfirmModalState {
   title?: string;
 }
 
-interface CollageModalState {
-  isOpen: boolean;
-  sourceImages: Array<Pick<ImageFile, 'path'>>;
-}
-
-interface PanoramaModalState {
-  error: string | null;
-  finalImageBase64: string | null;
-  isOpen: boolean;
-  isProcessing: boolean;
-  progressMessage: string | null;
-  stitchingSourcePaths: Array<string>;
-}
-
 interface FocusStackModalState {
   error: string | null;
   finalImageBase64: string | null;
@@ -48,23 +32,6 @@ interface FocusStackModalState {
   isProcessing: boolean;
   progressMessage: string | null;
   sourcePaths: Array<string>;
-}
-
-interface HdrModalState {
-  error: string | null;
-  finalImageBase64: string | null;
-  isOpen: boolean;
-  isProcessing: boolean;
-  progressMessage: string | null;
-  stitchingSourcePaths: Array<string>;
-}
-
-interface CullingModalState {
-  isOpen: boolean;
-  suggestions: CullingSuggestions | null;
-  progress: { current: number; total: number; stage: string } | null;
-  error: string | null;
-  pathsToCull: Array<string>;
 }
 
 const ALL_PANELS: Panel[] = [
@@ -238,11 +205,7 @@ export interface UIState {
   albumActionTarget: string | null;
 
   confirmModalState: ConfirmModalState;
-  panoramaModalState: PanoramaModalState;
   focusStackModalState: FocusStackModalState;
-  hdrModalState: HdrModalState;
-  cullingModalState: CullingModalState;
-  collageModalState: CollageModalState;
 
   setUI: (updater: Partial<UIState> | ((state: UIState) => Partial<UIState>)) => void;
   setPanel: (panel: Panel | null) => void;
@@ -319,14 +282,6 @@ export const useUIStore = create<UIState>((set, get) => ({
   albumActionTarget: null,
 
   confirmModalState: { isOpen: false },
-  panoramaModalState: {
-    error: null,
-    finalImageBase64: null,
-    isOpen: false,
-    isProcessing: false,
-    progressMessage: '',
-    stitchingSourcePaths: [],
-  },
   focusStackModalState: {
     error: null,
     finalImageBase64: null,
@@ -336,16 +291,6 @@ export const useUIStore = create<UIState>((set, get) => ({
     progressMessage: '',
     sourcePaths: [],
   },
-  hdrModalState: {
-    error: null,
-    finalImageBase64: null,
-    isOpen: false,
-    isProcessing: false,
-    progressMessage: '',
-    stitchingSourcePaths: [],
-  },
-  cullingModalState: { isOpen: false, suggestions: null, progress: null, error: null, pathsToCull: [] },
-  collageModalState: { isOpen: false, sourceImages: [] },
 
   setUI: (updater) => set((state) => (typeof updater === 'function' ? updater(state) : updater)),
 
