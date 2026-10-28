@@ -568,7 +568,6 @@ pub fn ensure_generated(
             fingerprint,
         );
         cache().pending.remove(&key);
-        host.release_deferred(&path);
         match result {
             Ok(()) => {
                 host.emit_json("ai-denoise-ready", path.into());

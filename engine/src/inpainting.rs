@@ -79,6 +79,7 @@ pub fn encode_patch_result(
     .to_string())
 }
 
+#[must_use]
 pub fn is_heal_patch(sub_masks: &Value, patch_name: &str) -> bool {
     let name_heal = patch_name.to_lowercase().contains("heal");
     let sub_heal = sub_masks.as_array().is_some_and(|arr| {
@@ -361,7 +362,7 @@ pub fn liquify(source: &RgbImage, sub_masks: &Value) -> anyhow::Result<PatchRegi
                         1.0
                     } else {
                         let falloff_t = (dist - inner_radius) / (stroke.radius - inner_radius);
-                        let cos_val = 0.5 * (1.0 + (falloff_t * std::f32::consts::PI).cos());
+                        let cos_val = f32::midpoint(1.0, (falloff_t * std::f32::consts::PI).cos());
                         cos_val * cos_val
                     };
                     let dx = stroke.x2 - stroke.x1;
@@ -622,6 +623,7 @@ pub fn cleanup_patch(
 
 // Generative replace compositing
 
+#[must_use]
 pub fn composite_patch(
     source: &DynamicImage,
     patch: &RgbaImage,
@@ -696,7 +698,7 @@ fn parse_retouch(sub_masks: &Value) -> RetouchPlan {
         .iter()
         .filter(|sm| sm.get("type").and_then(Value::as_str) == Some("retouch"))
         .filter_map(|sm| sm.get("parameters"))
-        .flat_map(|params| {
+        .filter_map(|params| {
             let intensity = params
                 .get("intensity")
                 .and_then(Value::as_f64)
@@ -800,7 +802,7 @@ fn draw_stroke_to_mask(
                     1.0
                 } else {
                     let t = (dist - inner_radius) / (radius - inner_radius);
-                    let cos_val = 0.5 * (1.0 + (t * std::f32::consts::PI).cos());
+                    let cos_val = f32::midpoint(1.0, (t * std::f32::consts::PI).cos());
                     cos_val * cos_val
                 };
                 let added_val = (alpha * 255.0) as u8;

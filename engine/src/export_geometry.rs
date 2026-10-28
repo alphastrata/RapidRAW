@@ -113,6 +113,7 @@ pub struct ExportGeometry {
 }
 
 impl ExportGeometry {
+    #[must_use]
     pub const fn identity(canvas_w: u32, canvas_h: u32) -> Self {
         Self {
             canvas_w,
@@ -126,10 +127,12 @@ impl ExportGeometry {
         }
     }
 
+    #[must_use]
     pub const fn has_border(&self) -> bool {
         self.border_x > 0 || self.border_y > 0
     }
 
+    #[must_use]
     pub const fn is_identity(&self) -> bool {
         self.canvas_w == self.photo_w && self.canvas_h == self.photo_h
     }
@@ -139,6 +142,7 @@ const PAD_RATIO_EPSILON: f64 = 0.001;
 const MAX_PAD_DIMENSION: u32 = 65_535;
 const MAX_BORDER_PERCENT: f64 = 100.0;
 
+#[must_use]
 pub fn calculate_resize_target(
     current_w: u32,
     current_h: u32,
@@ -175,6 +179,7 @@ pub fn calculate_resize_target(
     }
 }
 
+#[must_use]
 pub fn resize_target(width: u32, height: u32, resize_opts: Option<&ResizeOptions>) -> (u32, u32) {
     match resize_opts {
         Some(opts) => calculate_resize_target(width, height, opts),
@@ -182,6 +187,7 @@ pub fn resize_target(width: u32, height: u32, resize_opts: Option<&ResizeOptions
     }
 }
 
+#[must_use]
 pub fn parse_hex_color(hex: &str) -> Option<[u8; 3]> {
     let raw = hex.trim().trim_start_matches('#');
     let normalized: String = match raw.len() {
@@ -201,6 +207,7 @@ pub fn fill_color(hex: Option<&str>) -> [u8; 3] {
     hex.and_then(parse_hex_color).unwrap_or([0, 0, 0])
 }
 
+#[must_use]
 pub const fn bordered_size(width: u32, height: u32, border_x: u32, border_y: u32) -> (u32, u32) {
     (
         width.saturating_add(border_x.saturating_mul(2)),
@@ -212,15 +219,13 @@ fn exceeds_max_dimension(label: &str, width: u32, height: u32) -> bool {
     let exceeds = width > MAX_PAD_DIMENSION || height > MAX_PAD_DIMENSION;
     if exceeds {
         log::warn!(
-            "{} {}x{} exceeds the maximum supported dimension; skipping.",
-            label,
-            width,
-            height
+            "{label} {width}x{height} exceeds the maximum supported dimension; skipping."
         );
     }
     exceeds
 }
 
+#[must_use]
 pub fn calculate_pad_target(
     current_w: u32,
     current_h: u32,
@@ -262,6 +267,7 @@ pub fn calculate_pad_target(
     Some((new_w, new_h))
 }
 
+#[must_use]
 pub fn calculate_border_thickness(
     src_w: u32,
     src_h: u32,
@@ -279,10 +285,7 @@ pub fn calculate_border_thickness(
         || vertical > MAX_BORDER_PERCENT
     {
         log::warn!(
-            "Border percentages {}/{} are outside 0..={}; skipping border.",
-            horizontal,
-            vertical,
-            MAX_BORDER_PERCENT
+            "Border percentages {horizontal}/{vertical} are outside 0..={MAX_BORDER_PERCENT}; skipping border."
         );
         return None;
     }
@@ -314,6 +317,7 @@ pub fn calculate_border_thickness(
     Some((border_x, border_y))
 }
 
+#[must_use]
 pub fn compute_export_geometry(
     src_w: u32,
     src_h: u32,
@@ -385,6 +389,7 @@ fn compute_fused_geometry(
     }
 }
 
+#[must_use]
 pub fn compute_export_output_size(src_w: u32, src_h: u32, settings: &ExportSettings) -> (u32, u32) {
     match compute_export_geometry(src_w, src_h, settings) {
         Some(geometry) => (geometry.canvas_w, geometry.canvas_h),
@@ -392,6 +397,7 @@ pub fn compute_export_output_size(src_w: u32, src_h: u32, settings: &ExportSetti
     }
 }
 
+#[must_use]
 pub fn watermark_scaled_dims(
     base_w: u32,
     base_h: u32,
@@ -619,6 +625,7 @@ where
     canvas
 }
 
+#[must_use]
 pub fn compose_image_on_canvas(
     image: &DynamicImage,
     geometry: &ExportGeometry,

@@ -28,8 +28,6 @@ use sha2::{Digest, Sha256};
 use tokenizers::Tokenizer;
 use tokio::sync::Mutex as TokioMutex;
 
-use crate::face_masking::FaceAnalysis;
-
 const ENCODER_URL: &str = "https://huggingface.co/CyberTimon/RapidRAW-Models/resolve/main/sam_vit_b_01ec64_encoder.onnx?download=true";
 const DECODER_URL: &str = "https://huggingface.co/CyberTimon/RapidRAW-Models/resolve/main/sam_vit_b_01ec64_decoder.onnx?download=true";
 const ENCODER_FILENAME: &str = "sam_vit_b_01ec64_encoder.onnx";
@@ -697,7 +695,6 @@ pub struct AiState {
     pub normal_model: Option<Arc<Mutex<Session>>>,
     pub embeddings: Option<ImageEmbeddings>,
     pub esam3_features: Option<Arc<Esam3Features>>,
-    pub face_analysis: Option<Arc<FaceAnalysis>>,
     pub depth_map: Option<CachedDepthMap>,
 }
 
@@ -2827,12 +2824,12 @@ pub fn run_depth_anything_model(
             let src_y = y + paste_y;
             let src_x = x + paste_x;
             let val = out_slice[src_y * usize_size + src_x];
-            let pixel = if range > 1e-6 {
+
+            if range > 1e-6 {
                 ((val - min_val) * scale) as u8
             } else {
                 0
-            };
-            pixel
+            }
         })
         .collect();
 

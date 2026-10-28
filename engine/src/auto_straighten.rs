@@ -34,7 +34,7 @@ fn detect_segments(gray: &GrayImage) -> Vec<LineSegment> {
     let (width, height) = gray.dimensions();
     let w = width as usize;
     let h = height as usize;
-    let min_length = width.max(height) as f64 * MIN_SEGMENT_LENGTH_FRACTION;
+    let min_length = f64::from(width.max(height)) * MIN_SEGMENT_LENGTH_FRACTION;
     lsdetect::detect(gray.as_raw(), w, h, LSD_SCALE)
         .unwrap_or_default()
         .into_iter()
@@ -218,7 +218,7 @@ fn fit_rotation(lines: &[&LineSegment]) -> f64 {
 }
 
 fn detect_rotation(gray: &GrayImage) -> Option<f64> {
-    let (width, height) = (gray.width() as f64, gray.height() as f64);
+    let (width, height) = (f64::from(gray.width()), f64::from(gray.height()));
     let segments = detect_segments(gray);
     let mut selected = trusted_lines(&segments, true, width, height);
     selected.extend(trusted_lines(&segments, false, width, height));
@@ -308,7 +308,7 @@ fn crop_for_rotation(
     let (mut low, mut high) = (0.1, 1.0);
     let mut best = followed;
     (0..12).for_each(|_| {
-        let mid = (low + high) / 2.0;
+        let mid = f64::midpoint(low, high);
         let candidate = scaled(mid);
         if crop_within_bounds(&candidate, width, height, rotation) {
             best = candidate;
@@ -328,13 +328,12 @@ fn crop_for_rotation(
     }
 }
 
-#[must_use]
 pub fn straighten_adjustments(image: &DynamicImage, source_path: &str, adjustments: &mut Value) {
     let Some(rotation) = rotation_for_image(image, is_raw_file(source_path), adjustments) else {
         return;
     };
 
-    let (image_width, image_height) = (image.width() as f64, image.height() as f64);
+    let (image_width, image_height) = (f64::from(image.width()), f64::from(image.height()));
     let (width, height) = match adjustments["orientationSteps"].as_u64().unwrap_or(0) {
         1 | 3 => (image_height, image_width),
         _ => (image_width, image_height),

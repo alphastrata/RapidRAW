@@ -270,11 +270,11 @@ impl MaskTransform {
     ) -> ((f64, f64), (f64, f64)) {
         let (coarse_rotated_w, coarse_rotated_h) = {
             let (w, h) = self.box_space((img_w, img_h));
-            (w as f64, h as f64)
+            (f64::from(w), f64::from(h))
         };
         let center = (coarse_rotated_w / 2.0, coarse_rotated_h / 2.0);
 
-        let angle_rad = (self.rotation as f64).to_radians();
+        let angle_rad = f64::from(self.rotation).to_radians();
         let cos_a = angle_rad.cos();
         let sin_a = angle_rad.sin();
 
@@ -300,8 +300,8 @@ impl MaskTransform {
         };
 
         let un_coarse_rotate = |p: (f64, f64)| -> (f64, f64) {
-            let w = img_w as f64;
-            let h = img_h as f64;
+            let w = f64::from(img_w);
+            let h = f64::from(img_h);
             match self.orientation_steps {
                 1 => (p.1, h - p.0),
                 2 => (w - p.0, h - p.1),
@@ -634,16 +634,14 @@ fn render_stroke_layer_parallel(
                         }
                     });
 
-                if is_point_active {
-                    if let Some(pt) = single_point.as_ref() {
-                        if x_i32 >= pt.2 && x_i32 <= pt.3 {
+                if is_point_active
+                    && let Some(pt) = single_point.as_ref()
+                        && x_i32 >= pt.2 && x_i32 <= pt.3 {
                             let dist_sq = (px - pt.0) * (px - pt.0) + (py - pt.1) * (py - pt.1);
                             if dist_sq < min_dist_sq {
                                 min_dist_sq = dist_sq;
                             }
                         }
-                    }
-                }
 
                 if min_dist_sq <= radius_sq {
                     let intensity = if min_dist_sq <= inner_radius_sq {

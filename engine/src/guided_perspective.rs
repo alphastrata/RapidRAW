@@ -354,7 +354,7 @@ fn finalize_h(mut h: [[f64; 3]; 3], width: f64, height: f64) -> Option<[[f64; 3]
     let hh = height / 2.0;
     let src = [(-hw, -hh), (hw, -hh), (hw, hh), (-hw, hh)];
     let mut dest = [(0.0, 0.0); 4];
-    src.iter().enumerate().try_fold((), |_, (i, &(x, y))| {
+    src.iter().enumerate().try_fold((), |(), (i, &(x, y))| {
         let w = h[2][0] * x + h[2][1] * y + h[2][2];
         if w.abs() < 1e-6 {
             return None;
@@ -597,8 +597,8 @@ pub fn compute_max_inscribed_crop(forward_h: &[[f64; 3]; 3], width: f64, height:
         .for_each(|(dy1, dy2)| {
             let ny1 = (y1 + dy1).clamp(y_min, y_max);
             let ny2 = (y2 + dy2).clamp(y_min, y_max);
-            if ny2 > ny1 {
-                if let Some(rect) = slab_rect(&poly, ny1, ny2) {
+            if ny2 > ny1
+                && let Some(rect) = slab_rect(&poly, ny1, ny2) {
                     let area = rect[2] * rect[3];
                     if area > best_area {
                         best_area = area;
@@ -607,7 +607,6 @@ pub fn compute_max_inscribed_crop(forward_h: &[[f64; 3]; 3], width: f64, height:
                         y2 = ny2;
                     }
                 }
-            }
         });
     }
 

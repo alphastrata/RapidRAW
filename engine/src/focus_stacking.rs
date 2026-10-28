@@ -187,7 +187,7 @@ pub fn convolve_separable(src: &Plane, kernel: &[f32]) -> Plane {
         .for_each(|(y, row)| simd_kernels::conv::conv_row_horizontal(&src.data, w, kernel, y, row));
     let mut out = Plane::new(w, h);
     out.data.par_chunks_mut(w).enumerate().for_each(|(y, row)| {
-        simd_kernels::conv::conv_row_vertical(&tmp.data, w, h, kernel, y, row)
+        simd_kernels::conv::conv_row_vertical(&tmp.data, w, h, kernel, y, row);
     });
     out
 }

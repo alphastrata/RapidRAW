@@ -481,7 +481,8 @@ fn push_pull(base: Vec<Cell>, width: usize, height: usize, full_weight: f32) -> 
         })],
     };
 
-    let filled = levels
+
+    levels
         .iter()
         .rev()
         .skip(1)
@@ -517,6 +518,5 @@ fn push_pull(base: Vec<Cell>, width: usize, height: usize, full_weight: f32) -> 
                 height: h,
                 data: next,
             }
-        });
-    filled
+        })
 }

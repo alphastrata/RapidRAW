@@ -1214,7 +1214,7 @@ fn copy_full_exif_from_source(
             ifd.get_generic_ifd_nr() == 0 && !(strip_gps && ifd.get_ifd_type() == ExifTagGroup::GPS)
         })
         .for_each(|ifd| {
-            ifd.get_tags().into_iter().for_each(|tag| {
+            ifd.get_tags().iter().for_each(|tag| {
                 metadata.set_tag(tag.clone());
                 copied_any = true;
             });

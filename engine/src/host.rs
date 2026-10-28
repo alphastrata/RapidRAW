@@ -21,7 +21,6 @@ pub trait Host: Send + Sync {
     fn app_state(&self) -> Arc<AppState>;
     fn add_to_thumbnail_queue(&self, state: &AppState, count: usize);
     fn regenerate_thumbnails(&self, paths: Vec<String>, force: bool);
-    fn release_deferred(&self, path: &str);
     fn on_exit(&self);
 }
 
@@ -56,6 +55,5 @@ impl Host for SilentHost {
     }
     fn add_to_thumbnail_queue(&self, _: &AppState, _: usize) {}
     fn regenerate_thumbnails(&self, _: Vec<String>, _: bool) {}
-    fn release_deferred(&self, _: &str) {}
     fn on_exit(&self) {}
 }
