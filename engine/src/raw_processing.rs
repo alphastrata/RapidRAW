@@ -312,9 +312,6 @@ fn develop_internal(
         developer.demosaic_algorithm = DemosaicAlgorithm::Speed;
     }
 
-    raw_image.wb_coeffs =
-        crate::multi_exposure::neutralize_wb_if_multiexposure(raw_image.wb_coeffs, file_bytes);
-
     let camera_to_srgb = (apply_calibration || !is_linear_format)
         .then(|| CameraToSrgb::new(&raw_image))
         .flatten();
@@ -512,11 +509,9 @@ fn cfa_white_balance(raw_image: &RawImage) -> Option<[f32; 3]> {
 pub fn read_as_shot(file_bytes: &[u8]) -> Option<AsShot> {
     let source = RawSource::new_from_slice(file_bytes);
     let decoder = rawler::get_decoder(&source).ok()?;
-    let mut raw_image = decoder
+    let raw_image = decoder
         .raw_image(&source, &RawDecodeParams::default(), true)
         .ok()?;
-    raw_image.wb_coeffs =
-        crate::multi_exposure::neutralize_wb_if_multiexposure(raw_image.wb_coeffs, file_bytes);
     let is_monochrome = raw_image.cpp == 1
         && !matches!(raw_image.photometric, RawPhotometricInterpretation::Cfa(_));
 

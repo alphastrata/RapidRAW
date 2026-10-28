@@ -23,8 +23,6 @@ dependencies = [
  "half",
  "hex",
  "image",
- "image-hdr",
- "image_hasher",
  "imageproc",
  "imgref",
  "jxl-encoder",
@@ -37,7 +35,6 @@ dependencies = [
  "memmap2",
  "mimalloc",
  "mozjpeg-rs",
- "nalgebra",
  "ndarray",
  "objc",
  "objc2",
@@ -548,12 +545,6 @@ name = "base64"
 version = "0.21.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "9d297deb1925b89f2ccc13d7635fa0714f12c87adce1c75356b39ca9b7178567"
-
-[[package]]
-name = "base64"
-version = "0.22.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "72b3254f16251a8381aa12e40e3c4d2f0199f8c6508fbecb9d91f575e0fbb8c6"
 
 [[package]]
 name = "base64"
@@ -1701,7 +1692,6 @@ dependencies = [
  "half",
  "hex",
  "image",
- "image_hasher",
  "imageproc",
  "imgref",
  "kamadak-exif",
@@ -2863,19 +2853,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "image-hdr"
-version = "0.6.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0f401958e284ad5c7a124aa8cbd83e8072e91f7c04ca48c77e1f55d9b660206d"
-dependencies = [
- "image",
- "kamadak-exif",
- "ndarray",
- "rayon",
- "thiserror 2.0.21",
-]
-
-[[package]]
 name = "image-webp"
 version = "0.2.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2883,19 +2860,6 @@ checksum = "525e9ff3e1a4be2fbea1fdf0e98686a6d98b4d8f937e1bf7402245af1909e8c3"
 dependencies = [
  "byteorder-lite",
  "quick-error",
-]
-
-[[package]]
-name = "image_hasher"
-version = "3.1.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "dd266c66b0a0e2d4c6db8e710663fc163a2d33595ce997b6fbda407c8759d344"
-dependencies = [
- "base64 0.22.1",
- "image",
- "rustdct",
- "serde",
- "transpose",
 ]
 
 [[package]]
@@ -4042,7 +4006,6 @@ dependencies = [
  "portable-atomic",
  "portable-atomic-util",
  "rawpointer",
- "rayon",
 ]
 
 [[package]]
