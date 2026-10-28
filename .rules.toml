@@ -1,11 +1,11 @@
 # rules config for this repo.
-# Legacy shell/upstream surface (src-tauri, frontend) is reported but excluded
-# from the CI bar while it is being retired. The engine + simd_optimised
-# crates must pass with zero "problem" findings.
+# The engine + simd_optimised crates must pass with zero "problem" findings.
+# The app crate is the GUI shell (like the retired src-tauri shell): JSON sits
+# at its interop boundary, so it stays outside the strict bar.
 
 ignore = [
-  "src-tauri",
-  "src",
+  "app",
+  "data",
   "bench/compare-renders.sh",
 ]
 
