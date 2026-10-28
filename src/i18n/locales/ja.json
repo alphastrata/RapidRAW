@@ -43,7 +43,7 @@
         "shadows": "シャドウ"
       },
       "hue": "色相",
-      "kelvinModeTooltip": "色温度をケルビンで表示",
+      "kelvinModeTooltip": "温度をケルビンで表示",
       "localHue": "ローカル色相",
       "luminance": "輝度",
       "mixerColors": {
@@ -63,7 +63,6 @@
       "toggleSliders": "スライダー切り替え",
       "vibrance": "自然な彩度",
       "wbPickerTooltip": "ホワイトバランススポイト",
-      "wbPickerWgpuDisabled": "WBスポイト: 設定でWGPUを無効にしてください。",
       "whiteBalance": "ホワイトバランス"
     },
     "curves": {
@@ -175,169 +174,32 @@
     }
   },
   "contextMenus": {
-    "album": {
-      "emptyGroup": "(空のグループ)"
-    },
-    "albumIcons": {
-      "automotive": "自動車",
-      "default": "フォルダ (デフォルト)",
-      "favorites": "お気に入り",
-      "featured": "おすすめ",
-      "locations": "場所",
-      "nature": "自然",
-      "people": "人々",
-      "person": "人物",
-      "photography": "写真",
-      "portfolio": "ポートフォリオ",
-      "summer": "夏",
-      "travel": "旅行"
-    },
-    "albums": {
-      "alreadyAtRoot": "すでにルートに存在します",
-      "alreadyHere": "すでにここに存在します",
-      "confirmDeleteAlbum": "アルバムの削除を確認",
-      "confirmDeleteGroupEmpty": "アルバムグループの削除を確認",
-      "confirmDeleteGroupNested": "グループとすべてのネストされたアルバムの削除を確認",
-      "deleteAlbum": "アルバムを削除",
-      "deleteGroup": "グループを削除",
-      "moveHere": "ここに移動",
-      "moveTo": "移動先...",
-      "newAlbum": "新規アルバム",
-      "newGroup": "新規グループ",
-      "renameAlbum": "アルバム名を変更",
-      "renameGroup": "グループ名を変更",
-      "rootDir": "ルートディレクトリ"
-    },
     "autoAdjustModes": {
       "normal": "標準",
       "strong": "強",
       "subtle": "弱"
-    },
-    "colors": {
-      "blue": "ブルー",
-      "green": "グリーン",
-      "orange": "オレンジ",
-      "pink": "ピンク",
-      "purple": "パープル",
-      "red": "レッド",
-      "yellow": "イエロー"
     },
     "editor": {
       "autoAdjust": "自動補正",
       "autoLensCorrection": "自動レンズ補正",
       "autoStraighten": "自動角度補正",
       "cancel": "キャンセル",
-      "colorLabel": "カラーラベル",
       "confirmReset": "リセットを確認",
       "convertNegative": "ネガ反転",
       "copyAdjustments": "補正設定をコピー",
       "denoise": "ノイズ低減",
-      "editImage": "画像を編集",
       "exportImage": "画像を書き出し",
-      "flag": "フラグ",
-      "flagPick": "採用",
-      "flagReject": "除外",
-      "noLabel": "ラベルなし",
-      "noRating": "評価なし",
       "pasteAdjustments": "補正設定を貼り付け",
       "productivity": "生産性",
-      "rating": "評価",
-      "ratingLabel_one": "{{count}} つ星",
-      "ratingLabel_other": "{{count}} つ星",
       "redo": "やり直し",
       "removeDenoise": "ノイズ低減を解除",
       "removeNegativeConversion": "ネガ反転を解除",
       "resetAdjustments": "補正設定をリセット",
-      "tagging": "タグ付け",
-      "undo": "元に戻す",
-      "unflagged": "フラグなし"
-    },
-    "folders": {
-      "changeIcon": "アイコンを変更",
-      "confirm": "確認",
-      "copyHere_one": "画像をここにコピー",
-      "copyHere_other": "{{count}} 枚の画像をここにコピー",
-      "deleteFolder": "フォルダを削除",
-      "importImages": "画像をインポート",
-      "moveHere_one": "画像をここに移動",
-      "moveHere_other": "{{count}} 枚の画像をここに移動",
-      "newFolder": "新規フォルダ",
-      "paste": "貼り付け",
-      "pin": "フォルダをピン留め",
-      "refresh": "フォルダを更新",
-      "removeRoot": "ルートフォルダを解除",
-      "renameFolder": "フォルダ名を変更",
-      "showExplorer": "エクスプローラーで表示",
-      "unpin": "フォルダのピン留めを解除"
-    },
-    "library": {
-      "addCopiedToAlbum_one": "コピーした画像をアルバムに追加",
-      "addCopiedToAlbum_other": "コピーした {{count}} 枚の画像をアルバムに追加",
-      "deleteRejected": "除外した画像を削除",
-      "refreshView": "表示を更新"
+      "undo": "元に戻す"
     },
     "merge": {
       "focusStack": "フォーカススタッキング",
       "title": "結合"
-    },
-    "tagging": {
-      "addTagTooltip": "タグを追加",
-      "noTags": "タグが追加されていません",
-      "placeholder": "タグを追加...",
-      "removeTooltip": "タグ「{{tag}}」を削除",
-      "shortcutsHeading": "ショートカット"
-    },
-    "thumbnail": {
-      "addToAlbum": "アルバムに追加",
-      "autoAdjust_one": "自動補正",
-      "autoAdjust_other": "自動補正",
-      "autoLensCorrection_one": "自動レンズ補正",
-      "autoLensCorrection_other": "自動レンズ補正",
-      "autoStraighten_one": "自動角度補正",
-      "autoStraighten_other": "自動角度補正",
-      "confirmDelete": "削除を確認",
-      "confirmDeleteVc": "削除 + 仮想コピーを確認",
-      "copyImage_one": "画像をコピー",
-      "copyImage_other": "{{count}} 枚の画像をコピー",
-      "deleteAssociated": "削除 + 関連ファイル",
-      "deleteImage_one": "画像を削除",
-      "deleteImage_other": "{{count}} 枚の画像を削除",
-      "deleteSelected": "選択したもののみ削除",
-      "denoise_one": "ノイズ低減",
-      "denoise_other": "ノイズ低減",
-      "duplicateImage": "画像を複製",
-      "enable": "有効にする",
-      "exportImage_one": "画像を書き出し",
-      "exportImage_other": "{{count}} 枚の画像を書き出し",
-      "noAlbums": "利用可能なアルバムがありません",
-      "pasteAdjustments_one": "補正設定を貼り付け",
-      "pasteAdjustments_other": "{{count}} 枚の画像に補正設定を貼り付け",
-      "physicalCopy": "実ファイルコピー",
-      "remove": "解除",
-      "removeFromAlbum_one": "アルバムから削除",
-      "removeFromAlbum_other": "{{count}} 枚の画像をアルバムから削除",
-      "renameImage_one": "画像名を変更",
-      "renameImage_other": "{{count}} 枚の画像名を変更",
-      "resetAdjustments_one": "補正設定をリセット",
-      "resetAdjustments_other": "{{count}} 枚の画像の補正設定をリセット",
-      "showExplorer": "エクスプローラーで表示",
-      "virtualCopy": "仮想コピー"
-    },
-    "toasts": {
-      "couldNotShowExplorer": "エクスプローラーでファイルを表示できませんでした: {{err}}",
-      "couldNotShowFolder": "フォルダを表示できませんでした: {{err}}",
-      "failedAddToAlbum": "アルバムへの追加に失敗しました: {{err}}",
-      "failedApplyAuto": "自動補正の適用に失敗しました: {{err}}",
-      "failedChangeIcon": "アイコンの変更に失敗しました: {{err}}",
-      "failedCopy": "ファイルのコピーに失敗しました: {{err}}",
-      "failedCreateVirtualCopy": "仮想コピーの作成に失敗しました: {{err}}",
-      "failedDelete": "削除に失敗しました: {{err}}",
-      "failedDeleteFolder": "フォルダの削除に失敗しました: {{err}}",
-      "failedDuplicate": "ファイルの複製に失敗しました: {{err}}",
-      "failedMove": "ファイルの移動に失敗しました: {{err}}",
-      "failedMoveError": "移動に失敗しました: {{err}}",
-      "failedMoveInvalid": "移動に失敗しました: 対象グループが見つからないか無効です。",
-      "failedRemoveImages": "画像の削除に失敗しました: {{err}}"
     }
   },
   "editor": {
@@ -377,14 +239,14 @@
         "duplicateAndInvertEdit": "編集を複製して反転",
         "duplicateComponent": "コンポーネントを複製",
         "duplicateEdit": "編集を複製",
-        "hideComponent": "",
+        "hideComponent": "コンポーネントを非表示",
         "hideEdit": "編集を非表示",
         "intersectEditWith": "編集と交差",
         "pasteComponent": "コンポーネントを貼り付け",
         "pasteEdit": "編集を貼り付け",
         "rename": "名前を変更",
         "resetSelection": "選択をリセット",
-        "showComponent": "",
+        "showComponent": "コンポーネントを表示",
         "showEdit": "編集を表示",
         "subtractFromEdit": "編集から減算",
         "switchToAdd": "追加に切り替え",
@@ -392,30 +254,16 @@
         "switchToSubtract": "減算に切り替え"
       },
       "addNewEdit": "新しい編集を追加",
-      "brush": {
-        "add": "追加",
-        "erase": "消去",
-        "feather": "ブラシのぼかし",
-        "size": "ブラシサイズ"
-      },
       "comingSoon": "近日公開",
       "connection": {
-        "backendLabel": "AI バックエンド:",
         "builtinDesc": "基本的な内蔵AIを使用しています。生成塗りつぶしを使用するには、設定でクラウドまたはAI Connectorを選択してください。",
         "builtinLabel": "内蔵AI:",
-        "cloudLabel": "クラウドAI:",
         "connectorConnectedDesc": "ローカルの生成バックエンドに接続されました。",
         "connectorDisconnectedDesc": "簡易スポット修正のみ利用可能です。ローカルバックエンドを起動してください。",
         "connectorLabel": "AI Connector:",
-        "loginRequiredDesc": "クラウドAIを使用するには設定からログインしてください。",
-        "monthlyUsage": "月間使用量",
         "notDetected": "検出されませんでした",
-        "notLoggedIn": "未ログイン",
-        "proRequiredDesc": "Proサブスクリプションが必要です。設定からアップグレードしてください。",
-        "ready": "準備完了",
-        "upgradeRequired": "アップグレードが必要です"
+        "ready": "準備完了"
       },
-      "createNewTitle": "新しい生成編集を作成",
       "createNewTooltip": "新しい {{name}} 編集を作成",
       "denoising": "AIノイズ除去を実行中...",
       "dropzoneText": "ここにドロップして新しい編集を作成",
@@ -436,12 +284,6 @@
       },
       "manualCleanupTitle": "手動クリーンアップ",
       "noImageSelected": "画像が選択されていません。",
-      "params": {
-        "feather": "ぼかし",
-        "grow": "拡張",
-        "intensity": "強度",
-        "pressure": "圧力"
-      },
       "patches": {
         "aiEdit": "AI編集 {{count}}",
         "aiEdit_one": "AI編集 {{count}}",
@@ -454,15 +296,11 @@
         "liquify": "ゆがみ {{count}}",
         "liquify_one": "ゆがみ {{count}}",
         "liquify_other": "ゆがみ {{count}}",
-        "quickErase": "クイック消去 {{count}}",
-        "quickErase_one": "クイック消去 {{count}}",
-        "quickErase_other": "クイック消去 {{count}}",
         "retouch": "レタッチ {{count}}",
-        "retouch_other": ""
+        "retouch_other": "リタッチ {{count}}"
       },
       "resetInpaintingTooltip": "インペインティングをリセット",
       "settings": {
-        "aiModelDownloading": "AIモデルをダウンロード中: ",
         "basicInpaintTooltipDisabled": "生成バックエンドが利用できないか、設定されていません。簡易インペインティングが必要です。",
         "basicInpaintTooltipEnabled": "簡易インペインティングは高速ですが、非生成式です。テキストプロンプトによるAIを使用する場合はチェックを外してください。",
         "cancelGeneration": "生成をキャンセル",
@@ -477,7 +315,6 @@
         "invertComponent": "コンポーネントを反転",
         "invertSelection": "選択範囲を反転",
         "placeholder": "例: お花畑",
-        "quickEraseDesc": "選択範囲を塗りつぶしてオブジェクトを削除します。",
         "selectionPropertiesTitle": "選択範囲のプロパティ",
         "useBasicInpaint": "簡易インペインティングを使用"
       },
@@ -503,14 +340,11 @@
         "wPlaceholder": "W",
         "wTooltip": "幅"
       },
-      "geometryHeading": "ジオメトリ",
       "labels": {
         "flipHoriz": "水平反転",
         "flipVert": "垂直反転",
-        "lens": "レンズ",
         "rotateLeft": "左回転",
-        "rotateRight": "右回転",
-        "transform": "変形"
+        "rotateRight": "右回転"
       },
       "orientationHeading": "方向",
       "overlays": {
@@ -597,7 +431,6 @@
         "compositionOverlay": "構図ガイド",
         "flipHoriz": "画像を水平方向に反転",
         "flipVert": "画像を垂直方向に反転",
-        "lens": "レンズ歪み補正",
         "overlayDetails": "ガイド: {{name}}{{rotateHint}}",
         "resetFineRotation": "微調整回転をリセット",
         "rotateHint": " (Shift+O で回転)",
@@ -606,8 +439,7 @@
         "straighten": "角度補正ツール (S)",
         "switchOrientation": "縦横比の向きを切り替え",
         "switchToLandscape": "横向きに切り替え",
-        "switchToPortrait": "縦向きに切り替え",
-        "transform": "遠近歪みとあおり補正"
+        "switchToPortrait": "縦向きに切り替え"
       }
     },
     "externalEdit": {
@@ -618,7 +450,6 @@
     "guided": {
       "cancel": "キャンセル",
       "drawingActive": "描画中",
-      "hint": "垂直または水平であるべき写真の縁に沿って描画します。",
       "linesStatus": "アクティブなガイドライン",
       "toast": {
         "angleRejected": "線の角度が水平または垂直から離れすぎています",
@@ -631,7 +462,6 @@
     "masks": {
       "actions": {
         "addNewComponent": "新しいコンポーネントを追加",
-        "applyPreset": "プリセットを適用",
         "copyComponent": "コンポーネントをコピー",
         "copyMask": "マスクをコピー",
         "deleteComponent": "コンポーネントを削除",
@@ -643,7 +473,6 @@
         "hideComponent": "コンポーネントを非表示",
         "hideMask": "マスクを非表示",
         "intersectMaskWith": "マスクと交差",
-        "noPresets": "プリセットなし",
         "pasteComponent": "コンポーネントを貼り付け",
         "pasteMask": "マスクを貼り付け",
         "pasteMaskAdjustments": "マスク補正設定を貼り付け",
@@ -660,11 +489,7 @@
       "aiTitle": "AI選択",
       "basicTitle": "基本ツール",
       "brush": {
-        "brush": "ブラシ",
-        "eraser": "消しゴム",
-        "feather": "ブラシのぼかし",
-        "flow": "流量",
-        "size": "ブラシサイズ"
+        "flow": "流量"
       },
       "comingSoon": "近日公開",
       "depthRange": {
@@ -678,10 +503,7 @@
       "maskingTitle": "マスク処理",
       "masksTitle": "マスク一覧",
       "params": {
-        "feather": "ぼかし",
-        "globalFeather": "全体のぼかし",
-        "grow": "拡張",
-        "tolerance": "Tolerance"
+        "globalFeather": "全体のぼかし"
       },
       "patches": {
         "copyName": "{{name}} のコピー",
@@ -694,32 +516,15 @@
       "resetMaskingTooltip": "マスク処理をリセット",
       "settings": {
         "aiModelDownloading": "AIモデルをダウンロード中: ",
-        "applyPreset": "プリセットを適用",
         "componentPropertiesTitle": "{{name}} のプロパティ",
         "copySectionSettings": "{{section}}設定をコピー",
-        "faceParts": {
-          "bodySkin": "体の肌",
-          "eyebrows": "眉",
-          "eyeWhites": "白目",
-          "faceSkin": "顔の肌",
-          "hair": "髪",
-          "iris": "虹彩と瞳孔",
-          "lips": "唇",
-          "nose": "鼻",
-          "teeth": "歯"
-        },
-        "generateTextMask": "マスクを生成",
         "invertComponent": "コンポーネントを反転",
         "invertMask": "マスクを反転",
         "maskPropertiesTitle": "マスクのプロパティ",
-        "noPresetsFound": "プリセットが見つかりません",
         "opacity": "不透明度",
         "pasteSectionSettings": "{{section}}設定を貼り付け",
         "pasteSettings": "設定を貼り付け",
-        "resetSectionSettings": "{{section}}設定をリセット",
-        "select": "選択",
-        "selectPresetTooltip": "適用するプリセットを選択",
-        "textPromptPlaceholder": "例: 人物、車、水"
+        "resetSectionSettings": "{{section}}設定をリセット"
       },
       "toggleAnalyticsInAdjustments": "調整パネルでアナリティクスを切り替える",
       "toggleAnalyticsTooltip": "アナリティクス表示の切り替え",
@@ -729,124 +534,19 @@
         "selectNewSourcePoint": "{{modifier}} + クリックで新しいソースポイントを選択"
       }
     },
-    "metadata": {
-      "author": {
-        "creatorDetails": "制作者の詳細",
-        "title": "作成者と著作権"
-      },
-      "camera": {
-        "aperture": "絞り値",
-        "focalLength": "焦点距離",
-        "iso": "ISO感度",
-        "lens": "レンズ",
-        "shutterSpeed": "シャッタースピード",
-        "title": "カメラ情報"
-      },
-      "clickToEdit": "クリックして編集",
-      "copied": "コピーしました",
-      "copy": "コピー",
-      "emptyClickToAdd": "未設定 (クリックして追加)",
-      "extendedExif": {
-        "title": "拡張EXIF"
-      },
-      "fields": {
-        "author": "作成者",
-        "comments": "コメント",
-        "copyright": "著作権",
-        "title": "タイトル"
-      },
-      "fileInfo": {
-        "dimensions": "{{width}} × {{height}} px • {{megapixels}} MP",
-        "dimensionsNoMp": "{{width}} × {{height}} px",
-        "emptyDimensions": "- × - px",
-        "title": "ファイル情報",
-        "virtualCopy": "仮想コピー"
-      },
-      "gps": {
-        "altitude": "高度",
-        "clickToOpenTooltip": "クリックして新しいタブで地図を表示",
-        "latitude": "緯度",
-        "longitude": "経度",
-        "title": "GPS位置情報"
-      },
-      "organization": {
-        "addTagPlaceholder": "タグを追加...",
-        "colorLabel": "カラーラベル",
-        "none": "なし",
-        "noTags": "タグなし",
-        "rating": "評価",
-        "ratingLabels": "評価とラベル",
-        "tags": "タグ",
-        "title": "整理"
-      },
-      "title": "メタデータ"
-    },
-    "presets": {
-      "amount": "適用量",
-      "dialog": {
-        "allPresetFiles": "すべてのプリセットファイル",
-        "exportAllTitle": "すべてのプリセットを書き出し",
-        "exportTitle": "{{type}}を書き出し",
-        "importPresetsTitle": "プリセットをインポート",
-        "legacyPreset": "レガシープリセット",
-        "presetFile": "プリセットファイル",
-        "rapidRawPreset": "RapidRAWプリセット"
-      },
-      "menu": {
-        "configurePreset": "プリセットを構成",
-        "deleteFolder": "フォルダを削除",
-        "deletePreset": "プリセットを削除",
-        "duplicatePreset": "プリセットを複製",
-        "exportFolder": "フォルダを書き出し",
-        "exportPreset": "プリセットを書き出し",
-        "newFolder": "新規フォルダ",
-        "newPreset": "新規プリセット",
-        "overwrite": "上書き",
-        "renameFolder": "フォルダ名を変更",
-        "sortAll": "すべて名前順に並べ替え"
-      },
-      "status": {
-        "empty": "保存されたプリセットはまだありません。作成、インポート、またはコミュニティのプリセットを探してみましょう。",
-        "getCommunity": "コミュニティプリセットを入手",
-        "loading": "プリセットを読み込み中..."
-      },
-      "supports": {
-        "cropTransform": "切り抜きと変形",
-        "label": "{{features}}をサポート",
-        "masks": "マスク"
-      },
-      "title": "プリセット",
-      "tooltips": {
-        "explore": "コミュニティのプリセットを検索",
-        "export": "すべてのプリセットを .rrpreset ファイルとして書き出し",
-        "import": ".rrpreset ファイルからプリセットをインポート",
-        "saveNew": "新規プリセットとして保存"
-      },
-      "types": {
-        "folder": "フォルダ",
-        "preset": "プリセット",
-        "style": "スタイル",
-        "tool": "ツール"
-      }
-    },
     "switcher": {
       "tooltips": {
         "adjust": "補正",
         "crop": "切り抜き",
         "export": "書き出し",
-        "info": "情報",
         "inpaint": "インペイント",
-        "masks": "マスク",
-        "presets": "プリセット",
-        "tethering": "テザー撮影"
+        "masks": "マスク"
       }
     },
     "toolbar": {
       "history": "履歴",
-      "switchToVariant": "Switch to {{label}}",
       "tooltips": {
         "aperture": "絞り値",
-        "backToLibrary": "ライブラリに戻る",
         "compare": "補正前 / 補正後 (B) またはモード (右クリック)",
         "focalLength": "焦点距離",
         "fullscreen": "全画面表示切り替え (F)",
@@ -861,23 +561,8 @@
   "export": {
     "advanced": {
       "exportMasks": "マスクを個別ファイルとして書き出す",
-      "preserveFolders": "フォルダ構造を維持",
       "preserveTimestamps": "EXIFの撮影日時からファイルタイムスタンプを設定",
       "title": "書き出し設定"
-    },
-    "border": {
-      "addBorder": "枠を追加",
-      "bases": {
-        "eachEdge": "それぞれの辺",
-        "longEdge": "長辺",
-        "shortEdge": "短辺"
-      },
-      "basis": "太さの基準",
-      "color": "枠の色",
-      "invalidPercent": "両方に0から100までの数値を入力してください。",
-      "leftRight": "左右",
-      "percent": "%",
-      "topBottom": "上下"
     },
     "bytes": {
       "bytes": "バイト",
@@ -893,10 +578,7 @@
       "subfolderPlaceholder": "例：final, WebP"
     },
     "dialog": {
-      "saveEditedImageTitle": "編集した画像を保存",
-      "selectFolderTitle": "{{count}} 枚の画像を書き出すフォルダを選択",
-      "selectFolderTitle_one": "{{count}} 枚の画像を書き出すフォルダを選択",
-      "selectFolderTitle_other": "{{count}} 枚の画像を書き出すフォルダを選択"
+      "saveEditedImageTitle": "編集した画像を保存"
     },
     "file": {
       "dpi": "DPI",
@@ -909,422 +591,38 @@
     },
     "labels": {
       "image": "画像",
-      "image_plural": "画像",
-      "lut": "LUT",
-      "lut_plural": "LUT"
+      "lut": "LUT"
     },
     "metadata": {
       "removeGps": "GPSデータを削除",
       "saveWithMetadata": "メタデータを含めて保存"
-    },
-    "pad": {
-      "aspectRatio": "アスペクト比",
-      "backgroundColor": "背景色",
-      "invalidRatio": "幅と高さに正の数を入力してください。",
-      "padToAspectRatio": "アスペクト比に合わせて余白を追加",
-      "ratioHeight": "アスペクト比の高さ",
-      "ratioWidth": "アスペクト比の幅"
-    },
-    "resize": {
-      "dontEnlarge": "拡大しない",
-      "modes": {
-        "height": "高さ",
-        "longEdge": "長辺",
-        "shortEdge": "短辺",
-        "width": "幅"
-      },
-      "pixels": "ピクセル",
-      "resizeToFit": "サイズに合わせる"
     },
     "sections": {
       "advanced": "詳細設定",
       "destination": "保存先",
       "fileNaming": "ファイル名の命名",
       "fileSettings": "ファイル設定",
-      "imageSizing": "画像サイズ",
-      "metadata": "メタデータ",
-      "watermark": "ウォーターマーク"
+      "metadata": "メタデータ"
     },
     "status": {
       "cancelExport": "書き出しをキャンセル",
       "cancelled": "書き出しがキャンセルされました",
       "cancelling": "書き出しをキャンセル中…",
-      "estimatedAverageSize": " (平均 {{size}})",
       "estimatedSize": "推定ファイルサイズ: ~{{size}}",
-      "estimatedTotalSize": "推定合計サイズ: ~{{size}}",
       "estimatingSize": "サイズを推定中...",
       "exporting": "書き出し中…",
-      "exportingProgress": "書き出し中… ({{current}}/{{total}})",
-      "exportMultiple": "{{count}} 件の {{label}} を書き出し",
-      "exportMultiple_one": "{{count}} 件 of {{label}} を書き出し",
-      "exportMultiple_other": "{{count}} 件の {{label}} を書き出し",
       "exportSingle": "{{label}} を書き出し",
       "failed": "書き出しに失敗しました",
       "noImageSelected": "書き出す画像が選択されていません。",
-      "noImagesSelected": "画像が選択されていません。",
       "success": "書き出しが成功しました！"
     },
-    "title": "エクスポート",
-    "watermark": {
-      "addWatermark": "ウォーターマークを追加",
-      "anchors": {
-        "bottomCenter": "下中央",
-        "bottomLeft": "左下",
-        "bottomRight": "右下",
-        "center": "中央",
-        "centerLeft": "左中央",
-        "centerRight": "右中央",
-        "topCenter": "上中央",
-        "topLeft": "左上",
-        "topRight": "右上"
-      },
-      "logoText": "ロゴ",
-      "opacity": "不透明度",
-      "previewText": "プレビュー",
-      "scale": "倍率",
-      "spacing": "間隔",
-      "watermarkImage": "ウォーターマーク画像"
-    }
-  },
-  "immich": {
-    "close": {
-      "cancel": "キャンセル",
-      "closeAnyway": "このまま閉じる",
-      "message": "Immich への送信待ちの編集: {{number}}。編集内容はこのコンピューターに残り、次回 RapidRAW を起動して Immich に接続できたときに送信されます。",
-      "title": "Immich に未送信の編集"
-    },
-    "export": {
-      "album": "アルバム",
-      "destination": "Immich",
-      "noAlbum": "アルバムなし",
-      "sourceAlbum": "画像を開いたアルバム",
-      "withOriginal": "オリジナルもアップロード",
-      "withOriginalDesc": "ローカルフォルダーの画像の場合: オリジナルが編集内容とともにアップロードされ、エクスポートがその上にスタックされます。Immich の画像は常にオリジナルの上にスタックされます。"
-    },
-    "section": {
-      "empty": "サーバーにアルバムがありません。",
-      "error": "Immich に接続できません。",
-      "loading": "アルバムを読み込み中…",
-      "refresh": "アルバムを更新",
-      "timeline": "タイムライン",
-      "title": "Immich"
-    },
-    "settings": {
-      "apiKey": "API キー",
-      "apiKeyDesc": "Immich の「アカウント設定 → API キー」で、次の権限を付けて作成してください: album.read, albumAsset.create, albumAsset.delete, asset.read, asset.view, asset.download, asset.upload, asset.update, asset.delete, stack.read, stack.create, user.read",
-      "connected": "{{user}} として接続しました (Immich {{version}})",
-      "description": "Immich サーバーの写真をライブラリで閲覧し、そのまま編集できます。オリジナルは開いたときにダウンロードされ、編集内容は Immich に保存されるので、どのコンピューターでも同じに見えます。",
-      "keyInFile": "本人だけが読めるファイルに保存されています。利用できる資格情報ストアがありません。KDE の場合は、KDE ウォレットの設定で Secret Service インターフェースを有効にしてから、もう一度保存してください。",
-      "keyInStore": "システムの資格情報ストアに保存されています。",
-      "save": "保存",
-      "saved": "保存しました。",
-      "serverUrl": "サーバーアドレス",
-      "serverUrlDesc": "ブラウザーで Immich を開くときのアドレスです。",
-      "test": "接続をテスト",
-      "title": "Immich",
-      "working": "処理中…"
-    },
-    "sync": {
-      "offline": "オフライン",
-      "pending": "Immich への送信待ちの編集: {{number}}"
-    },
-    "toasts": {
-      "backOnline": "Immich に再び接続でき、すべての編集内容が保存されました。",
-      "downloadFailed": "Immich からダウンロードできませんでした: {{error}}",
-      "editsConflict": "{{fileName}} は別のコンピューターでも編集されています。あなたの編集内容はそのまま残り、もう一方のバージョンは仮想コピーとして保存されます。",
-      "offline": "Immich に接続できません。編集内容はここに保持され、接続が戻りしだい送信されます。",
-      "trashFailed": "Immich のゴミ箱に移動できませんでした: {{error}}",
-      "uploaded": "Immich にアップロードしました: {{number}}"
-    }
+    "title": "エクスポート"
   },
   "library": {
-    "aiJobs": {
-      "discard": "残りのAI処理を破棄",
-      "failed": "失敗（{{failedCount}}）",
-      "kinds": {
-        "denoise": "AIノイズ除去中",
-        "depthMap": "深度を解析中",
-        "depthMask": "深度マスクを生成中",
-        "faceMask": "顔マスクを生成中",
-        "foregroundMask": "前景マスクを生成中",
-        "normalMap": "表面を解析中",
-        "skyMask": "空マスクを生成中",
-        "subjectMask": "被写体マスクを生成中",
-        "textMask": "テキストマスクを生成中"
-      },
-      "more": "他{{moreCount}}件",
-      "pause": "AI処理を一時停止",
-      "paused": "一時停止中 · 残り{{remaining}}件",
-      "pausedItem": "一時停止",
-      "pausing": "現在のステップの後に一時停止します…",
-      "process": "画像を処理",
-      "progress": "{{current}}/{{total}}",
-      "queue": "キュー",
-      "queuedItem": "待機中",
-      "resume": "AI処理を再開",
-      "retry": "再試行",
-      "taskWithMask": "{{task}}「{{mask}}」",
-      "thumbnailPaused": "AI処理を一時停止中",
-      "thumbnailPending": "AI処理待ち",
-      "title": "AI処理",
-      "unprocessed_other": "{{count}}枚の画像にAI処理が必要です",
-      "waiting": "AI処理を準備中…"
-    },
-    "community": {
-      "actionSave": "保存",
-      "actionSaved": "保存済み",
-      "actionSaving": "保存中...",
-      "fetchingPresets": "GitHubからプリセットを取得中...",
-      "footerHeading": "あなたのプリセットを掲載しませんか？",
-      "footerLinkText": "GitHubでIssueを作成してください",
-      "headerDesc": "コミュニティによって作成されたプリセットをご覧ください。",
-      "headerTitle": "コミュニティプリセット",
-      "presetBy": "作成者: {{creator}}",
-      "searchPlaceholder": "プリセットを検索...",
-      "sortBy": "並べ替え基準:",
-      "sortMethods": {
-        "name": "名前 (A-Z)"
-      }
-    },
     "filterExit": {
       "hiddenMultiple_other": "{{count}} 枚の画像がフィルターに一致しなくなりました",
       "hiddenSingle": "{{name}} はフィルターに一致しなくなりました",
       "undo": "元に戻す"
-    },
-    "filters": {
-      "edited": {
-        "all": "すべての画像",
-        "editedOnly": "編集済みのみ",
-        "uneditedOnly": "未編集のみ"
-      },
-      "flag": {
-        "all": "すべての画像",
-        "excludeRejected": "除外を非表示",
-        "picked": "採用",
-        "rejected": "除外"
-      },
-      "noMatch": "フィルターに一致する画像が見つかりません。",
-      "rating": {
-        "all": "すべて表示",
-        "andDownSuffix": "以下",
-        "andUpSuffix": "以上",
-        "fiveOnly": "5のみ",
-        "fourAndUp": "4以上",
-        "oneAndUp": "1以上",
-        "onlySuffix": "のみ",
-        "threeAndUp": "3以上",
-        "twoAndUp": "2以上",
-        "unrated": "未評価のみ"
-      },
-      "raw": {
-        "all": "すべての種類",
-        "nonRawOnly": "非RAWのみ",
-        "rawOnly": "RAWのみ"
-      }
-    },
-    "folders": {
-      "addFolder": "フォルダーを追加",
-      "albumsEmpty": "右クリックでアルバムを作成します。",
-      "collapseSection": "{{section}}をたたむ",
-      "expandSection": "{{section}}を展開",
-      "loading": "フォルダを読み込み中...",
-      "noFoldersFound": "フォルダが見つかりません。",
-      "openFolderInstruction": "フォルダを開くと、その構造が表示されます。",
-      "searchPlaceholder": "フォルダを検索...",
-      "sections": {
-        "albums": "アルバム",
-        "folders": "フォルダ",
-        "pinned": "ピン留め"
-      },
-      "sort": {
-        "created": "作成日",
-        "imageCount": "画像数",
-        "modified": "更新日",
-        "name": "アルファベット順"
-      },
-      "sourcesTitle": "ソース",
-      "tooltips": {
-        "clearSearch": "検索をクリア",
-        "collapse": "折りたたむ",
-        "expand": "展開",
-        "moreOptions": "オプション",
-        "navBack": "戻る",
-        "navForward": "進む",
-        "sortFolders": "フォルダーを並べ替え"
-      }
-    },
-    "grid": {
-      "columns": {
-        "aperture": "絞り値",
-        "focal": "焦点距離",
-        "iso": "ISO感度",
-        "label": "ラベル",
-        "modified": "更新日時",
-        "name": "名前",
-        "rating": "評価",
-        "shutter": "シャッタースピード"
-      }
-    },
-    "header": {
-      "cancel": "キャンセル",
-      "deselectAll": "すべての選択を解除",
-      "search": {
-        "addFilterOrSearch": "フィルターまたは検索を追加...",
-        "indexingImages": "画像をインデックス中...",
-        "indexingProgress": "インデックス中... ({{current}}/{{total}})",
-        "matchAll": "すべてのタグに一致",
-        "matchAny": "いずれかのタグに一致",
-        "searchOrQuery": "検索またはクエリを入力",
-        "tooltipAdvancedQueries": "高度なクエリ: iso:>800, f:<=2.8, s:1/200, mm:50, camera:sony",
-        "tooltipClearSearch": "検索をクリア",
-        "tooltipSearchFilter": "検索またはフィルター"
-      },
-      "selectAll": "すべて選択",
-      "selectItems": "項目を選択",
-      "title": "ライブラリ",
-      "viewOptions": {
-        "currentFolder": "現在のフォルダ",
-        "displayMode": "表示モード",
-        "exifDisabledTooltip": "このオプションを使用するには、設定でEXIF読み込みを有効にしてください。",
-        "filterByColorLabel": "カラーラベルでフィルター",
-        "filterByEdited": "編集状態でフィルター",
-        "filterByFileType": "ファイル形式でフィルター",
-        "filterByFlag": "フラグでフィルター",
-        "filterByRating": "評価でフィルター",
-        "groupEditedFiles": "Include edited files in groups",
-        "groupIgnoreMetadata": "Ignore mismatched EXIF dates",
-        "groupOff": "Off",
-        "groupPreferJpeg": "Prefer JPEG",
-        "groupPreferRaw": "Prefer RAW",
-        "groupRawJpeg": "Group RAW + JPEG",
-        "metadataAlways": "常に表示",
-        "metadataHover": "ホバー時に表示",
-        "metadataOff": "オフ",
-        "noLabel": "ラベルなし",
-        "ratingOperator": {
-          "eq": "この評価のみ",
-          "gte": "この評価以上",
-          "lte": "この評価以下"
-        },
-        "recursive": "再帰的",
-        "showMetadata": "メタデータを表示",
-        "sortAscending": "昇順で並べ替え",
-        "sortBy": "並べ替え基準",
-        "sortDescending": "降順で並べ替え",
-        "thumbnailFit": "サムネイルのフィット",
-        "thumbnailSize": "サムネイルサイズ",
-        "title": "表示オプション"
-      }
-    },
-    "items": {
-      "cloudPlaceholder": "iCloudに保存されています — 未ダウンロード",
-      "collapseFolder": "フォルダを折りたたむ",
-      "currentFolder": "現在のフォルダ",
-      "expandFolder": "フォルダを展開",
-      "imagesCount_one": "1 枚の画像",
-      "imagesCount_other": "{{count}} 枚の画像",
-      "immichPlaceholder": "Immichに保存されています — 未ダウンロード",
-      "rejected": "除外",
-      "tooltipAperture": "絞り値",
-      "tooltipFocalLength": "焦点距離",
-      "tooltipIso": "ISO感度",
-      "tooltipShutterSpeed": "シャッタースピード",
-      "tooltipVirtualCopy": "仮想コピー"
-    },
-    "jobs": {
-      "active": "実行中",
-      "cancel": "書き出しをキャンセル",
-      "cancelling": "キャンセル中…",
-      "clear": "クリア",
-      "copyError": "クリックしてコピー",
-      "empty": "実行中のジョブはありません",
-      "emptyHint": "書き出し、読み込み、ファイル転送、AI 処理がここに表示されます。",
-      "errorCopied": "エラーをクリップボードにコピーしました",
-      "images_other": "{{count}} 枚",
-      "kinds": {
-        "aiTagging": "AI タグ付け",
-        "copy": "ファイルのコピー",
-        "export": "書き出し",
-        "import": "読み込み",
-        "modelDownload": "AI モデルのダウンロード",
-        "move": "ファイルの移動"
-      },
-      "openInLibrary": "ライブラリで開く",
-      "recent": "最近",
-      "title": "ジョブ"
-    },
-    "reject": {
-      "deleteConfirm": "除外した画像を削除",
-      "deleteMessage_one": "除外した画像 {{count}} 枚を削除してもよろしいですか？ゴミ箱に移動されます。",
-      "deleteMessage_other": "除外した画像 {{count}} 枚を削除してもよろしいですか？ゴミ箱に移動されます。",
-      "deleteTitle": "除外した画像を削除",
-      "noneToDelete": "削除する除外画像はありません。",
-      "virtualCopiesWarning_one": "元画像が除外されているため、除外されていない仮想コピー {{count}} 件も削除されます。",
-      "virtualCopiesWarning_other": "元画像が除外されているため、除外されていない仮想コピー {{count}} 件も削除されます。"
-    },
-    "search": {
-      "noResults": "結果が見つかりません",
-      "noResultsAiHint": " より包括的な検索を行うには、設定で自動タグ付けを有効にしてください。",
-      "noResultsDesc": "ファイル名またはタグに基づく画像が見つかりませんでした。"
-    },
-    "sort": {
-      "aperture": "絞り値",
-      "dateModified": "更新日時",
-      "dateTaken": "撮影日時",
-      "editedStatus": "編集状態",
-      "fileName": "ファイル名",
-      "focalLength": "焦点距離",
-      "iso": "ISO感度",
-      "rating": "評価",
-      "shutterSpeed": "シャッタースピード"
-    },
-    "splash": {
-      "addFolder": "フォルダを追加",
-      "brand": "RapidRAW",
-      "continueSession": "セッションを続行",
-      "contribute": "GitHubで貢献する",
-      "descriptionAndroid": "圧倒的に高速な、GPUアクセラレーション対応RAW画像エディタ。ライブラリを開いて始めましょう。",
-      "descriptionDesktop": "圧倒的に高速な、GPUアクセラレーション対応RAW画像エディタ。フォルダを開いて始めましょう。",
-      "donate": "Ko-fiで寄付する",
-      "downloadVersion": "クリックしてバージョン {{version}} をダウンロード",
-      "goToSettings": "設定へ移動",
-      "imagesBy": "写真提供:",
-      "latestVersion": "最新バージョンを使用しています",
-      "newVersionAvailable": "新しいバージョンが利用可能です！",
-      "openFolder": "フォルダを開く",
-      "openLibrary": "ライブラリを開く",
-      "or": "または",
-      "version": "バージョン {{version}}",
-      "welcomeBack": "おかえりなさい！",
-      "welcomeBackDesc": "前回の続きから始めるか、新しいセッションを開始します。"
-    },
-    "status": {
-      "downloading": "{{status}}をダウンロード中...",
-      "importing": "画像をインポート中... ({{current}}/{{total}})",
-      "indexing": "画像をインデックス中... ({{current}}/{{total}})",
-      "moment": "これにはしばらく時間がかかる場合があります。",
-      "processing": "画像を処理中..."
-    },
-    "thumbnailFit": {
-      "fillSquare": "正方形にフィット",
-      "justified": "メイソンリー",
-      "originalRatio": "オリジナル比率"
-    },
-    "thumbnailSize": {
-      "large": "大",
-      "list": "リスト",
-      "medium": "中",
-      "small": "小"
-    },
-    "tooltips": {
-      "communityPresets": "コミュニティプリセット",
-      "goHome": "ホームへ移動",
-      "importImages": "画像をインポート",
-      "select": "選択"
-    },
-    "viewMode": {
-      "grid": "",
-      "list": ""
     }
   },
   "masks": {
@@ -1334,46 +632,17 @@
       "clone": "クローン",
       "color": "カラー",
       "depth": "奥行き",
-      "face": "顔",
       "flow": "流量",
-      "foreground": "手前",
       "heal": "修復",
       "linear": "線形",
       "liquify": "ゆがみ",
       "luminance": "ルミナンス",
       "others": "その他",
-      "quickErase": "クイック消去",
-      "quickEraser": "クイック消しゴム",
       "radial": "円形",
-      "retouch": "レタッチ",
-      "sky": "空",
-      "subject": "被写体",
-      "text": "テキスト"
-    }
-  },
-  "menus": {
-    "tagging": {
-      "addTagTooltip": "タグを追加",
-      "noTags": "タグが追加されていません",
-      "placeholder": "タグを追加...",
-      "removeTooltip": "タグ「{{tag}}」を削除",
-      "shortcutsHeading": "ショートカット"
+      "retouch": "レタッチ"
     }
   },
   "modals": {
-    "configurePreset": {
-      "cancel": "キャンセル",
-      "includeCropTransform": "切り抜きと変形を含める",
-      "includeMasks": "マスクを含める",
-      "placeholder": "プリセット名を入力...",
-      "save": "保存",
-      "titleConfigure": "プリセットの構成",
-      "titleSave": "新規プリセットを保存",
-      "typeStyleDesc": "全体のルックを適用します。プリセットと完全に一致するように現在の設定がすべて上書きされます。",
-      "typeStyleLabel": "スタイル",
-      "typeToolDesc": "他の設定を変更せずに、特定の設定のみを適用します。",
-      "typeToolLabel": "ツール"
-    },
     "confirm": {
       "cancel": "キャンセル",
       "confirm": "確認"
@@ -1421,18 +690,6 @@
       "selectNone": "選択をクリア",
       "title": "補正設定のコピーと貼り付け"
     },
-    "createAlbum": {
-      "placeholder": "アルバム名を入力..."
-    },
-    "createFolder": {
-      "cancel": "キャンセル",
-      "create": "作成",
-      "placeholder": "フォルダ名を入力...",
-      "title": "新規フォルダの作成"
-    },
-    "createGroup": {
-      "placeholder": "グループ名を入力..."
-    },
     "focusStack": {
       "cancel": "キャンセル",
       "close": "閉じる",
@@ -1450,289 +707,87 @@
       "start": "開始",
       "title": "フォーカススタッキング"
     },
-    "importSettings": {
-      "cancel": "キャンセル",
-      "dateFormat": "日付形式",
-      "dateFormatPlaceholder": "例: YYYY/MM-DD",
-      "deleteAfterImport": "インポート完了後に元のファイルを削除",
-      "deleteWarning": "ファイルはシステムのゴミ箱に移動されます。",
-      "fileNaming": "ファイル名の命名",
-      "folderOrganization": "フォルダ構成",
-      "notUniqueWarning": "{original_filename}、{original_filename_number}、{sequence} のいずれも含まれない場合、ファイル名が重複することがあります。重複したファイルはインポートされません。",
-      "organizeByDate": "日付ごとにサブフォルダに整理する",
-      "sourceFiles": "ソースファイル",
-      "startImport": "インポートを開始",
-      "title": "インポート設定"
-    },
     "lensCorrection": {
       "amount": "適用量",
-      "apply": "適用",
-      "autoDetectLens": "レンズを自動検出",
-      "autoDetectStatus": "自動検出ステータス",
-      "cancel": "キャンセル",
       "chooseSavedLens": "保存されたレンズを選択",
       "chromaticAberration": "色収差",
-      "compareTooltip": "長押しで比較",
-      "corrections": "補正",
       "databaseNotice": "レンズデータベースは <0>Lensfun Project</0> (<1>CC BY-SA 3.0</1>) より提供されています。",
-      "detecting": "検出中...",
       "detectingExif": "EXIFを検出中...",
       "distortion": "歪み",
-      "lensFound": "レンズが検出されました",
       "lensProfileNotFound": "レンズプロファイルが見つかりません",
       "manageLensesPlaceholder": "設定でレンズリストを管理",
-      "manualSelection": "手動選択",
-      "maskWarning": "レンズ補正を適用するとベースの形状が変更されるため、既存のマスクがずれる場合があります。また、AIマスクは再生成する必要があります。",
       "modeAuto": "自動",
       "modeManual": "手動",
-      "notFound": "見つかりません",
-      "original": "オリジナル",
-      "resetTooltip": "レンズ補正をリセット",
-      "resetZoomTooltip": "ズームをリセット",
       "selectLensModel": "レンズモデルを選択",
       "selectManufacturer": "メーカーを選択",
       "title": "レンズ補正",
       "vignetting": "周辺光量",
-      "waitingAutoDetect": "自動検出を待機中...",
+      "waitingAutoDetect": "自動検出を待機中..."
+    },
+    "negativeConversion": {
+      "blueWeight": "青のウェイト",
+      "cancel": "キャンセル",
+      "colorTiming": "カラータイミング",
+      "compareTooltip": "長押しで比較",
+      "contrast": "コントラスト",
+      "convertAndSave": "変換して保存",
+      "convertAndSaveAll_other": "{{count}} 枚の画像を変換して保存",
+      "converting": "変換中...",
+      "convertingProgress": "変換中 ({{current}}/{{total}})...",
+      "exposure": "露光",
+      "greenWeight": "緑のウェイト",
+      "noticeText": "反転ロジックは marc inz606 による <2>NegPy</2>（<5>GPL-3.0</5>）に着想を得ています。",
+      "originalLabel": "元画像",
+      "printGrade": "プリントグレード",
+      "redWeight": "赤のウェイト",
+      "resetTooltip": "変換をリセット",
+      "resetViewTooltip": "表示をリセット",
+      "title": "ネガフィルム変換",
       "zoomInTooltip": "拡大",
       "zoomOutTooltip": "縮小"
     },
-    "renameAlbum": {
-      "placeholder": "新しいアルバム名を入力..."
-    },
-    "renameFile": {
-      "cancel": "キャンセル",
-      "fileNamingTemplate": "ファイル命名テンプレート",
-      "newName": "新しい名前",
-      "notUniqueWarning": "{original_filename}、{original_filename_number}、{sequence} のいずれも含まれない場合、ファイル名が重複することがあります。その場合、名前は一切変更されません。",
-      "save": "保存",
-      "titleMultiple": "{{count}} 件の画像名を変更",
-      "titleMultiple_one": "{{count}} 件の画像名を変更",
-      "titleMultiple_other": "{{count}} 件の画像名を変更",
-      "titleSingle": "画像名を変更"
-    },
-    "renameFolder": {
-      "cancel": "キャンセル",
-      "placeholder": "新しいフォルダ名を入力...",
-      "save": "保存",
-      "title": "フォルダ名を変更"
-    },
-    "renameGroup": {
-      "placeholder": "新しいグループ名を入力..."
-    },
     "transform": {
       "amount": "適用量",
-      "apply": "適用",
       "aspect": "アスペクト比",
-      "cancel": "キャンセル",
-      "compareTooltip": "長押しで比較",
       "distortion": "歪み歪正",
       "geometry": "ジオメトリ",
       "guided": "ガイド付きパースペクティブ",
       "horizontal": "水平方向",
-      "manual": "手動変形",
-      "maskWarning": "変形を適用するとベースの形状が変更されるため、既存のマスクがずれる場合があります。また、AIマスクは再生成する必要があります。",
       "offset": "オフセット",
-      "original": "オリジナル",
       "perspective": "遠近歪み",
-      "resetTooltip": "変形をリセット",
-      "resetZoomTooltip": "ズームをリセット",
       "rotate": "回転",
       "scale": "倍率",
       "title": "変形",
-      "toggleGridTooltip": "グリッドを切り替え",
-      "toggleHelperLinesTooltip": "ヘルプラインを切り替え",
       "vertical": "垂直方向",
       "xAxis": "X軸",
-      "yAxis": "Y軸",
-      "zoomInTooltip": "拡大",
-      "zoomOutTooltip": "縮小"
+      "yAxis": "Y軸"
     }
   },
   "settings": {
-    "categories": {
-      "general": "一般",
-      "processing": "画像処理",
-      "shortcuts": "操作設定"
-    },
-    "controls": {
-      "keyboardTitle": "キーボードショートカット",
-      "modes": {
-        "mouse": "マウス",
-        "trackpad": "Touchpad"
-      },
-      "notAssigned": "未割り当て",
-      "optimization": "入力デバイスの最適化",
-      "optimizationDesc": "キャンバスのパンとズームに使用するメインの入力デバイスを選択します。",
-      "pressKey": "キーを押してください... (Escでクリア)",
-      "resetDefaults": "すべてデフォルトに戻す",
-      "speed": "速度",
-      "title": "マウス操作設定",
-      "zoom": "ズーム速度の倍率",
-      "zoomClick": "写真を100%にズーム",
-      "zoomClickDesc": "クリック時にエディターの写真を100%にズーム",
-      "zoomClickInfo": "写真をクリックするとすぐに100%（1:1 ピクセル）にズームされ、シャープネスとノイズを確認できます。無効の場合、クリックすると段階的にズームインします。",
-      "zoomDesc": "スクロールホイールやピンチジェスチャを使用したときのズーム速度を調整します。"
-    },
-    "data": {
-      "aiTags": "AIタグをクリア",
-      "aiTagsDesc": "ルートフォルダ内のすべての画像から AI が生成したタグを削除します。自分で追加したタグは保持されます。",
-      "allTags": "すべてのタグをクリア",
-      "allTagsDesc": "ルートフォルダ内のすべての画像から AI 生成タグとユーザー追加タグを削除します。カラーラベルは保持されます。",
-      "clear": "クリア",
-      "delete": "削除",
-      "deleteEdits": "すべての編集を削除",
-      "deleteEditsDesc": "すべてのルートフォルダ内の .rrdata サイドカーファイル（編集内容）をすべて削除します。この操作は元に戻せません。",
-      "libraryAndWorkspace": "ライブラリとワークスペース",
-      "limit": "上限",
-      "modals": {
-        "aiDenoiseMessage": "AIノイズ除去キャッシュを消去してもよろしいですか？\n\nAIノイズ除去が有効な画像は再度処理する必要があり、1枚あたり数分かかる場合があります。",
-        "aiMapsMessage": "深度・法線マップをクリアしてもよろしいですか？\n\nレンズブラー、フォグ、リライトを使用している画像は、次に開いたときにマップを再生成します。",
-        "aiMessage": "本当にすべてのアクティブなルートフォルダ内の画像から、AI生成されたタグをすべて削除しますか？\n\n手動で追加したタグには影響しません。この操作は取り消せません。",
-        "allMessage": "本当にすべてのアクティブなルートフォルダ内の画像から、AI生成および手動追加されたタグをすべて削除しますか？\n\nこの操作は取り消せません。",
-        "cacheMessage": "本当にサムネイルキャッシュを削除しますか？\n\nすべてのサムネイルが再生成されるため、大きなフォルダでは時間がかかる場合があります。",
-        "confirmAiTitle": "AIタグ削除の確認",
-        "confirmAllTitle": "全タグ削除の確認",
-        "confirmClear": "削除",
-        "confirmClearAi": "AIタグを削除",
-        "confirmClearAll": "すべてのタグを削除",
-        "confirmDeleteAllEdits": "すべての編集を削除",
-        "confirmResetLayout": "レイアウトをリセット",
-        "confirmResetLayoutTitle": "ワークスペースレイアウトのリセット",
-        "confirmTitle": "削除の確認",
-        "immichMessage": "ダウンロード済みの Immich オリジナルをクリアしてもよろしいですか？\n\n編集内容は保持されます。オリジナルは開いたときに再度ダウンロードされます。",
-        "metadataMessage": "メタデータキャッシュをクリアしてもよろしいですか？\n\nメタデータは閲覧中にファイルから再度読み込まれます。",
-        "modelsMessage": "ダウンロード済みの AI モデルを削除してもよろしいですか？\n\n次に AI 機能を使うときに再度ダウンロードされます。",
-        "resetLayoutMessage": "ワークスペースのレイアウトをリセットしてもよろしいですか？ドッキングされたすべてのパネル、幅、および切り替えボタンの位置がデフォルトに復元されます。",
-        "sidecarMessage": "本当にすべてのサイドカーファイルを削除しますか？\n\nアクティブなルートフォルダとそのサブフォルダ内にある、すべての画像の編集内容が完全に削除されます。"
-      },
-      "noFolders": "フォルダが選択されていません",
-      "refresh": "更新",
-      "reset": "リセット",
-      "resetLayoutDesc": "パネルのドック、サイドスプリッター、高さ、パネル切り替えボタンをデフォルトの配置に復元します。",
-      "resetLayoutTitle": "ワークスペースレイアウトのリセット",
-      "show": "表示",
-      "statuses": {
-        "aiDenoiseSuccess": "AIノイズ除去キャッシュを消去しました。",
-        "aiSuccess": "{{count}} 件のファイルを更新しました。AIタグを削除しました。",
-        "aiSuccess_one": "{{count}} 件のファイルを更新しました。AIタグを削除しました。",
-        "aiSuccess_other": "{{count}} 件のファイルを更新しました。AIタグを削除しました。",
-        "allSuccess": "{{count}} 件のファイルを更新しました。カラーラベル以外のタグをすべて削除しました。",
-        "allSuccess_one": "{{count}} 件のファイルを更新しました。カラーラベル以外のタグをすべて削除しました。",
-        "allSuccess_other": "{{count}} 件のファイルを更新しました。カラーラベル以外のタグをすべて削除しました。",
-        "cacheSuccess": "サムネイルキャッシュを正常に削除しました。",
-        "cleared": "正常にクリアされました。",
-        "layoutResetSuccess": "ワークスペースレイアウトがデフォルトにリセットされました。",
-        "sidecarSuccess": "{{count}} 件のサイドカーファイルを正常に削除しました。",
-        "sidecarSuccess_one": "{{count}} 件のサイドカーファイルを正常に削除しました。",
-        "sidecarSuccess_other": "{{count}} 件のサイドカーファイルを正常に削除しました。"
-      },
-      "storage": {
-        "aiDenoise": "AI ノイズ除去",
-        "aiDenoiseDesc": "キャッシュされたノイズ除去結果。",
-        "aiMaps": "深度・法線マップ",
-        "aiMapsDesc": "レンズブラー、フォグ、リライトで使用されます。",
-        "immich": "Immich",
-        "immichDesc": "ダウンロード済みのオリジナル。上限に達すると最も長く使われていないものから削除されます。編集内容は保持されます。",
-        "logs": "ログ",
-        "logsDesc": "トラブルシューティング用のアプリのログファイル。起動するたびにクリアされます。",
-        "metadata": "メタデータ",
-        "metadataDesc": "フォルダを高速に読み込むためにキャッシュされた EXIF データ。",
-        "models": "AI モデル",
-        "modelsDesc": "AI 機能を初めて使うときに必要に応じてダウンロードされます。",
-        "thumbnails": "サムネイル",
-        "thumbnailsDesc": "閲覧中に自動で再生成されます。"
-      },
-      "storageTitle": "ストレージ",
-      "title": "データ管理",
-      "totalUsed": "RapidRAW はこのデバイスで {{size}} を使用しています。"
-    },
-    "general": {
-      "createXmp": "見つからないXMPファイルを作成",
-      "createXmpDesc": "画像にXMPサイドカーファイルが存在しない場合、自動的に新規作成します。",
-      "createXmpMissing": "見つからない場合はXMPを作成",
-      "displayEditIcon": "編集アイコンを表示",
-      "displayEditIconDesc": "編集されたサムネイルに小さなスライダーアイコンを表示します。",
-      "enableFocusMode": "フォーカスモードを有効にする",
-      "enableNeutralGreyCanvas": "ニュートラルグレーの背景を有効にする",
-      "enableOsTitlebar": "OSのタイトルバーを有効にする",
-      "enableToolFocusMode": "ツールフォーカスモードを有効にする",
-      "enableXmpSync": "XMP同期を有効にする",
-      "focusMode": "フォーカスモード",
-      "focusModeDesc": "新しいパネルを開いたときに他のパネルを自動的に閉じることで、編集作業に集中できるようにします。",
-      "folderImageCounts": "フォルダ内画像数",
-      "folderImageCountsDesc": "フォルダツリーをホバーしたときにフォルダ内の画像数を表示します。",
-      "font": "フォント",
-      "fontDesc": "アプリケーションのフォントを変更します。",
-      "nativeTitlebar": "OS標準のタイトルバー",
-      "nativeTitlebarDesc": "RapidRAWカスタムのもの代わりに、システムのデフォルトのウィンドウタイトルバーを使用します。",
-      "neutralGreyCanvas": "ニュートラルグレーのキャンバス",
-      "neutralGreyCanvasDesc": "アプリのテーマを変更せずに、より正確な色と露出のグレーディングを行うために、ニュートラルグレーのキャンバスを使用します。",
-      "poppins": "Poppins",
-      "showImageCounts": "画像数を表示",
-      "system": "システムデフォルト",
-      "theme": "テーマ",
-      "themeDesc": "アプリケーションのテーマ（外観）を変更します。",
-      "title": "全般設定",
-      "toolFocusMode": "ツールフォーカスモード",
-      "toolFocusModeDesc": "ツールを展開すると、同じパネル内の他のツールを自動的に折りたたみます。",
-      "xmpSync": "XMPメタデータ同期",
-      "xmpSyncDesc": "他の写真編集ソフトとの互換性のために、評価、カラーラベル、タグを標準のXMPサイドカーファイルと同期します。"
-    },
     "keybinds": {
       "actions": {
         "auto_straighten": "自動角度補正",
         "brush_size_down": "ブラシサイズを縮小",
         "brush_size_up": "ブラシサイズを拡大",
-        "color_label_blue": "カラーラベル: ブルー",
-        "color_label_green": "カラーラベル: グリーン",
-        "color_label_none": "カラーラベル: なし",
-        "color_label_purple": "カラーラベル: パープル",
-        "color_label_red": "カラーラベル: レッド",
-        "color_label_yellow": "カラーラベル: イエロー",
         "copy_adjustments": "選択した補正設定をコピー",
-        "copy_files": "選択したファイルをコピー",
         "copy_image_path": "選択した画像のパスをコピー",
         "cycle_zoom": "ズームの切り替え (全体表示、2倍拡大、100%)",
-        "delete_rejected": "除外したファイルを削除",
-        "delete_selected": "選択したファイルを削除",
-        "focus_search": "検索フィールドにフォーカス",
-        "open_image": "選択した画像を開く",
-        "open_settings": "設定を開く",
         "paste_adjustments": "コピーした補正設定を貼り付け",
-        "paste_files": "現在のフォルダにファイルを貼り付け",
-        "preview_next": "次の画像",
-        "preview_prev": "前の画像",
-        "rate_0": "星評価: 0",
-        "rate_1": "星評価: 1",
-        "rate_2": "星評価: 2",
-        "rate_3": "星評価: 3",
-        "rate_4": "星評価: 4",
-        "rate_5": "星評価: 5",
         "redo": "操作をやり直す",
         "rotate_left": "反時計回りに90°回転",
         "rotate_right": "時計回りに90°回転",
-        "select_all": "すべての画像を選択",
         "show_original": "オリジナルを表示 (比較)",
         "toggle_adjustments": "補正設定パネルの表示/非表示",
         "toggle_ai": "AIパネルの表示/非表示",
         "toggle_analytics": "アナリティクス表示の表示/非表示",
-        "toggle_bottom_panel": "フィルムストリップの表示/非表示",
         "toggle_crop": "切り抜き/角度補正の切り替え",
         "toggle_crop_panel": "切り抜きパネルの表示/非表示",
         "toggle_export": "書き出しパネルの表示/非表示",
-        "toggle_folder_tree": "フォルダーツリーパネルの切り替え",
         "toggle_fullscreen": "全画面表示の切り替え",
         "toggle_left_panel": "左パネルの表示/非表示",
-        "toggle_library_exif": "EXIF重ね合わせ表示の表示/非表示",
         "toggle_masks": "マスクパネルの表示/非表示",
-        "toggle_metadata": "メタデータパネルの表示/非表示",
-        "toggle_pick": "採用フラグを切り替え",
-        "toggle_presets": "プリセットパネルの表示/非表示",
-        "toggle_reject": "除外フラグを切り替え",
         "toggle_right_panel": "右パネルの表示/非表示",
         "undo": "操作を元に戻す",
-        "unflag": "フラグを解除",
         "zoom_100": "100%ズーム",
         "zoom_fit": "画面に合わせる",
         "zoom_in": "ズームイン",
@@ -1742,306 +797,28 @@
       },
       "sections": {
         "editing": "編集",
-        "library": "ライブラリ",
         "panels": "パネル",
-        "rating": "評価とラベル",
         "view": "表示"
       }
-    },
-    "language": "言語",
-    "languageDesc": "アプリケーションの表示言語を変更します。",
-    "lenses": {
-      "addButton": "マイレンズに追加",
-      "addNew": "新しいレンズを追加",
-      "description": "よく使うレンズのリストを作成して、レンズ補正パネルからすばやくアクセスできるようにします。",
-      "manufacturerPlaceholder": "メーカーを選択",
-      "modelPlaceholder": "レンズモデルを選択",
-      "noLenses": "レンズがまだ登録されていません。",
-      "removeTooltip": "レンズを削除",
-      "saved": "登録されたレンズ",
-      "title": "マイレンズ"
-    },
-    "processing": {
-      "advanced": {
-        "auto": "自動",
-        "exportMemoryLimit": "書き出しメモリ上限",
-        "exportMemoryLimitDesc": "一括書き出しが使用できる空きメモリの割合です。大きな書き出し中も他のアプリを快適に使いたい場合は下げてください。",
-        "exportThreads": "並列書き出し",
-        "exportThreadsDesc": "同時に書き出す画像の数です。自動では CPU に合わせて値を選びます。大きな書き出しが失敗する場合や GPU のメモリが少ない場合は下げてください。",
-        "heading": "詳細",
-        "headingDesc": "サムネイル、キャッシュ、書き出しのパフォーマンス調整です。ほとんどの場合は既定値のままで問題ありません。",
-        "title": "詳細設定"
-      },
-      "ai": {
-        "aiFree": {
-          "description": "すべてのAI機能をオフにします。AI関連のコントロールはすべてインターフェースから非表示になり、RapidRAWは純粋な従来型のRAWエディターとして動作します。",
-          "feature1": "AIマスク、レンズぼかし、生成編集をUIに表示しません",
-          "feature2": "既存のAI編集は引き続き通常どおり反映されます",
-          "feature3": "よりすっきりとした集中しやすいインターフェース",
-          "title": "AIなし"
-        },
-        "connector": {
-          "address": "AI Connectorのアドレス",
-          "addressDesc": "起動中の AI Connector インスタンスのアドレスとポートを入力してください。生成AI機能に必要です。",
-          "description": "十分なスペックのGPUを搭載し、フルコントロールを行いたいユーザー向けの機能です。RapidRAWをご自身の Connector サーバーに接続します。",
-          "failed": "接続に失敗しました。",
-          "feature1": "自身の ComfyUI インスタンスを使用可能",
-          "feature2": "追加コスト不要の高度な生成編集",
-          "feature3": "カスタムワークフローの自由な選択",
-          "success": "接続に成功しました！",
-          "test": "テスト",
-          "testing": "テスト中...",
-          "title": "セルフホスト (RapidRAW AI Connector)"
-        },
-        "cpu": {
-          "description": "RapidRAWに直接内蔵されており、お使いのコンピューター上のみで動作します。高速かつ無料でセットアップも不要です。",
-          "feature1": "AIマスク機能 (被写体、空、手前)",
-          "feature2": "自動画像タグ付け機能",
-          "feature3": "デバイス上での簡易生成塗りつぶし",
-          "gpuAcceleration": "GPUアクセラレーション",
-          "gpuAccelerationDesc": "ノイズ除去、マスク、深度マップや法線マップ、タグ付けなどの内蔵AI機能をグラフィックカードで実行し、大幅に高速化します。クラッシュやAIの結果がおかしい場合は無効にしてください。",
-          "gpuAccelerationLabel": "AIモデルにGPUを使用",
-          "title": "内蔵AI"
-        },
-        "description": "RapidRAWのAIは、優れた柔軟性を備えています。高速なローカル処理から本格的なセルフホストまで、最適なワークフローを選択してください。",
-        "providers": {
-          "aiConnector": "AI Connector",
-          "aiFree": "AIなし",
-          "cpu": "内蔵"
-        },
-        "title": "生成AI"
-      },
-      "alwaysDecodeRaw": "常にRAWをデコード",
-      "alwaysDecodeRawDesc": "埋め込まれたJPEGプレビューを使用する代わりに、サムネイルの完全なRAWデコードを強制します。サムネイルの色やコントラストが開いた画像と異なる場合に有効にしてください。",
-      "alwaysDecodeRawLabel": "サムネイル用に常にRAWをデコード",
-      "backend": "処理バックエンド",
-      "backendDesc": "グラフィックスAPIを選択します。「自動」を推奨します。一部のシステムでのクラッシュを回避できる場合があります。",
-      "backends": {
-        "auto": "自動",
-        "dx12": "DirectX 12",
-        "gl": "OpenGL",
-        "metal": "Metal",
-        "vulkan": "Vulkan"
-      },
-      "dynamicDesc": "編集画面は、ディスプレイの実際の画素密度に合わせたプレビューをレンダリングします。これにより、ズーム時やピント合わせ時に1:1のピクセル精度で細部まで鮮明に表現されます。",
-      "enableLivePreviews": "リアルタイムプレビューを有効化",
-      "highDpi": "高DPIレンダリング",
-      "highDpiDesc": "画面本来の物理解像度である {{dpr}}x でプレビューをレンダリングします。極めて鮮明なプレビューが得られますが、メモリ消費が大幅に増加します。",
-      "highDpiDescStandard": "この設定は高DPIディスプレイのみに影響します。現在のディスプレイは標準解像度です。",
-      "imageCache": "デコード済み画像キャッシュ",
-      "imageCacheDesc": "RAMに保持するフル解像度画像の最大数。値を大きくすると、最近編集した画像間の切り替えが瞬時に行えますが、メモリ消費量が増加します。",
-      "images": "画像",
-      "linuxCompat": "Linux互換モード",
-      "linuxCompatDesc": "一般的なGPUドライバーやディスプレイサーバーの不具合の回避策を有効にします。フルGPUアクセラレーションを使用するには無効にしてください。",
-      "linuxCompatLabel": "互換モードを有効にする",
-      "livePreviewQuality": "ライブプレビュー画質",
-      "livePreviewQualityDesc": "スライダーをドラッグしている間の画像の解像度と圧縮を制御します。低画質にすると、操作のレスポンスが大幅に向上します。",
-      "livePreviews": "インタラクティブなリアルタイムプレビュー",
-      "livePreviewsDesc": "スライダーのドラッグに合わせてプレビューを即座に更新します。調整中に操作が重く感じる場合は、これを無効にしてください。",
-      "mediumThumbnailRes": "エディターサムネイルの解像度",
-      "mediumThumbnailResDesc": "完全な画像がエディターに読み込まれる間に表示されるプレビューの解像度。",
-      "modes": {
-        "dynamic": "ダイナミック",
-        "static": "固定解像度"
-      },
-      "nativeDpi": "本来の解像度でレンダリング",
-      "preprocessing": {
-        "appleRaw9": "Apple RAW 9 エンジン",
-        "appleRaw9Desc": "AppleのCore Image RAW 9デコーダを使用してRAWファイルを現像します。これはNeural Engine上でデモザイク処理とノイズ低減を1ステップで行います。macOS 27以降および対応カメラが必要です。未対応のファイルは自動的に内蔵デコーダを使用します。デフォルトのデコーダより低速です。サムネイルには影響しません。",
-        "applyPreprocessing": "RAW以外の画像にも事前処理を適用",
-        "applyPreprocessingDesc": "有効にすると、上記のカラーノイズ低減と事前シャープ処理が標準フォーマットの画像にも適用されます。",
-        "baselineExposure": "ベース露出",
-        "baselineExposureAmount": "ベース量",
-        "baselineExposureAmountDesc": "RAWファイルに加える露出量です。darktableは+0.7 EVを使用します。",
-        "baselineExposureDesc": "すべてのRAWファイルを一定量明るくします（darktableのシーンリファード既定値と同様）。DNGのBaselineExposureタグがある場合はその値も加えます。このオプションの追加前に編集した画像には影響しません。",
-        "colorNr": "カラーノイズ低減 (基本)",
-        "colorNrDesc": "パイプラインの初期段階でクロスバイラテラルフィルタを適用し、カラーノイズを除去します。値が大きいほど効果が強まります。",
-        "defaultNonRawTonemapper": "標準トーンマッパー (RAW以外)",
-        "defaultNonRawTonemapperDesc": "RAW以外の画像 (JPEG, PNGなど) に適用されるトーンマッパーです。",
-        "defaultRawTonemapper": "標準トーンマッパー (RAW)",
-        "defaultRawTonemapperDesc": "RAW画像に適用される標準のトーンマッパーです。",
-        "enableAppleRaw9": "RAWファイルにApple RAW 9を使用する",
-        "enableBaselineExposure": "RAWファイルにベース露出を適用",
-        "enableHighlightPreservation": "カメラのハイライト保護モードを補正",
-        "enablePreprocessingNonRaws": "RAW以外の画像にも適用",
-        "enableTonemapperOverride": "トーンマッパーの上書きを有効化",
-        "highlightPreservation": "ハイライト保護の補正",
-        "highlightPreservationDesc": "ハイライト保護モードでカメラが抑えた露出を、RAWファイルから読み取って補います（富士フイルム DR200/DR400、キヤノン 高輝度側・階調優先とオートライティングオプティマイザ、ニコン アクティブD-ライティング、オリンパス 階調、ペンタックス Dレンジ補正）。このオプションの追加前に編集した画像には影響しません。",
-        "highlightRecovery": "RAWハイライト再現",
-        "highlightRecoveryDesc": "RAWファイルで白とびしたハイライトから再現する情報のレベルを設定します。値を高くするとディテールが戻りますが、紫色のアーティファクトが発生する場合があります。",
-        "linearOptions": {
-          "auto": "自動",
-          "gamma": "ガンマを適用",
-          "gamma_skip_calib": "ガンマ適用 & キャリブレーションをスキップ",
-          "skip_calib": "キャリブレーションをスキップ"
-        },
-        "linearRaw": "Linear RAW 処理",
-        "linearRawDesc": "一部のDNGファイルで発生する色かぶりやピンク色のノイズを修正します。処理済みのLinearRAWデータの解釈方法を設定します。",
-        "sharpening": "事前シャープ処理 (基本)",
-        "sharpeningDesc": "パイプラインの初期段階で控えめなディテール強調を行います。値が大きいほどシャープになります。",
-        "title": "画像の事前処理",
-        "tonemapperOptions": {
-          "agx": "AgX",
-          "basic": "標準"
-        },
-        "tonemapperOverride": "グローバルトーンマッパー上書き",
-        "tonemapperOverrideDesc": "すべての画像に対して指定したトーンマッパーを強制適用し、調整パネル内の切り替えスイッチを非表示にします。"
-      },
-      "previewRes": "プレビュー解像度",
-      "previewResDesc": "メインプレビューの最大解像度を決定します。値を下げるとパフォーマンスが大幅に向上します。",
-      "previewStrategy": "プレビューレンダリング方式",
-      "qualities": {
-        "high": "高画質",
-        "performance": "パフォーマンス優先"
-      },
-      "renderScale": "レンダリングスケール",
-      "renderScaleDesc": "画面解像度に対する表示解像度の比率を調整します。高解像度ディスプレイで値を下げると、シャープネスがわずかに低下する代わりに動作が軽くなります。",
-      "restartRequired": "処理エンジンの変更を有効にするには、アプリを再起動する必要があります。",
-      "saveRelaunch": "保存して再起動",
-      "smallThumbnailRes": "グリッドサムネイルの解像度",
-      "smallThumbnailResDesc": "ライブラリのグリッドに表示されるサムネイルの解像度。",
-      "staticDesc": "画像を固定の解像度でレンダリングします。このモードは最も軽量かつ安定しており、ズーム精度よりも軽快な動作を優先する低スペック環境に最適です。",
-      "staticPreviewRes": "静的プレビュー解像度",
-      "staticPreviewResDesc": "切り抜き、レンズ補正、変形ツールなどを使用する際のプレビュー解像度を設定します。メインエディタのプレビューには影響しません。",
-      "threads": "スレッド数",
-      "thumbnailRes": "サムネイル解像度",
-      "thumbnailResDesc": "生成されるライブラリ用サムネイルの解像度を指定します。高い値にすると、ロード中もシャープに表示されます。",
-      "title": "処理エンジン",
-      "wgpu": "WGPUダイレクトレンダリング",
-      "wgpuDescAndroid": "ブラウザエンコードをバイパスし、即座に反応するプレビューを実現します。（Androidでは無効: モバイルのWebview環境下でのネイティブWGPUサーフェスの作成は現在サポートされていません。）",
-      "wgpuDescLinux": "ブラウザエンコードをバイパスし、即座に反応するプレビューを実現します。（Linuxでは無効: TauriはGTKウェブビューを使用しており、同一X11サーフェス上でWGPUと競合してちらつきが発生するためです。）",
-      "wgpuDescRecommended": "ブラウザエンコードをバイパスし、即座に反応するライブプレビューを実現します。パフォーマンス向上のため、強く推奨します。",
-      "wgpuLabel": "WGPUダイレクトレンダリングを有効化",
-      "workerThreads": "サムネイルワーカー数",
-      "workerThreadsDesc": "サムネイル作成に使用する並行スレッドの数。値を大きくするとライブラリのロードが速くなりますが、CPUとメモリを多く使用します。"
-    },
-    "tagging": {
-      "addCustomPlaceholder": "カスタムAIタグを入力（カンマ区切り）...",
-      "addCustomTooltip": "AIタグを追加",
-      "addShortcutsPlaceholder": "ショートカットを入力（カンマ区切り）...",
-      "addShortcutTooltip": "ショートカットを追加",
-      "aiTagging": "AIタグ付け",
-      "aiTaggingDesc": "AI（CLIP）モデルを使用した自動画像タグ付けを有効にします。追加のモデルがダウンロードされ、フォルダ閲覧時のパフォーマンスに影響します。タグはフォルダ内検索に使用されます。",
-      "amount": "適用度",
-      "automaticAiTagging": "自動AIタグ付け",
-      "clearCustomTooltip": "AIタグリストをクリア",
-      "clearShortcutsTooltip": "ショートカットリストをクリア",
-      "customList": "カスタムAIタグリスト",
-      "customListDesc": "タグを指定した場合、AIはリスト内のタグのみを使用し、RapidRAWの内蔵リストは使用されません。タグ付け機能は英語のみ対応しています。",
-      "maxAiTags": "最大AIタグ数",
-      "maxAiTagsDesc": "画像ごとに生成されるAIタグの最大数。",
-      "noCustomTags": "カスタムAIタグなし（内蔵リストを使用中）",
-      "noShortcuts": "ショートカット未登録",
-      "removeCustomTooltip": "タグ「{{tag}}」を削除",
-      "removeShortcutTooltip": "ショートカット「{{shortcut}}」を削除",
-      "shortcuts": "タグ用ショートカット",
-      "shortcutsDesc": "タグコンテキストメニューにショートカットとして表示されるタグのリスト。",
-      "title": "タグ付け"
-    },
-    "thanks": {
-      "description": "RapidRAWの開発において、非常に重要な役割を果たしてくれた以下のプロジェクトに心より感謝いたします:",
-      "list": {
-        "birefnet": "AIによる手前の自動検出を支える、高解像度のセグメンテーションモデルを提供しています。",
-        "darktable": "一部の実装において参考にさせていただきました。",
-        "depth": "AI奥行きマスクを可能にする、単眼深度推定モデルを提供しています。",
-        "efficientsam3": "AIによる空とテキストのマスクを支える、SAM 3から蒸留された効率的なプロンプト対応セグメンテーションモデルを提供しています。",
-        "lama": "コンテンツに応じた塗りつぶしやオブジェクト削除を実現する、シンプルかつ強力な画像インペインティングモデルを提供しています。",
-        "lensfun": "自動レンズ補正に不可欠な、オープンソースライブラリと膨大なデータベースを提供しています。",
-        "libgphoto2": "RapidRAW のテザリングおよびリモート撮影機能を支える、包括的なカメラ通信ライブラリを提供してくださったことに。",
-        "mediapipe": "AI顔マスクを支える高速な顔ランドマークおよびセグメンテーションモデルに。",
-        "negpy": "ネガ反転アルゴリズムのヒントとなりました。",
-        "nind": "AIノイズ低減機能を支えるAIモデルを提供しています。",
-        "rawler": "RAWファイル処理の基盤となる優れたRustライブラリを提供しています。",
-        "sam2": "AI被写体検出機能の基盤となるモデルを提供しています。",
-        "spektrafilm": "RapidRAW の内蔵フィルムエミュレーションを支える、Andrea Volpato 氏によるスペクトルベースのフィルムエミュレーション LUT を提供してくださったことに。ライセンスは CC BY-SA 4.0 です。",
-        "you": "RapidRAWをご利用、ご支援いただきありがとうございます。皆様のご関心こそが、プロジェクトの存続と発展の支えです。",
-        "youLabel": "皆様"
-      },
-      "title": "特別な謝辞"
     },
     "themes": {
       "dark": "ダーク",
       "grey": "グレー",
       "light": "ライト"
-    },
-    "title": "設定",
-    "tooltips": {
-      "goHome": "ホームへ移動"
     }
-  },
-  "tethering": {
-    "aperture": "絞り",
-    "aperturePlaceholder": "例: 2.8",
-    "autoApplyPreset": "プリセット自動適用",
-    "autoOpenCaptured": "撮影した画像を自動で開く",
-    "cameraConnected": "カメラ接続中",
-    "capturing": "撮影中...",
-    "changePreset": "変更",
-    "clearPreset": "プリセットを解除",
-    "connectCamera": "カメラを接続",
-    "expComp": "露出補正",
-    "expCompPlaceholder": "例: 0.0",
-    "expMode": "露出モード",
-    "exposureSettings": "露出設定",
-    "flipHorizontal": "左右反転",
-    "generalSettings": "一般設定",
-    "ghostOverlayAlt": "ゴーストオーバーレイ",
-    "iso": "ISO",
-    "isoPlaceholder": "例: 400",
-    "liveViewAlt": "ライブビュー",
-    "metering": "測光モード",
-    "noCameraDetected": "カメラが検出されません",
-    "noCamerasFound": "カメラが見つかりません。接続とPCリモートモードを確認してください。",
-    "overlayLastShot": "直前のショットをオーバーレイ",
-    "overlayOff": "オフ",
-    "rotate90": "90°回転",
-    "scanTooltip": "カメラをスキャン",
-    "selectCamera": "カメラを選択",
-    "selectCameraPlaceholder": "カメラを選択してください",
-    "shutter": "シャッター",
-    "shutterPlaceholder": "例: 1/200",
-    "startLiveView": "ライブビュー開始",
-    "status": "ステータス",
-    "stopLiveView": "ライブビュー停止",
-    "title": "テザー撮影",
-    "toasts": {
-      "afFailed": "オートフォーカスの実行に失敗しました",
-      "cameraDisconnected": "カメラが切断されました",
-      "captureFailed": "撮影に失敗しました: {{err}}",
-      "communicationFailed": "カメラとの通信に失敗しました",
-      "connectionFailed": "接続に失敗しました: {{err}}",
-      "detectionFailed": "検出に失敗しました: {{err}}",
-      "noCamerasFound": "カメラが見つかりません。PCリモートモードになっていることを確認してください。",
-      "presetApplyFailed": "撮影画像へのプリセット適用に失敗しました",
-      "selectFolderFirst": "最初にライブラリで通常のフォルダを選択してください。",
-      "setFailed": "{{key}} の設定に失敗しました: {{err}}"
-    },
-    "triggerAutofocus": "AFを実行",
-    "triggerCapture": "撮影",
-    "wbTemp": "色温度 (K)",
-    "wbTempPlaceholder": "例: 5600",
-    "whiteBalance": "ホワイトバランス"
   },
   "ui": {
     "bottomBar": {
-      "imagesSelected": "{{total}}枚中 {{current}}枚の画像を選択中",
       "tooltips": {
-        "collapseFilmstrip": "フィルムストリップをたたむ",
         "collapseLeft": "左パネルを折りたたむ",
         "collapseRight": "右パネルを折りたたむ",
         "copyPasteSettings": "補正設定のコピーと貼り付け",
         "copySettings": "補正設定をコピー",
         "customZoom": "クリックしてカスタムのズーム倍率を入力",
-        "expandFilmstrip": "フィルムストリップを展開",
         "expandLeft": "左パネルを展開",
         "expandRight": "右パネルを展開",
-        "export": "書き出し",
         "pasteSettings": "補正設定を貼り付け",
-        "quickFilter": "クイックフィルター",
-        "rateStars_one": "星1に評価",
-        "rateStars_other": "星 {{count}} に評価",
-        "resetZoom": "ズームをウィンドウサイズに合わせる",
-        "selectToRate": "画像を選択して評価を設定"
+        "resetZoom": "ズームをウィンドウサイズに合わせる"
       },
       "zoomLabel": "ズーム",
       "zoomLabelReset": "ズームをリセット"
@@ -2058,26 +835,6 @@
       "saturation": "彩度",
       "saturationAbbreviation": "S:"
     },
-    "exportPresets": {
-      "deleteTooltip": "プリセットを削除",
-      "heading": "書き出しプリセット",
-      "overwriteTooltip": "選択したプリセットを上書き",
-      "placeholder": "プリセットを選択...",
-      "presetNamePlaceholder": "プリセット名",
-      "saveAsNewTooltip": "現在の設定を新規プリセットとして保存",
-      "savedTooltip": "保存しました！"
-    },
-    "filmstrip": {
-      "tooltips": {
-        "color": "カラー: {{color}}",
-        "virtualCopy": "仮想コピー"
-      },
-      "virtualCopyAbbreviation": "仮想"
-    },
-    "flags": {
-      "togglePick": "採用を切り替え",
-      "toggleReject": "除外を切り替え"
-    },
     "imagePicker": {
       "clearImage": "画像をクリア",
       "filterLabel": "画像ファイル",
@@ -2087,7 +844,6 @@
     "lut": {
       "clearLut": "LUTをクリア",
       "customLuts": "カスタム LUT",
-      "empty": "LUTはまだありません — インポートしてください",
       "filmEmulations": "フィルムエミュレーション",
       "filterLabel": "LUTファイル",
       "import": "プロファイルをインポート",
@@ -2096,8 +852,7 @@
       "label": "LUT",
       "removeLut": "LUTを削除",
       "select": "選択",
-      "selectLutFile": "LUTファイルを選択",
-      "unsupportedFormat": "未対応のファイル形式が検出されました: .{{ext}}"
+      "selectLutFile": "LUTファイルを選択"
     },
     "slider": {
       "clickToEdit": "クリックして編集",

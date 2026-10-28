@@ -132,12 +132,6 @@ export const KEYBIND_DEFINITIONS: KeybindDefinition[] = [
     defaultCombo: ['ctrl', 'KeyB'],
     section: 'panels',
   },
-  {
-    action: 'open_settings',
-    description: 'settings.keybinds.actions.open_settings',
-    defaultCombo: ['ctrl', 'Comma'],
-    section: 'view',
-  },
   { action: 'undo', description: 'settings.keybinds.actions.undo', defaultCombo: ['ctrl', 'KeyZ'], section: 'editing' },
   { action: 'redo', description: 'settings.keybinds.actions.redo', defaultCombo: ['ctrl', 'KeyY'], section: 'editing' },
   {

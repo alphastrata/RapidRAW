@@ -1,147 +1,18 @@
-import { useState, useMemo, useCallback } from 'react';
-import {
-  BorderBasis,
-  DEFAULT_EXPORT_DPI,
-  ExportPreset,
-  TiffBitDepth,
-  WatermarkAnchor,
-} from '../components/ui/ExportImportProperties';
+import { useState } from 'react';
+import { DEFAULT_EXPORT_DPI, TiffBitDepth } from '../components/ui/ExportImportProperties';
 
 export function useExportSettings() {
   const [fileFormat, setFileFormat] = useState('jpeg');
   const [jpegQuality, setJpegQuality] = useState(90);
   const [tiffBitDepth, setTiffBitDepth] = useState<TiffBitDepth>(16);
   const [dpi, setDpi] = useState(DEFAULT_EXPORT_DPI);
-  const [enableResize, setEnableResize] = useState(false);
-  const [resizeMode, setResizeMode] = useState('longEdge');
-  const [resizeValue, setResizeValue] = useState(2048);
-  const [dontEnlarge, setDontEnlarge] = useState(true);
-  const [enablePad, setEnablePad] = useState(false);
-  const [padRatioWidth, setPadRatioWidth] = useState(1);
-  const [padRatioHeight, setPadRatioHeight] = useState(1);
-  const [padColor, setPadColor] = useState('#ffffff');
-  const [enableBorder, setEnableBorder] = useState(false);
-  const [borderBasis, setBorderBasis] = useState<BorderBasis>(BorderBasis.LongEdge);
-  const [borderHorizontalPercent, setBorderHorizontalPercent] = useState(2);
-  const [borderVerticalPercent, setBorderVerticalPercent] = useState(2);
-  const [borderColor, setBorderColor] = useState('#ffffff');
   const [keepMetadata, setKeepMetadata] = useState(true);
   const [preserveTimestamps, setPreserveTimestamps] = useState(false);
   const [stripGps, setStripGps] = useState(true);
   const [exportMasks, setExportMasks] = useState(false);
-  const [preserveFolders, setPreserveFolders] = useState(false);
   const [filenameTemplate, setFilenameTemplate] = useState('{original_filename}_edited');
-  const [enableWatermark, setEnableWatermark] = useState(false);
-  const [watermarkPath, setWatermarkPath] = useState<string | null>(null);
-  const [watermarkAnchor, setWatermarkAnchor] = useState<WatermarkAnchor>(WatermarkAnchor.BottomRight);
-  const [watermarkScale, setWatermarkScale] = useState(10);
-  const [watermarkSpacing, setWatermarkSpacing] = useState(5);
-  const [watermarkOpacity, setWatermarkOpacity] = useState(75);
   const [destinationType, setDestinationType] = useState<string>('customFolder');
   const [subfolder, setSubfolder] = useState<string>('');
-
-  const handleApplyPreset = useCallback((preset: ExportPreset) => {
-    setFileFormat(preset.fileFormat);
-    setJpegQuality(preset.jpegQuality);
-    setTiffBitDepth(preset.tiffBitDepth ?? 16);
-    setDpi(preset.dpi ?? DEFAULT_EXPORT_DPI);
-    setEnableResize(preset.enableResize);
-    setResizeMode(preset.resizeMode);
-    setResizeValue(preset.resizeValue);
-    setDontEnlarge(preset.dontEnlarge);
-    setEnablePad(preset.enablePad ?? false);
-    setPadRatioWidth(preset.padRatioWidth ?? 1);
-    setPadRatioHeight(preset.padRatioHeight ?? 1);
-    setPadColor(preset.padColor ?? '#ffffff');
-    setEnableBorder(preset.enableBorder ?? false);
-    setBorderBasis((preset.borderBasis as BorderBasis) ?? BorderBasis.LongEdge);
-    setBorderHorizontalPercent(preset.borderHorizontalPercent ?? 2);
-    setBorderVerticalPercent(preset.borderVerticalPercent ?? 2);
-    setBorderColor(preset.borderColor ?? '#ffffff');
-    setKeepMetadata(preset.keepMetadata);
-    setPreserveTimestamps(preset.preserveTimestamps ?? false);
-    setStripGps(preset.stripGps);
-    setExportMasks(preset.exportMasks ?? false);
-    setPreserveFolders(preset.preserveFolders ?? false);
-    setFilenameTemplate(preset.filenameTemplate);
-    setEnableWatermark(preset.enableWatermark);
-    setWatermarkPath(preset.watermarkPath);
-    setWatermarkAnchor(preset.watermarkAnchor as WatermarkAnchor);
-    setWatermarkScale(preset.watermarkScale);
-    setWatermarkSpacing(preset.watermarkSpacing);
-    setWatermarkOpacity(preset.watermarkOpacity);
-    setDestinationType(preset.destinationType || 'customFolder');
-    setSubfolder(preset.subfolder || '');
-  }, []);
-
-  const currentSettingsObject = useMemo(
-    () => ({
-      fileFormat,
-      jpegQuality,
-      tiffBitDepth,
-      dpi,
-      enableResize,
-      resizeMode,
-      resizeValue,
-      dontEnlarge,
-      enablePad,
-      padRatioWidth,
-      padRatioHeight,
-      padColor,
-      enableBorder,
-      borderBasis,
-      borderHorizontalPercent,
-      borderVerticalPercent,
-      borderColor,
-      keepMetadata,
-      preserveTimestamps,
-      stripGps,
-      exportMasks,
-      preserveFolders,
-      filenameTemplate,
-      enableWatermark,
-      watermarkPath,
-      watermarkAnchor,
-      watermarkScale,
-      watermarkSpacing,
-      watermarkOpacity,
-      destinationType,
-      subfolder,
-    }),
-    [
-      fileFormat,
-      jpegQuality,
-      tiffBitDepth,
-      dpi,
-      enableResize,
-      resizeMode,
-      resizeValue,
-      dontEnlarge,
-      enablePad,
-      padRatioWidth,
-      padRatioHeight,
-      padColor,
-      enableBorder,
-      borderBasis,
-      borderHorizontalPercent,
-      borderVerticalPercent,
-      borderColor,
-      keepMetadata,
-      preserveTimestamps,
-      stripGps,
-      exportMasks,
-      preserveFolders,
-      filenameTemplate,
-      enableWatermark,
-      watermarkPath,
-      watermarkAnchor,
-      watermarkScale,
-      watermarkSpacing,
-      watermarkOpacity,
-      destinationType,
-      subfolder,
-    ],
-  );
 
   return {
     fileFormat,
@@ -152,32 +23,6 @@ export function useExportSettings() {
     setTiffBitDepth,
     dpi,
     setDpi,
-    enableResize,
-    setEnableResize,
-    resizeMode,
-    setResizeMode,
-    resizeValue,
-    setResizeValue,
-    dontEnlarge,
-    setDontEnlarge,
-    enablePad,
-    setEnablePad,
-    padRatioWidth,
-    setPadRatioWidth,
-    padRatioHeight,
-    setPadRatioHeight,
-    padColor,
-    setPadColor,
-    enableBorder,
-    setEnableBorder,
-    borderBasis,
-    setBorderBasis,
-    borderHorizontalPercent,
-    setBorderHorizontalPercent,
-    borderVerticalPercent,
-    setBorderVerticalPercent,
-    borderColor,
-    setBorderColor,
     keepMetadata,
     setKeepMetadata,
     preserveTimestamps,
@@ -186,27 +31,11 @@ export function useExportSettings() {
     setStripGps,
     exportMasks,
     setExportMasks,
-    preserveFolders,
-    setPreserveFolders,
     filenameTemplate,
     setFilenameTemplate,
-    enableWatermark,
-    setEnableWatermark,
-    watermarkPath,
-    setWatermarkPath,
-    watermarkAnchor,
-    setWatermarkAnchor,
-    watermarkScale,
-    setWatermarkScale,
-    watermarkSpacing,
-    setWatermarkSpacing,
-    watermarkOpacity,
-    setWatermarkOpacity,
     destinationType,
     setDestinationType,
     subfolder,
     setSubfolder,
-    handleApplyPreset,
-    currentSettingsObject,
   };
 }

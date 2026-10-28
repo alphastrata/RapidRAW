@@ -59,15 +59,10 @@ export function useExternalEditSession(handleImageSelect: (path: string) => void
       tiffBitDepth: 16,
       keepMetadata: true,
       preserveTimestamps: false,
-      preserveFolders: false,
       destinationType: 'customFolder',
       subfolder: '',
-      resize: null,
-      border: null,
-      pad: null,
       stripGps: false,
       exportMasks: false,
-      watermark: null,
     };
 
     setIsFinishing(true);
@@ -83,7 +78,6 @@ export function useExternalEditSession(handleImageSelect: (path: string) => void
         paths: [session.source],
         outputFolderOrFile: session.output,
         isExplicitFilePath: true,
-        baseOriginFolders: [],
         exportSettings,
         outputFormat: session.format,
         currentEditPath: selectedImage.path,

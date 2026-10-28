@@ -155,7 +155,6 @@ export interface UIState {
   isInstantTransition: boolean;
   isLayoutReady: boolean;
   uiVisibility: UiVisibility;
-  isSettingsOpen: boolean;
 
   leftPanelWidth: number;
   rightPanelWidth: number;
@@ -204,7 +203,6 @@ export const useUIStore = create<UIState>((set, get) => ({
   isInstantTransition: false,
   isLayoutReady: false,
   uiVisibility: { leftPanel: true, rightPanel: true },
-  isSettingsOpen: false,
 
   leftPanelWidth: DEFAULT_PANEL_WIDTH,
   rightPanelWidth: DEFAULT_PANEL_WIDTH,

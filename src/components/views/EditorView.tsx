@@ -18,7 +18,6 @@ interface EditorViewProps {
   transformWrapperRef: RefObject<any>;
   isResizing: boolean;
   layoutMode: 'compact' | 'wide' | 'full';
-  isAndroid: boolean;
   compactEditorPanelHeight: number;
   compactEditorPanelCollapsedHeight: number;
   createResizeHandler: (stateKey: string, startSize: number) => (e: ReactPointerEvent<HTMLDivElement>) => void;
@@ -35,7 +34,6 @@ export default function EditorView({
   transformWrapperRef,
   isResizing,
   layoutMode,
-  isAndroid,
   compactEditorPanelHeight,
   compactEditorPanelCollapsedHeight,
   createResizeHandler,
@@ -82,7 +80,7 @@ export default function EditorView({
       onPaste={() => handlePasteAdjustments()}
       onZoomChange={handleZoomChange}
       selectedImage={selectedImage ?? undefined}
-      showZoomControls={!isAndroid}
+      showZoomControls={true}
     />
   );
 

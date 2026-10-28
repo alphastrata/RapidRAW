@@ -154,7 +154,6 @@ interface EditorProps {
 
 export default function Editor({ onContextMenu, transformWrapperRef }: EditorProps) {
   const appSettings = useSettingsStore((s) => s.appSettings);
-  const osPlatform = useSettingsStore((s) => s.osPlatform);
   const isFullScreen = useUIStore((s) => s.isFullScreen);
   const activePanel = useUIStore((s) => s.activePanel);
   const isInstantTransition = useUIStore((s) => s.isInstantTransition);
@@ -195,8 +194,6 @@ export default function Editor({ onContextMenu, transformWrapperRef }: EditorPro
   const goToHistoryIndex = useEditorStore((s) => s.goToHistoryIndex);
   const canUndo = adjustmentsHistoryIndex > 0;
   const canRedo = adjustmentsHistoryIndex < adjustmentsHistory.length - 1;
-
-  const isAndroid = osPlatform === 'android';
 
   const { handleDirectPatch } = useAiMasking();
   const { setAdjustments, toggleCompare, selectCompareMode } = useEditorActions();
@@ -2523,7 +2520,6 @@ export default function Editor({ onContextMenu, transformWrapperRef }: EditorPro
         <EditorToolbar
           canRedo={canRedo}
           canUndo={canUndo}
-          isAndroid={isAndroid}
           isLoading={isLoading}
 
           onRedo={redo}

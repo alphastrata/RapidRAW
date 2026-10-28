@@ -85,7 +85,6 @@ function CompareButton({ compareMode, isComparing, onKeyDown, onSelectMode, onTo
 interface EditorToolbarProps {
   canRedo: boolean;
   canUndo: boolean;
-  isAndroid: boolean;
   isLoading: boolean;
   onRedo(): void;
   onToggleFullScreen(): void;
@@ -106,7 +105,6 @@ const EditorToolbar = memo(
   ({
     canRedo,
     canUndo,
-    isAndroid,
     isLoading,
     onRedo,
     onToggleFullScreen,
@@ -135,7 +133,7 @@ const EditorToolbar = memo(
     const historyButtonRef = useRef<HTMLDivElement>(null);
     useMenuDismiss(historyButtonRef, isHistoryVisible, setIsHistoryVisible);
 
-    const showResolution = !isAndroid && selectedImage.width > 0 && selectedImage.height > 0;
+    const showResolution = selectedImage.width > 0 && selectedImage.height > 0;
     const [displayedResolution, setDisplayedResolution] = useState('');
 
 

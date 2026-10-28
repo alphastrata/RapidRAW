@@ -15,7 +15,6 @@ import {
 import clsx from 'clsx';
 
 import TitleBar from './window/TitleBar';
-import SettingsPanel from './components/panel/SettingsPanel';
 import GlobalTooltip from './components/ui/GlobalTooltip';
 import AppModals from './components/modals/AppModals';
 
@@ -59,12 +58,10 @@ import ImageLoaderManager from './components/managers/ImageLoaderManager';
 const DND_MEASURING = { droppable: { strategy: MeasuringStrategy.Always } };
 
 function App() {
-  const { appSettings, theme, osPlatform, handleSettingsChange } = useSettingsStore(
+  const { appSettings, theme } = useSettingsStore(
     useShallow((state) => ({
       appSettings: state.appSettings,
       theme: state.theme,
-      osPlatform: state.osPlatform,
-      handleSettingsChange: state.handleSettingsChange,
     })),
   );
 
@@ -78,7 +75,6 @@ function App() {
     compactEditorPanelHeightOverride,
     activePanel,
     activeLayoutDragItem,
-    isSettingsOpen,
     setUI,
     setPanel,
     setLayoutDragItem,
@@ -94,7 +90,6 @@ function App() {
       compactEditorPanelHeightOverride: state.compactEditorPanelHeightOverride,
       activePanel: state.activePanel,
       activeLayoutDragItem: state.activeLayoutDragItem,
-      isSettingsOpen: state.isSettingsOpen,
       setUI: state.setUI,
       setPanel: state.setPanel,
       setLayoutDragItem: state.setLayoutDragItem,
@@ -146,21 +141,13 @@ function App() {
 
   useAppInitialization();
 
-  const isAndroid = osPlatform === 'android';
   const COMPACT_EDITOR_MAX_WIDTH = 900;
-  const ANDROID_COMPACT_MAX_WIDTH = 600;
-  const ANDROID_FULL_MIN_WIDTH = 1000;
 
   const isPortraitViewport = viewportSize.width > 0 && viewportSize.height > viewportSize.width;
 
   type LayoutMode = 'compact' | 'wide' | 'full';
-  const layoutMode: LayoutMode = isAndroid
-    ? viewportSize.width >= ANDROID_FULL_MIN_WIDTH
-      ? 'full'
-      : isPortraitViewport && viewportSize.width < ANDROID_COMPACT_MAX_WIDTH
-        ? 'compact'
-        : 'wide'
-    : isPortraitViewport && viewportSize.width > 0 && viewportSize.width <= COMPACT_EDITOR_MAX_WIDTH
+  const layoutMode: LayoutMode =
+    isPortraitViewport && viewportSize.width > 0 && viewportSize.width <= COMPACT_EDITOR_MAX_WIDTH
       ? 'compact'
       : 'full';
 
@@ -430,10 +417,7 @@ function App() {
               exportState={exportState}
               selectedImage={selectedImage}
               setExportState={setExportState}
-              appSettings={appSettings}
-              onSettingsChange={handleSettingsChange}
               isVisible={true}
-              onClose={() => setUI({ isSettingsOpen: false })}
             />
           );
         case Panel.Adjustments:
@@ -448,7 +432,7 @@ function App() {
           return null;
       }
     },
-    [setUI, setExportState, selectedImage, appSettings, handleSettingsChange],
+    [setExportState, selectedImage],
   );
 
   const isWgpuActive = appSettings?.useWgpuRenderer !== false && selectedImage?.isReady && hasRenderedFirstFrame;
@@ -489,17 +473,15 @@ function App() {
           isWgpuActive ? 'bg-transparent' : 'bg-bg-primary',
         )}
       >
-        {!isAndroid && (
-          <div
-            className={clsx(
-              'shrink-0 overflow-hidden z-50',
-              !isInstantTransition && 'transition-all duration-300 ease-in-out',
-              isFullScreen ? 'max-h-0 opacity-0 pointer-events-none' : 'max-h-15 opacity-100',
-            )}
-          >
-            {appSettings?.decorations || (!isWindowFullScreen && <TitleBar />)}
-          </div>
-        )}
+        <div
+          className={clsx(
+            'shrink-0 overflow-hidden z-50',
+            !isInstantTransition && 'transition-all duration-300 ease-in-out',
+            isFullScreen ? 'max-h-0 opacity-0 pointer-events-none' : 'max-h-15 opacity-100',
+          )}
+        >
+          {appSettings?.decorations || (!isWindowFullScreen && <TitleBar />)}
+        </div>
         <div
           className={clsx(
             'flex-1 flex flex-col min-h-0',
@@ -541,7 +523,6 @@ function App() {
                     transformWrapperRef={transformWrapperRef}
                     isResizing={false}
                     layoutMode={layoutMode}
-                    isAndroid={isAndroid}
                     compactEditorPanelHeight={compactEditorPanelHeight}
                     compactEditorPanelCollapsedHeight={compactEditorPanelCollapsedHeight}
                     createResizeHandler={createResizeHandler}
@@ -554,17 +535,6 @@ function App() {
                     renderAppPanel={renderAppPanel}
                   />
                 </div>
-                {isSettingsOpen && appSettings && (
-                  <div className="absolute inset-0 z-50 flex bg-bg-secondary rounded-lg">
-                    <div className="w-full h-full flex flex-col p-4 lg:p-8 overflow-y-auto custom-scrollbar">
-                      <SettingsPanel
-                        appSettings={appSettings}
-                        onBack={() => setUI({ isSettingsOpen: false })}
-                        onSettingsChange={handleSettingsChange}
-                      />
-                    </div>
-                  </div>
-                )}
               </div>
               {!useCompactPanels && (
                 <SidePanelArea

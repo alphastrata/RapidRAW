@@ -33,7 +33,6 @@ export const useAppInitialization = () => {
   const {
     appSettings,
     theme,
-    osPlatform,
     setAppSettings,
     setTheme,
     setSupportedTypes,
@@ -43,7 +42,6 @@ export const useAppInitialization = () => {
     useShallow((state) => ({
       appSettings: state.appSettings,
       theme: state.theme,
-      osPlatform: state.osPlatform,
       setAppSettings: state.setAppSettings,
       setTheme: state.setTheme,
       setSupportedTypes: state.setSupportedTypes,

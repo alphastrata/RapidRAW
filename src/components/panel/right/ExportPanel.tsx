@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import { save, open } from '@tauri-apps/plugin-dialog';
 import { invoke } from '@tauri-apps/api/core';
 import { FileInput, CheckCircle, XCircle, Loader, Ban, ChevronDown, ChevronRight, Settings, X } from 'lucide-react';
@@ -9,11 +9,8 @@ import Switch from '../../ui/Switch';
 import Button from '../../ui/Button';
 import Dropdown from '../../ui/Dropdown';
 import Slider from '../../ui/Slider';
-import ImagePicker from '../../ui/ImagePicker';
-import ColorField, { normalizeHexColor, ParsedTextField, useParsedTextField } from '../../ui/ColorField';
+import { ParsedTextField, useParsedTextField } from '../../ui/ColorField';
 import {
-  BorderBasis,
-  ExportPreset,
   ExportSettings,
   FileFormat,
   FILE_FORMATS,
@@ -23,10 +20,8 @@ import {
   FileFormats,
   MAX_EXPORT_DPI,
   TiffBitDepth,
-  WatermarkAnchor,
 } from '../../ui/ExportImportProperties';
-import { Invokes, SelectedImage, AppSettings, Panel } from '../../ui/AppProperties';
-import ExportPresetsList from '../../ui/ExportPresetsList';
+import { Invokes, SelectedImage, Panel } from '../../ui/AppProperties';
 import { useExportSettings } from '../../../hooks/useExportSettings';
 import Text from '../../ui/Text';
 import { TextColors, TextVariants, TextWeights } from '../../../types/typography';
@@ -38,24 +33,7 @@ interface ExportPanelProps {
   exportState: ExportState;
   selectedImage: SelectedImage | null;
   setExportState(state: any): void;
-  appSettings: AppSettings | null;
-  onSettingsChange: (settings: AppSettings) => void;
   isVisible?: boolean;
-  onClose?: () => void;
-}
-
-const MAX_PAD_RATIO = 1000;
-
-function parseRatio(value: string): number | null {
-  const parsed = Number(value.trim().replace(',', '.'));
-  return Number.isFinite(parsed) && parsed > 0 && parsed <= MAX_PAD_RATIO ? parsed : null;
-}
-
-const MAX_BORDER_PERCENT = 100;
-
-function parsePercent(value: string): number | null {
-  const parsed = Number(value.trim().replace(',', '.'));
-  return Number.isFinite(parsed) && parsed >= 0 && parsed <= MAX_BORDER_PERCENT ? parsed : null;
 }
 
 function parseDpi(value: string): number | null {
@@ -104,135 +82,8 @@ function Section({ title, children }: SectionProps) {
   );
 }
 
-function WatermarkPreview({
-  anchor,
-  scale,
-  spacing,
-  opacity,
-  watermarkPath,
-  imageAspectRatio,
-  watermarkImageAspectRatio,
-}: {
-  anchor: WatermarkAnchor;
-  scale: number;
-  spacing: number;
-  opacity: number;
-  watermarkPath: string | null;
-  imageAspectRatio: number;
-  watermarkImageAspectRatio: number;
-}) {
+export default function ExportPanel({ selectedImage, exportState, setExportState, isVisible = true }: ExportPanelProps) {
   const { t } = useTranslation();
-
-  const getPositionStyles = () => {
-    const minDimPercent = imageAspectRatio > 1 ? 100 / imageAspectRatio : 100;
-    const watermarkSizePercent = minDimPercent * (scale / 100);
-    const spacingPercent = minDimPercent * (spacing / 100);
-
-    const styles: React.CSSProperties = {
-      width: `${watermarkSizePercent}%`,
-      opacity: opacity / 100,
-      position: 'absolute',
-    };
-
-    const spacingString = `${spacingPercent}%`;
-
-    switch (anchor) {
-      case WatermarkAnchor.TopLeft:
-        styles.top = spacingString;
-        styles.left = spacingString;
-        break;
-      case WatermarkAnchor.TopCenter:
-        styles.top = spacingString;
-        styles.left = '50%';
-        styles.transform = 'translateX(-50%)';
-        break;
-      case WatermarkAnchor.TopRight:
-        styles.top = spacingString;
-        styles.right = spacingString;
-        break;
-      case WatermarkAnchor.CenterLeft:
-        styles.top = '50%';
-        styles.left = spacingString;
-        styles.transform = 'translateY(-50%)';
-        break;
-      case WatermarkAnchor.Center:
-        styles.top = '50%';
-        styles.left = '50%';
-        styles.transform = 'translate(-50%, -50%)';
-        break;
-      case WatermarkAnchor.CenterRight:
-        styles.top = '50%';
-        styles.right = spacingString;
-        styles.transform = 'translateY(-50%)';
-        break;
-      case WatermarkAnchor.BottomLeft:
-        styles.bottom = spacingString;
-        styles.left = spacingString;
-        break;
-      case WatermarkAnchor.BottomCenter:
-        styles.bottom = spacingString;
-        styles.left = '50%';
-        styles.transform = 'translateX(-50%)';
-        break;
-      case WatermarkAnchor.BottomRight:
-        styles.bottom = spacingString;
-        styles.right = spacingString;
-        break;
-    }
-    return styles;
-  };
-
-  return (
-    <div
-      className="w-full bg-surface rounded-md relative overflow-hidden border border-surface"
-      style={{ aspectRatio: imageAspectRatio }}
-    >
-      <div className="absolute inset-0 flex items-center justify-center">
-        <Text variant={TextVariants.label}>{t('export.watermark.previewText')}</Text>
-      </div>
-      {watermarkPath && (
-        <div style={getPositionStyles()}>
-          <div
-            className="w-full bg-accent/50 border-2 border-dashed border-accent rounded-xs flex items-center justify-center"
-            style={{ aspectRatio: watermarkImageAspectRatio }}
-          >
-            <span className="text-white text-[8px] font-bold">{t('export.watermark.logoText')}</span>
-          </div>
-        </div>
-      )}
-    </div>
-  );
-}
-
-export default function ExportPanel({
-  selectedImage,
-  exportState,
-  setExportState,
-  appSettings,
-  onSettingsChange,
-  isVisible = true,
-  onClose,
-}: ExportPanelProps) {
-  const { t } = useTranslation();
-
-  const resizeModeOptions = useMemo(
-    () => [
-      { label: t('export.resize.modes.longEdge'), value: 'longEdge' },
-      { label: t('export.resize.modes.shortEdge'), value: 'shortEdge' },
-      { label: t('export.resize.modes.width'), value: 'width' },
-      { label: t('export.resize.modes.height'), value: 'height' },
-    ],
-    [t],
-  );
-
-  const borderBasisOptions = useMemo(
-    () => [
-      { label: t('export.border.bases.longEdge'), value: BorderBasis.LongEdge },
-      { label: t('export.border.bases.shortEdge'), value: BorderBasis.ShortEdge },
-      { label: t('export.border.bases.eachEdge'), value: BorderBasis.EachEdge },
-    ],
-    [t],
-  );
 
   const tiffBitDepthOptions = useMemo(
     () => [
@@ -251,32 +102,6 @@ export default function ExportPanel({
     setTiffBitDepth,
     dpi,
     setDpi,
-    enableResize,
-    setEnableResize,
-    resizeMode,
-    setResizeMode,
-    resizeValue,
-    setResizeValue,
-    dontEnlarge,
-    setDontEnlarge,
-    enablePad,
-    setEnablePad,
-    padRatioWidth,
-    setPadRatioWidth,
-    padRatioHeight,
-    setPadRatioHeight,
-    padColor,
-    setPadColor,
-    enableBorder,
-    setEnableBorder,
-    borderBasis,
-    setBorderBasis,
-    borderHorizontalPercent,
-    setBorderHorizontalPercent,
-    borderVerticalPercent,
-    setBorderVerticalPercent,
-    borderColor,
-    setBorderColor,
     keepMetadata,
     setKeepMetadata,
     preserveTimestamps,
@@ -287,104 +112,23 @@ export default function ExportPanel({
     setExportMasks,
     filenameTemplate,
     setFilenameTemplate,
-    enableWatermark,
-    setEnableWatermark,
-    watermarkPath,
-    setWatermarkPath,
-    watermarkAnchor,
-    setWatermarkAnchor,
-    watermarkScale,
-    setWatermarkScale,
-    watermarkSpacing,
-    setWatermarkSpacing,
-    watermarkOpacity,
-    setWatermarkOpacity,
-    preserveFolders,
-    setPreserveFolders,
-    handleApplyPreset,
-    currentSettingsObject,
     destinationType,
     setDestinationType,
     subfolder,
     setSubfolder,
   } = useExportSettings();
 
-  const adjustmentsRef = useRef(useEditorStore.getState().adjustments);
-
-  const [isAdvancedExpanded, setIsAdvancedExpanded] = useState(false);
-  const initDone = useRef(false);
-
-  useEffect(() => {
-    if (initDone.current || appSettings === null || !isVisible) return;
-    initDone.current = true;
-    const lastUsed = appSettings.exportPresets?.find((p) => p.id === '__last_used__');
-    if (lastUsed) {
-      handleApplyPreset(lastUsed);
-    }
-  }, [appSettings, handleApplyPreset, isVisible]);
-
-  const saveLastUsedPreset = useCallback(
-    (exportPath: string) => {
-      if (!appSettings) return;
-      const lastUsedPreset: ExportPreset = {
-        ...currentSettingsObject,
-        id: '__last_used__',
-        name: '__last_used__',
-        lastExportPath: exportPath,
-      };
-      const updatedPresets = [
-        ...(appSettings.exportPresets ?? []).filter((p) => p.id !== '__last_used__'),
-        lastUsedPreset,
-      ];
-      onSettingsChange({ ...appSettings, exportPresets: updatedPresets });
-    },
-    [appSettings, currentSettingsObject, onSettingsChange],
-  );
-
-  const padRatioWidthField = useParsedTextField(padRatioWidth, setPadRatioWidth, parseRatio);
-  const padRatioHeightField = useParsedTextField(padRatioHeight, setPadRatioHeight, parseRatio);
-  const padColorField = useParsedTextField(padColor, setPadColor, normalizeHexColor);
-
-  const padRatioWidthValue = padRatioWidthField.parsed;
-  const padRatioHeightValue = padRatioHeightField.parsed;
-  const isPadValid = !enablePad || (padRatioWidthValue !== null && padRatioHeightValue !== null);
-  const padSettings =
-    enablePad && padRatioWidthValue !== null && padRatioHeightValue !== null
-      ? { ratioWidth: padRatioWidthValue, ratioHeight: padRatioHeightValue, color: padColor }
-      : null;
-
   const dpiField = useParsedTextField(dpi, setDpi, parseDpi);
-
-  const borderHorizontalField = useParsedTextField(borderHorizontalPercent, setBorderHorizontalPercent, parsePercent);
-  const borderVerticalField = useParsedTextField(borderVerticalPercent, setBorderVerticalPercent, parsePercent);
-  const borderColorField = useParsedTextField(borderColor, setBorderColor, normalizeHexColor);
-
-  const borderHorizontalValue = borderHorizontalField.parsed;
-  const borderVerticalValue = borderVerticalField.parsed;
-  const isBorderValid = !enableBorder || (borderHorizontalValue !== null && borderVerticalValue !== null);
-  const borderSettings =
-    enableBorder && borderHorizontalValue !== null && borderVerticalValue !== null
-      ? {
-          basis: borderBasis,
-          horizontalPercent: borderHorizontalValue,
-          verticalPercent: borderVerticalValue,
-          color: borderColor,
-        }
-      : null;
-
   const [estimatedSize, setEstimatedSize] = useState<number | null>(null);
   const [isEstimating, setIsEstimating] = useState<boolean>(false);
-  const [watermarkImageAspectRatio, setWatermarkImageAspectRatio] = useState(1);
-  const [imageAspectRatio, setImageAspectRatio] = useState(16 / 9);
+  const [isAdvancedExpanded, setIsAdvancedExpanded] = useState(false);
   const filenameInputRef = useRef<HTMLInputElement>(null);
-  const destination = destinationType;
   const activePanels = useUIStore((state) => state.activePanels);
   const isPanelReallyActive = Object.values(activePanels).includes(Panel.Export);
 
-  const { status, progress, errorMessage } = exportState;
+  const { status, errorMessage } = exportState;
   const isExporting = [Status.Exporting, Status.Cancelling].includes(status);
   const isCancelling = status === Status.Cancelling;
-  const isLibraryContext = !!onClose;
 
   const pathsToExport = useMemo(
     () => (selectedImage ? [selectedImage.path] : []),
@@ -392,56 +136,7 @@ export default function ExportPanel({
   );
 
   const numImages = pathsToExport.length;
-
-  useEffect(() => {
-    const fetchDims = async () => {
-      if (!enableWatermark || numImages === 0 || !isVisible || !isPanelReallyActive) return;
-      if (!isLibraryContext && selectedImage && selectedImage.width && selectedImage.height) {
-        setImageAspectRatio(selectedImage.width / selectedImage.height);
-        return;
-      }
-      try {
-        const dims: any = await invoke('get_image_dimensions', { path: pathsToExport[0] });
-        if (dims.width > 0 && dims.height > 0) setImageAspectRatio(dims.width / dims.height);
-      } catch {
-        setImageAspectRatio(3 / 2);
-      }
-    };
-    fetchDims();
-  }, [pathsToExport, isLibraryContext, selectedImage, enableWatermark, numImages, isVisible]);
-
-  useEffect(() => {
-    const fetchWatermarkDimensions = async () => {
-      if (!watermarkPath) {
-        setWatermarkImageAspectRatio(1);
-        return;
-      }
-      try {
-        const dimensions: { width: number; height: number } = await invoke('get_image_dimensions', {
-          path: watermarkPath,
-        });
-        setWatermarkImageAspectRatio(dimensions.height > 0 ? dimensions.width / dimensions.height : 1);
-      } catch (error) {
-        setWatermarkImageAspectRatio(1);
-      }
-    };
-    fetchWatermarkDimensions();
-  }, [watermarkPath]);
-
-  const anchorOptions = useMemo(
-    () => [
-      { label: t('export.watermark.anchors.topLeft'), value: WatermarkAnchor.TopLeft },
-      { label: t('export.watermark.anchors.topCenter'), value: WatermarkAnchor.TopCenter },
-      { label: t('export.watermark.anchors.topRight'), value: WatermarkAnchor.TopRight },
-      { label: t('export.watermark.anchors.centerLeft'), value: WatermarkAnchor.CenterLeft },
-      { label: t('export.watermark.anchors.center'), value: WatermarkAnchor.Center },
-      { label: t('export.watermark.anchors.centerRight'), value: WatermarkAnchor.CenterRight },
-      { label: t('export.watermark.anchors.bottomLeft'), value: WatermarkAnchor.BottomLeft },
-      { label: t('export.watermark.anchors.bottomCenter'), value: WatermarkAnchor.BottomCenter },
-      { label: t('export.watermark.anchors.bottomRight'), value: WatermarkAnchor.BottomRight },
-    ],
-    [t],
-  );
+  const adjustmentsRef = useRef(useEditorStore.getState().adjustments);
 
   const debouncedEstimateSize = useMemo(
     () =>
@@ -478,24 +173,11 @@ export default function ExportPanel({
       tiffBitDepth,
       keepMetadata,
       preserveTimestamps,
-      preserveFolders,
-      destinationType: destination,
+      destinationType,
       subfolder,
-      resize: enableResize ? { mode: resizeMode, value: resizeValue, dontEnlarge } : null,
-      border: borderSettings,
-      pad: padSettings,
       stripGps,
-      exportMasks: exportMasks,
-      watermark:
-        enableWatermark && watermarkPath
-          ? {
-              path: watermarkPath,
-              anchor: watermarkAnchor,
-              scale: watermarkScale,
-              spacing: watermarkSpacing,
-              opacity: watermarkOpacity,
-            }
-          : null,
+      exportMasks,
+      dpi,
     };
     const format = FILE_FORMATS.find((f: FileFormat) => f.id === fileFormat)?.extensions[0] || 'jpeg';
     const runEstimate = () =>
@@ -523,33 +205,15 @@ export default function ExportPanel({
     fileFormat,
     jpegQuality,
     tiffBitDepth,
-    enableResize,
-    resizeMode,
-    resizeValue,
-    dontEnlarge,
-    enablePad,
-    padRatioWidthField.text,
-    padRatioHeightField.text,
-    padColor,
-    enableBorder,
-    borderBasis,
-    borderHorizontalField.text,
-    borderVerticalField.text,
-    borderColor,
     keepMetadata,
     preserveTimestamps,
     stripGps,
     filenameTemplate,
-    enableWatermark,
-    watermarkPath,
-    watermarkAnchor,
-    watermarkScale,
-    watermarkSpacing,
-    watermarkOpacity,
     debouncedEstimateSize,
     exportMasks,
-    preserveFolders,
-    isLibraryContext,
+    destinationType,
+    subfolder,
+    dpi,
   ]);
 
   const handleVariableClick = (variable: string) => {
@@ -575,39 +239,23 @@ export default function ExportPanel({
       tiffBitDepth,
       keepMetadata,
       preserveTimestamps,
-      preserveFolders,
-      destinationType: destination,
+      destinationType,
       subfolder,
-      resize: enableResize ? { mode: resizeMode, value: resizeValue, dontEnlarge } : null,
-      border: borderSettings,
-      pad: padSettings,
       stripGps,
-      exportMasks: exportMasks,
-      watermark:
-        enableWatermark && watermarkPath
-          ? {
-              path: watermarkPath,
-              anchor: watermarkAnchor,
-              scale: watermarkScale,
-              spacing: watermarkSpacing,
-              opacity: watermarkOpacity,
-            }
-          : null,
+      exportMasks,
       dpi,
     };
-
-    const lastExportPath = appSettings?.exportPresets?.find((p) => p.id === '__last_used__')?.lastExportPath;
 
     try {
       const selectedFormat: any = FILE_FORMATS.find((f) => f.id === fileFormat);
 
       let outputFolderOrFile = '';
-      const isOriginalFolder = destination === 'originalFolder';
-      const shouldChooseOutputFile = numImages === 1 && !preserveFolders && !isOriginalFolder;
+      const isOriginalFolder = destinationType === 'originalFolder';
+      const shouldChooseOutputFile = !isOriginalFolder;
 
       if (isOriginalFolder) {
         outputFolderOrFile = 'originalFolderDummy';
-      } else if (shouldChooseOutputFile) {
+      } else {
         const originalFilename = pathsToExport[0].split(/[\\/]/).pop() || '';
         const stem = originalFilename.substring(0, originalFilename.lastIndexOf('.')) || originalFilename;
         const suggestedName = (filenameTemplate || '').replace('{original_filename}', stem);
@@ -615,7 +263,7 @@ export default function ExportPanel({
 
         outputFolderOrFile = ((await save({
               title: t('export.dialog.saveEditedImageTitle'),
-              defaultPath: lastExportPath ? `${lastExportPath}/${outputFileName}` : outputFileName,
+              defaultPath: outputFileName,
               filters: [
                 { name: selectedFormat.name, extensions: selectedFormat.extensions },
                 ...FILE_FORMATS.filter((f: FileFormat) => f.id !== fileFormat).map((f: FileFormat) => ({
@@ -624,27 +272,9 @@ export default function ExportPanel({
                 })),
               ],
             })) as string);
-      } else {
-        outputFolderOrFile = ((await open({
-              title: t('export.dialog.selectFolderTitle', { count: numImages }),
-              directory: true,
-              defaultPath: lastExportPath ?? undefined,
-            })) as string);
       }
 
       if (outputFolderOrFile) {
-        if (isOriginalFolder) {
-          saveLastUsedPreset(lastExportPath || '');
-        } else {
-          const dir = shouldChooseOutputFile
-            ? outputFolderOrFile.substring(
-                0,
-                Math.max(outputFolderOrFile.lastIndexOf('/'), outputFolderOrFile.lastIndexOf('\\')),
-              )
-            : outputFolderOrFile;
-          if (dir) saveLastUsedPreset(dir);
-        }
-
         setExportState({
           destination: isOriginalFolder ? null : outputFolderOrFile,
           errorMessage: '',
@@ -655,7 +285,6 @@ export default function ExportPanel({
           paths: pathsToExport,
           outputFolderOrFile: outputFolderOrFile,
           isExplicitFilePath: shouldChooseOutputFile,
-          baseOriginFolders: [],
           exportSettings,
           outputFormat: selectedFormat.extensions[0],
           currentEditPath: selectedImage?.path || null,
@@ -665,7 +294,7 @@ export default function ExportPanel({
     } catch (error) {
       setExportState({
         errorMessage: typeof error === 'string' ? error : t('export.status.failed'),
-        progress,
+        progress: { current: 0, total: numImages },
         status: Status.Error,
       });
     }
@@ -685,28 +314,17 @@ export default function ExportPanel({
     }
   };
 
-  const canExport = numImages > 0 && isPadValid && isBorderValid;
   const isLut = fileFormat === FileFormats.Cube;
   const itemLabel = isLut ? t('export.labels.lut') : t('export.labels.image');
-  const itemLabelPlural = isLut ? t('export.labels.lut_plural') : t('export.labels.image_plural');
 
   return (
-    <div className={onClose ? 'h-full bg-bg-secondary rounded-lg flex flex-col' : 'flex flex-col h-full'}>
+    <div className="flex flex-col h-full">
       <div className="p-3 flex justify-between items-center shrink-0 border-b border-surface">
         <Text variant={TextVariants.title}>{t('export.title')}</Text>
       </div>
       <div className="grow overflow-y-auto p-3 space-y-8">
-        {canExport ? (
+        {numImages > 0 ? (
           <>
-            <div className={isExporting ? 'opacity-50 pointer-events-none' : ''}>
-              <ExportPresetsList
-                appSettings={appSettings}
-                onSettingsChange={onSettingsChange}
-                currentSettings={currentSettingsObject}
-                onApplyPreset={handleApplyPreset}
-              />
-            </div>
-
             <Section title={t('export.sections.fileSettings')}>
               <div className="grid grid-cols-3 gap-2">
                 {FILE_FORMATS.map((format: FileFormat) => (
@@ -756,201 +374,64 @@ export default function ExportPanel({
               )}
             </Section>
 
-            <Section title={t('export.sections.destination')}>
-              <div className="space-y-3">
-                <Dropdown
-                  options={[
-                    { label: t('export.destination.customFolder'), value: 'customFolder' },
-                    { label: t('export.destination.originalFolder'), value: 'originalFolder' },
-                  ]}
-                  value={destination || 'customFolder'}
-                  onChange={(val) => setDestinationType(val as string)}
-                  disabled={isExporting}
-                  className="w-full"
-                />
+            {!isLut && (
+              <Section title={t('export.sections.destination')}>
+                <div className="space-y-3">
+                  <Dropdown
+                    options={[
+                      { label: t('export.destination.customFolder'), value: 'customFolder' },
+                      { label: t('export.destination.originalFolder'), value: 'originalFolder' },
+                    ]}
+                    value={destinationType || 'customFolder'}
+                    onChange={(val) => setDestinationType(val as string)}
+                    disabled={isExporting}
+                    className="w-full"
+                  />
 
-                {destination === 'originalFolder' && (
-                  <div className="flex items-center gap-3 pl-2 border-l-2 border-surface">
-                    <Text variant={TextVariants.label} className="whitespace-nowrap min-w-[70px]">
-                      {t('export.destination.subfolder')}
-                    </Text>
-                    <input
-                      className="w-full bg-surface border border-transparent rounded-md px-3 py-2 text-sm text-text-primary focus:outline-hidden truncate"
-                      disabled={isExporting}
-                      onChange={(e) => setSubfolder(e.target.value)}
-                      type="text"
-                      value={subfolder || ''}
-                      placeholder={t('export.destination.subfolderPlaceholder')}
-                    />
-                  </div>
-                )}
-              </div>
-            </Section>
-
-            {numImages > 1 && (
-              <Section title={t('export.sections.fileNaming')}>
-                <input
-                  className="w-full bg-surface border border-surface rounded-md p-2 text-sm text-text-primary focus:ring-accent focus:border-accent"
-                  disabled={isExporting}
-                  onChange={(e) => setFilenameTemplate(e.target.value)}
-                  ref={filenameInputRef}
-                  type="text"
-                  value={filenameTemplate}
-                />
-                <div className="flex flex-wrap gap-2 mt-2">
-                  {FILENAME_VARIABLES.map((variable: string) => (
-                    <button
-                      className="px-2 py-1 bg-surface text-text-secondary text-xs rounded-md hover:bg-card-active transition-colors disabled:opacity-50"
-                      disabled={isExporting}
-                      key={variable}
-                      onClick={() => handleVariableClick(variable)}
-                    >
-                      {variable}
-                    </button>
-                  ))}
+                  {destinationType === 'originalFolder' && (
+                    <div className="flex items-center gap-3 pl-2 border-l-2 border-surface">
+                      <Text variant={TextVariants.label} className="whitespace-nowrap min-w-[70px]">
+                        {t('export.destination.subfolder')}
+                      </Text>
+                      <input
+                        className="w-full bg-surface border border-transparent rounded-md px-3 py-2 text-sm text-text-primary focus:outline-hidden truncate"
+                        disabled={isExporting}
+                        onChange={(e) => setSubfolder(e.target.value)}
+                        type="text"
+                        value={subfolder || ''}
+                        placeholder={t('export.destination.subfolderPlaceholder')}
+                      />
+                    </div>
+                  )}
                 </div>
               </Section>
             )}
 
-            {fileFormat !== FileFormats.Cube && (
-              <>
-                <Section title={t('export.sections.imageSizing')}>
-                  <Switch
-                    label={t('export.border.addBorder')}
-                    checked={enableBorder}
-                    onChange={setEnableBorder}
+            <Section title={t('export.sections.fileNaming')}>
+              <input
+                className="w-full bg-surface border border-surface rounded-md p-2 text-sm text-text-primary focus:ring-accent focus:border-accent"
+                disabled={isExporting}
+                onChange={(e) => setFilenameTemplate(e.target.value)}
+                ref={filenameInputRef}
+                type="text"
+                value={filenameTemplate}
+              />
+              <div className="flex flex-wrap gap-2 mt-2">
+                {FILENAME_VARIABLES.map((variable: string) => (
+                  <button
+                    className="px-2 py-1 bg-surface text-text-secondary text-xs rounded-md hover:bg-card-active transition-colors disabled:opacity-50"
                     disabled={isExporting}
-                    trackClassName="bg-surface"
-                  />
-                  {enableBorder && (
-                    <div className="space-y-4 pl-2 border-l-2 border-surface">
-                      <div>
-                        <Text variant={TextVariants.label} className="mb-2 block">
-                          {t('export.border.basis')}
-                        </Text>
-                        <Dropdown
-                          options={borderBasisOptions}
-                          value={borderBasis}
-                          onChange={setBorderBasis}
-                          disabled={isExporting}
-                          className="w-full"
-                        />
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <Text variant={TextVariants.label} className="flex-1">
-                          {t('export.border.leftRight')}
-                        </Text>
-                        <ValidatedNumberInput
-                          ariaLabel={t('export.border.leftRight')}
-                          disabled={isExporting}
-                          field={borderHorizontalField}
-                          max={MAX_BORDER_PERCENT}
-                        />
-                        <Text variant={TextVariants.label}>{t('export.border.percent')}</Text>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <Text variant={TextVariants.label} className="flex-1">
-                          {t('export.border.topBottom')}
-                        </Text>
-                        <ValidatedNumberInput
-                          ariaLabel={t('export.border.topBottom')}
-                          disabled={isExporting}
-                          field={borderVerticalField}
-                          max={MAX_BORDER_PERCENT}
-                        />
-                        <Text variant={TextVariants.label}>{t('export.border.percent')}</Text>
-                      </div>
-                      {!isBorderValid && (
-                        <Text variant={TextVariants.label} className="text-red-500">
-                          {t('export.border.invalidPercent')}
-                        </Text>
-                      )}
-                      <ColorField
-                        color={borderColor}
-                        disabled={isExporting}
-                        field={borderColorField}
-                        label={t('export.border.color')}
-                        onColorChange={setBorderColor}
-                      />
-                    </div>
-                  )}
-                  <Switch
-                    label={t('export.pad.padToAspectRatio')}
-                    checked={enablePad}
-                    onChange={setEnablePad}
-                    disabled={isExporting}
-                    trackClassName="bg-surface"
-                  />
-                  {enablePad && (
-                    <div className="space-y-4 pl-2 border-l-2 border-surface">
-                      <div className="flex items-center gap-2">
-                        <Text variant={TextVariants.label} className="flex-1">
-                          {t('export.pad.aspectRatio')}
-                        </Text>
-                        <ValidatedNumberInput
-                          ariaLabel={t('export.pad.ratioWidth')}
-                          disabled={isExporting}
-                          field={padRatioWidthField}
-                        />
-                        <Text variant={TextVariants.label}>:</Text>
-                        <ValidatedNumberInput
-                          ariaLabel={t('export.pad.ratioHeight')}
-                          disabled={isExporting}
-                          field={padRatioHeightField}
-                        />
-                      </div>
-                      {!isPadValid && (
-                        <Text variant={TextVariants.label} className="text-red-500">
-                          {t('export.pad.invalidRatio')}
-                        </Text>
-                      )}
-                      <ColorField
-                        color={padColor}
-                        disabled={isExporting}
-                        field={padColorField}
-                        label={t('export.pad.backgroundColor')}
-                        onColorChange={setPadColor}
-                      />
-                    </div>
-                  )}
-                  <Switch
-                    label={t('export.resize.resizeToFit')}
-                    checked={enableResize}
-                    onChange={setEnableResize}
-                    disabled={isExporting}
-                    trackClassName="bg-surface"
-                  />
-                  {enableResize && (
-                    <div className="space-y-4 pl-2 border-l-2 border-surface">
-                      <div className="flex items-center gap-2">
-                        <Dropdown
-                          options={resizeModeOptions}
-                          value={resizeMode}
-                          onChange={setResizeMode}
-                          disabled={isExporting}
-                          className="w-full"
-                        />
-                        <input
-                          className="w-24 bg-surface text-center rounded-md p-2 border border-surface focus:border-accent focus:ring-accent text-text-secondary focus:text-text-primary"
-                          disabled={isExporting}
-                          min="1"
-                          onChange={(e) => setResizeValue(parseInt(e?.target?.value))}
-                          type="number"
-                          value={resizeValue}
-                        />
-                        <Text variant={TextVariants.label}>{t('export.resize.pixels')}</Text>
-                      </div>
-                      <Switch
-                        checked={dontEnlarge}
-                        disabled={isExporting}
-                        label={t('export.resize.dontEnlarge')}
-                        onChange={setDontEnlarge}
-                        trackClassName="bg-surface"
-                      />
-                    </div>
-                  )}
-                </Section>
+                    key={variable}
+                    onClick={() => handleVariableClick(variable)}
+                  >
+                    {variable}
+                  </button>
+                ))}
+              </div>
+            </Section>
 
+            {!isLut && (
+              <>
                 {[FileFormats.Jpeg, FileFormats.Png, FileFormats.Webp].includes(fileFormat as FileFormats) && (
                   <Section title={t('export.sections.metadata')}>
                     <Switch
@@ -974,122 +455,38 @@ export default function ExportPanel({
                   </Section>
                 )}
 
-                <Section title={t('export.sections.watermark')}>
-                  <Switch
-                    label={t('export.watermark.addWatermark')}
-                    checked={enableWatermark}
-                    onChange={setEnableWatermark}
-                    disabled={isExporting}
-                    trackClassName="bg-surface"
-                  />
-                  {enableWatermark && (
-                    <div className="space-y-4 pl-2 border-l-2 border-surface">
-                      <div className={isExporting ? 'opacity-50 pointer-events-none' : ''}>
-                        <ImagePicker
-                          label={t('export.watermark.watermarkImage')}
-                          imageName={watermarkPath ? watermarkPath.split(/[\\/]/).pop() || null : null}
-                          onImageSelect={setWatermarkPath}
-                          onClear={() => setWatermarkPath(null)}
-                        />
-                      </div>
-                      {watermarkPath && (
-                        <>
-                          <Dropdown
-                            options={anchorOptions}
-                            value={watermarkAnchor}
-                            onChange={(val) => setWatermarkAnchor(val as WatermarkAnchor)}
-                            disabled={isExporting}
-                            className="w-full"
-                          />
-                          <div>
-                            <Slider
-                              label={t('export.watermark.scale')}
-                              min={1}
-                              max={100}
-                              step={1}
-                              value={watermarkScale}
-                              onChange={(e) => setWatermarkScale(Number(e.target.value))}
-                              disabled={isExporting}
-                              defaultValue={10}
-                            />
-                            <Slider
-                              label={t('export.watermark.spacing')}
-                              min={0}
-                              max={25}
-                              step={1}
-                              value={watermarkSpacing}
-                              onChange={(e) => setWatermarkSpacing(Number(e.target.value))}
-                              disabled={isExporting}
-                              defaultValue={5}
-                            />
-                            <Slider
-                              label={t('export.watermark.opacity')}
-                              min={0}
-                              max={100}
-                              step={1}
-                              value={watermarkOpacity}
-                              onChange={(e) => setWatermarkOpacity(Number(e.target.value))}
-                              disabled={isExporting}
-                              defaultValue={75}
-                            />
-                          </div>
-                          <WatermarkPreview
-                            imageAspectRatio={imageAspectRatio}
-                            watermarkImageAspectRatio={watermarkImageAspectRatio}
-                            watermarkPath={watermarkPath}
-                            anchor={watermarkAnchor as WatermarkAnchor}
-                            scale={watermarkScale}
-                            spacing={watermarkSpacing}
-                            opacity={watermarkOpacity}
-                          />
-                        </>
-                      )}
-                    </div>
-                  )}
-                </Section>
-              </>
-            )}
-
-            <div>
-              <Text variant={TextVariants.heading} className="mb-2">
-                {t('export.sections.advanced')}
-              </Text>
-              <div className="bg-surface rounded-xl overflow-hidden">
-                <button
-                  onClick={() => setIsAdvancedExpanded(!isAdvancedExpanded)}
-                  disabled={isExporting}
-                  className="w-full flex items-center justify-between p-3.5 hover:bg-card-active transition-colors"
-                >
-                  <Text
-                    as="span"
-                    variant={TextVariants.label}
-                    color={TextColors.primary}
-                    className="flex items-center gap-2"
-                  >
-                    <Settings size={16} /> {t('export.advanced.title')}
+                <div>
+                  <Text variant={TextVariants.heading} className="mb-2">
+                    {t('export.sections.advanced')}
                   </Text>
-                  <Text color={TextColors.secondary}>
-                    {isAdvancedExpanded ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
-                  </Text>
-                </button>
-                <AnimatePresence initial={false}>
-                  {isAdvancedExpanded && (
-                    <motion.div
-                      initial={{ height: 0, opacity: 0 }}
-                      animate={{ height: 'auto', opacity: 1 }}
-                      exit={{ height: 0, opacity: 0 }}
-                      transition={{ duration: 0.25, ease: [0.4, 0, 0.2, 1] }}
-                      className="overflow-hidden"
+                  <div className="bg-surface rounded-xl overflow-hidden">
+                    <button
+                      onClick={() => setIsAdvancedExpanded(!isAdvancedExpanded)}
+                      disabled={isExporting}
+                      className="w-full flex items-center justify-between p-3.5 hover:bg-card-active transition-colors"
                     >
-                      <div className="px-4 pb-4 pt-2 border-t border-surface/50 flex flex-col gap-4">
-                        <Switch
-                          label={t('export.advanced.preserveFolders')}
-                          checked={preserveFolders}
-                          onChange={setPreserveFolders}
-                          disabled={isExporting}
-                        />
-                        {fileFormat !== FileFormats.Cube && (
-                          <>
+                      <Text
+                        as="span"
+                        variant={TextVariants.label}
+                        color={TextColors.primary}
+                        className="flex items-center gap-2"
+                      >
+                        <Settings size={16} /> {t('export.advanced.title')}
+                      </Text>
+                      <Text color={TextColors.secondary}>
+                        {isAdvancedExpanded ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
+                      </Text>
+                    </button>
+                    <AnimatePresence initial={false}>
+                      {isAdvancedExpanded && (
+                        <motion.div
+                          initial={{ height: 0, opacity: 0 }}
+                          animate={{ height: 'auto', opacity: 1 }}
+                          exit={{ height: 0, opacity: 0 }}
+                          transition={{ duration: 0.25, ease: [0.4, 0, 0.2, 1] }}
+                          className="overflow-hidden"
+                        >
+                          <div className="px-4 pb-4 pt-2 border-t border-surface/50 flex flex-col gap-4">
                             <Switch
                               checked={preserveTimestamps}
                               disabled={isExporting}
@@ -1102,28 +499,28 @@ export default function ExportPanel({
                               onChange={setExportMasks}
                               disabled={isExporting}
                             />
-                          </>
-                        )}
-                        {[FileFormats.Jpeg, FileFormats.Png, FileFormats.Tiff].includes(fileFormat as FileFormats) && (
-                          <div className="flex items-center gap-2">
-                            <Text variant={TextVariants.label} className="flex-1">
-                              {t('export.file.resolution')}
-                            </Text>
-                            <ValidatedNumberInput
-                              ariaLabel={t('export.file.resolution')}
-                              disabled={isExporting}
-                              field={dpiField}
-                              max={MAX_EXPORT_DPI}
-                            />
-                            <Text variant={TextVariants.label}>{t('export.file.dpi')}</Text>
+                            {[FileFormats.Jpeg, FileFormats.Png, FileFormats.Tiff].includes(fileFormat as FileFormats) && (
+                              <div className="flex items-center gap-2">
+                                <Text variant={TextVariants.label} className="flex-1">
+                                  {t('export.file.resolution')}
+                                </Text>
+                                <ValidatedNumberInput
+                                  ariaLabel={t('export.file.resolution')}
+                                  disabled={isExporting}
+                                  field={dpiField}
+                                  max={MAX_EXPORT_DPI}
+                                />
+                                <Text variant={TextVariants.label}>{t('export.file.dpi')}</Text>
+                              </div>
+                            )}
                           </div>
-                        )}
-                      </div>
-                    </motion.div>
-                  )}
-                </AnimatePresence>
-              </div>
-            </div>
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
+                  </div>
+                </div>
+              </>
+            )}
           </>
         ) : (
           <div className="flex items-center justify-center h-full">
@@ -1133,7 +530,7 @@ export default function ExportPanel({
               weight={TextWeights.normal}
               className="text-center"
             >
-              {isLibraryContext ? t('export.status.noImagesSelected') : t('export.status.noImageSelected')}
+              {t('export.status.noImageSelected')}
             </Text>
           </div>
         )}
@@ -1141,20 +538,16 @@ export default function ExportPanel({
 
       <div className="p-3 border-t border-surface shrink-0 space-y-2">
         <Text as="div" variant={TextVariants.small} color={TextColors.primary} className="text-center">
-          {isEstimating ? (
-            <span className="italic">{t('export.status.estimatingSize')}</span>
-          ) : estimatedSize !== null ? (
-            <span>
-              {numImages > 1
-                ? t('export.status.estimatedTotalSize', { size: formatBytes(estimatedSize, t) }) ||
-                  t('export.status.estimatedSize', { size: formatBytes(estimatedSize, t) })
-                : t('export.status.estimatedSize', { size: formatBytes(estimatedSize, t) })}
-              {numImages > 1 && ` (~${formatBytes(estimatedSize / numImages, t)})`}
-            </span>
+          {numImages > 0 && !isLut ? (
+            isEstimating ? (
+              <span className="italic">{t('export.status.estimatingSize')}</span>
+            ) : estimatedSize !== null ? (
+              <span>{t('export.status.estimatedSize', { size: formatBytes(estimatedSize, t) })}</span>
+            ) : null
           ) : null}
         </Text>
         <motion.div
-          whileTap={!(isCancelling || (status !== Status.Exporting && !canExport)) ? { scale: 0.98 } : undefined}
+          whileTap={!(isCancelling || (status !== Status.Exporting && numImages === 0)) ? { scale: 0.98 } : undefined}
           transition={{ type: 'spring', stiffness: 400, damping: 17 }}
           className="w-full"
         >
@@ -1172,7 +565,7 @@ export default function ExportPanel({
                         ? 'bg-yellow-500/20 text-yellow-400 shadow-none'
                         : ''
             }`}
-            disabled={isCancelling || (status !== Status.Exporting && !canExport)}
+            disabled={isCancelling || (status !== Status.Exporting && numImages === 0)}
             onClick={status === Status.Exporting ? handleCancel : handleExport}
             size="lg"
           >
@@ -1180,9 +573,7 @@ export default function ExportPanel({
               <>
                 <span className="flex items-center group-hover:hidden">
                   <Loader size={18} className="animate-spin mr-2" />
-                  {progress.total > 1
-                    ? t('export.status.exportingProgress', { current: progress.current, total: progress.total })
-                    : t('export.status.exporting')}
+                  {t('export.status.exporting')}
                 </span>
                 <span className="hidden items-center group-hover:flex">
                   <X size={18} className="mr-2" />
@@ -1208,9 +599,7 @@ export default function ExportPanel({
             ) : (
               <>
                 <FileInput size={18} className="mr-2" />{' '}
-                {numImages > 1
-                  ? t('export.status.exportMultiple', { count: numImages, label: itemLabelPlural })
-                  : t('export.status.exportSingle', { label: itemLabel })}
+                {t('export.status.exportSingle', { label: itemLabel })}
               </>
             )}
           </Button>

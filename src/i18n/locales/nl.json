@@ -43,7 +43,7 @@
         "shadows": "Schaduwen"
       },
       "hue": "Kleurtoon",
-      "kelvinModeTooltip": "",
+      "kelvinModeTooltip": "Temperatuur in Kelvin weergeven",
       "localHue": "Lokale kleurtoon",
       "luminance": "Luminantie",
       "mixerColors": {
@@ -63,7 +63,6 @@
       "toggleSliders": "Schuifregelaars aan/uit",
       "vibrance": "Levendigheid",
       "wbPickerTooltip": "Witbalans pipet",
-      "wbPickerWgpuDisabled": "WB-pipet: Schakel WGPU uit in instellingen.",
       "whiteBalance": "Witbalans"
     },
     "curves": {
@@ -175,169 +174,32 @@
     }
   },
   "contextMenus": {
-    "album": {
-      "emptyGroup": "(Lege groep)"
-    },
-    "albumIcons": {
-      "automotive": "Automotive",
-      "default": "Map (standaard)",
-      "favorites": "Favorieten",
-      "featured": "Uitgelicht",
-      "locations": "Locaties",
-      "nature": "Natuur",
-      "people": "Mensen",
-      "person": "Persoon",
-      "photography": "Fotografie",
-      "portfolio": "Portfolio",
-      "summer": "Zomer",
-      "travel": "Reizen"
-    },
-    "albums": {
-      "alreadyAtRoot": "Al in de hoofdmap",
-      "alreadyHere": "Al hier",
-      "confirmDeleteAlbum": "Album verwijderen bevestigen",
-      "confirmDeleteGroupEmpty": "Albumgroep verwijderen bevestigen",
-      "confirmDeleteGroupNested": "Groep en alle geneste albums verwijderen bevestigen",
-      "deleteAlbum": "Album verwijderen",
-      "deleteGroup": "Groep verwijderen",
-      "moveHere": "Hier naartoe verplaatsen",
-      "moveTo": "Verplaatsen naar...",
-      "newAlbum": "Nieuw album",
-      "newGroup": "Nieuwe groep",
-      "renameAlbum": "Album hernoemen",
-      "renameGroup": "Groep hernoemen",
-      "rootDir": "Hoofdmap"
-    },
     "autoAdjustModes": {
       "normal": "Normaal",
       "strong": "Sterk",
       "subtle": "Subtiel"
-    },
-    "colors": {
-      "blue": "Blauw",
-      "green": "Groen",
-      "orange": "Oranje",
-      "pink": "Roze",
-      "purple": "Paars",
-      "red": "Rood",
-      "yellow": "Geel"
     },
     "editor": {
       "autoAdjust": "Autom. aanpassen",
       "autoLensCorrection": "Autom. lenscorrectie",
       "autoStraighten": "Automatisch rechtzetten",
       "cancel": "Annuleren",
-      "colorLabel": "Kleurlabel",
       "confirmReset": "Herstellen bevestigen",
       "convertNegative": "Negatief omzetten",
       "copyAdjustments": "Aanpassingen kopiëren",
       "denoise": "Ruis verwijderen",
-      "editImage": "Afbeelding bewerken",
       "exportImage": "Afbeelding exporteren",
-      "flag": "",
-      "flagPick": "",
-      "flagReject": "",
-      "noLabel": "Geen label",
-      "noRating": "Geen beoordeling",
       "pasteAdjustments": "Aanpassingen plakken",
       "productivity": "Productiviteit",
-      "rating": "Beoordeling",
-      "ratingLabel_one": "{{count}} ster",
-      "ratingLabel_other": "{{count}} sterren",
       "redo": "Opnieuw",
       "removeDenoise": "Ruisonderdrukking verwijderen",
       "removeNegativeConversion": "Negatiefconversie verwijderen",
       "resetAdjustments": "Aanpassingen herstellen",
-      "tagging": "Tags toevoegen",
-      "undo": "Ongedaan maken",
-      "unflagged": ""
-    },
-    "folders": {
-      "changeIcon": "Pictogram wijzigen",
-      "confirm": "Bevestigen",
-      "copyHere_one": "Afbeelding hier kopiëren",
-      "copyHere_other": "{{count}} afbeeldingen hier kopiëren",
-      "deleteFolder": "Map verwijderen",
-      "importImages": "Afbeeldingen importeren",
-      "moveHere_one": "Afbeelding hier naartoe verplaatsen",
-      "moveHere_other": "{{count}} afbeeldingen hier naartoe verplaatsen",
-      "newFolder": "Nieuwe map",
-      "paste": "Plakken",
-      "pin": "Map vastzetten",
-      "refresh": "Mappen vernieuwen",
-      "removeRoot": "Hoofdmap verwijderen",
-      "renameFolder": "Map hernoemen",
-      "showExplorer": "Weergeven in Verkenner",
-      "unpin": "Map losmaken"
-    },
-    "library": {
-      "addCopiedToAlbum_one": "Gekopieerde afbeelding aan album toevoegen",
-      "addCopiedToAlbum_other": "{{count}} gekopieerde afbeeldingen aan album toevoegen",
-      "deleteRejected": "",
-      "refreshView": "Weergave vernieuwen"
+      "undo": "Ongedaan maken"
     },
     "merge": {
       "focusStack": "Focusstapeling",
       "title": "Samenvoegen"
-    },
-    "tagging": {
-      "addTagTooltip": "Tag toevoegen",
-      "noTags": "Geen tags toegevoegd",
-      "placeholder": "Tag toevoegen...",
-      "removeTooltip": "Tag \"{{tag}}\" verwijderen",
-      "shortcutsHeading": "SNELKOPPELINGEN"
-    },
-    "thumbnail": {
-      "addToAlbum": "Aan album toevoegen",
-      "autoAdjust_one": "Autom. aanpassen",
-      "autoAdjust_other": "Autom. aanpassen",
-      "autoLensCorrection_one": "Autom. lenscorrectie",
-      "autoLensCorrection_other": "Autom. lenscorrectie",
-      "autoStraighten_one": "Automatisch rechtzetten",
-      "autoStraighten_other": "Automatisch rechtzetten",
-      "confirmDelete": "Verwijderen bevestigen",
-      "confirmDeleteVc": "Verwijderen + virtuele kopieën bevestigen",
-      "copyImage_one": "Afbeelding kopiëren",
-      "copyImage_other": "{{count}} afbeeldingen kopiëren",
-      "deleteAssociated": "Verwijderen + bijbehorende bestanden",
-      "deleteImage_one": "Afbeelding verwijderen",
-      "deleteImage_other": "{{count}} afbeeldingen verwijderen",
-      "deleteSelected": "Alleen geselecteerde verwijderen",
-      "denoise_one": "Ruis verwijderen",
-      "denoise_other": "Ruis verwijderen",
-      "duplicateImage": "Afbeelding dupliceren",
-      "enable": "Inschakelen",
-      "exportImage_one": "Afbeelding exporteren",
-      "exportImage_other": "{{count}} afbeeldingen exporteren",
-      "noAlbums": "Geen albums beschikbaar",
-      "pasteAdjustments_one": "Aanpassingen plakken",
-      "pasteAdjustments_other": "Aanpassingen plakken op {{count}} afbeeldingen",
-      "physicalCopy": "Fysieke kopie",
-      "remove": "Verwijderen",
-      "removeFromAlbum_one": "Uit album verwijderen",
-      "removeFromAlbum_other": "{{count}} afbeeldingen uit album verwijderen",
-      "renameImage_one": "Afbeelding hernoemen",
-      "renameImage_other": "{{count}} afbeeldingen hernoemen",
-      "resetAdjustments_one": "Aanpassingen herstellen",
-      "resetAdjustments_other": "Aanpassingen herstellen op {{count}} afbeeldingen",
-      "showExplorer": "Weergeven in Verkenner",
-      "virtualCopy": "Virtuele kopie"
-    },
-    "toasts": {
-      "couldNotShowExplorer": "Kon bestand niet weergeven in Verkenner: {{err}}",
-      "couldNotShowFolder": "Kon map niet weergeven: {{err}}",
-      "failedAddToAlbum": "Kan niet aan album toevoegen: {{err}}",
-      "failedApplyAuto": "Automatische aanpassingen konden niet worden toegepast: {{err}}",
-      "failedChangeIcon": "Pictogram kon niet worden gewijzigd: {{err}}",
-      "failedCopy": "Bestanden kopiëren mislukt: {{err}}",
-      "failedCreateVirtualCopy": "Virtuele kopie maken mislukt: {{err}}",
-      "failedDelete": "Verwijderen mislukt: {{err}}",
-      "failedDeleteFolder": "Map verwijderen mislukt: {{err}}",
-      "failedDuplicate": "Bestand dupliceren mislukt: {{err}}",
-      "failedMove": "Bestanden verplaatsen mislukt: {{err}}",
-      "failedMoveError": "Verplaatsen mislukt: {{err}}",
-      "failedMoveInvalid": "Verplaatsen mislukt: doelgroep niet gevonden of ongeldig.",
-      "failedRemoveImages": "Afbeeldingen verwijderen mislukt: {{err}}"
     }
   },
   "editor": {
@@ -377,14 +239,14 @@
         "duplicateAndInvertEdit": "Bewerking dupliceren en omkeren",
         "duplicateComponent": "Component dupliceren",
         "duplicateEdit": "Bewerking dupliceren",
-        "hideComponent": "",
+        "hideComponent": "Component verbergen",
         "hideEdit": "Bewerking verbergen",
         "intersectEditWith": "Bewerking snijden met",
         "pasteComponent": "Component plakken",
         "pasteEdit": "Bewerking plakken",
         "rename": "Hernoemen",
         "resetSelection": "Selectie herstellen",
-        "showComponent": "",
+        "showComponent": "Component tonen",
         "showEdit": "Bewerking weergeven",
         "subtractFromEdit": "Aftrekken van bewerking",
         "switchToAdd": "Overschakelen naar toevoegen",
@@ -392,30 +254,16 @@
         "switchToSubtract": "Overschakelen naar aftrekken"
       },
       "addNewEdit": "Nieuwe bewerking toevoegen",
-      "brush": {
-        "add": "Toevoegen",
-        "erase": "Wissen",
-        "feather": "Penseelrandvervaging",
-        "size": "Penseelgrootte"
-      },
       "comingSoon": "Binnenkort beschikbaar",
       "connection": {
-        "backendLabel": "AI-backend:",
         "builtinDesc": "Gebruikt de ingebouwde basis-AI. Selecteer Cloud of AI-verbinding in instellingen voor generatieve vervanging.",
         "builtinLabel": "Ingebouwde AI:",
-        "cloudLabel": "Cloud AI:",
         "connectorConnectedDesc": "Verbonden met lokale generatieve backend.",
         "connectorDisconnectedDesc": "Alleen eenvoudig inpainting beschikbaar. Start uw lokale backend.",
         "connectorLabel": "AI-verbinding:",
-        "loginRequiredDesc": "Meld u aan via Instellingen om Cloud AI te gebruiken.",
-        "monthlyUsage": "Maandelijks gebruik",
         "notDetected": "Niet gedetecteerd",
-        "notLoggedIn": "Niet aangemeld",
-        "proRequiredDesc": "Pro-abonnement vereist. Upgrade in Instellingen.",
-        "ready": "Gereed",
-        "upgradeRequired": "Upgrade vereist"
+        "ready": "Gereed"
       },
-      "createNewTitle": "Nieuwe generatieve bewerking maken",
       "createNewTooltip": "Nieuwe {{name}} bewerking maken",
       "denoising": "AI-ruisonderdrukking wordt uitgevoerd...",
       "dropzoneText": "Hier neerzetten om een nieuwe bewerking te maken",
@@ -436,12 +284,6 @@
       },
       "manualCleanupTitle": "Handmatig opruimen",
       "noImageSelected": "Geen afbeelding geselecteerd.",
-      "params": {
-        "feather": "Randvervaging",
-        "grow": "Groeien",
-        "intensity": "Intensiteit",
-        "pressure": "Druk"
-      },
       "patches": {
         "aiEdit": "AI-bewerking {{count}}",
         "aiEdit_one": "AI-bewerking {{count}}",
@@ -456,16 +298,12 @@
         "liquify": "Uitvloeien {{count}}",
         "liquify_one": "Uitvloeien {{count}}",
         "liquify_other": "Uitvloeien {{count}}",
-        "quickErase": "Snel verwijderen {{count}}",
-        "quickErase_one": "Snel verwijderen {{count}}",
-        "quickErase_other": "Snel verwijderen {{count}}",
         "retouch": "Retouche {{count}}",
-        "retouch_one": "",
-        "retouch_other": ""
+        "retouch_one": "Retoucheren {{count}}",
+        "retouch_other": "Retoucheren {{count}}"
       },
       "resetInpaintingTooltip": "Inpainting herstellen",
       "settings": {
-        "aiModelDownloading": "AI-model downloaden: ",
         "basicInpaintTooltipDisabled": "Generatieve backend niet beschikbaar of niet geconfigureerd. Basis inpainting is vereist.",
         "basicInpaintTooltipEnabled": "Basis inpainting is sneller maar niet generatief. Uitvinken om generatieve AI met tekstprompt te gebruiken.",
         "cancelGeneration": "Genereren annuleren",
@@ -480,7 +318,6 @@
         "invertComponent": "Component omkeren",
         "invertSelection": "Selectie omkeren",
         "placeholder": "bijv. een bloemenveld",
-        "quickEraseDesc": "Selectie opvullen om object te verwijderen.",
         "selectionPropertiesTitle": "Selectie-eigenschappen",
         "useBasicInpaint": "Basis inpainting gebruiken"
       },
@@ -506,14 +343,11 @@
         "wPlaceholder": "B",
         "wTooltip": "Breedte"
       },
-      "geometryHeading": "Geometrie",
       "labels": {
         "flipHoriz": "Horizontaal spiegelen",
         "flipVert": "Verticaal spiegelen",
-        "lens": "Lens",
         "rotateLeft": "Roteer links",
-        "rotateRight": "Roteer rechts",
-        "transform": "Transformeren"
+        "rotateRight": "Roteer rechts"
       },
       "orientationHeading": "Oriëntatie",
       "overlays": {
@@ -600,7 +434,6 @@
         "compositionOverlay": "Compositie-overlay",
         "flipHoriz": "Afbeelding horizontaal spiegelen",
         "flipVert": "Afbeelding verticaal spiegelen",
-        "lens": "Lensvervormingscorrectie",
         "overlayDetails": "Overlay: {{name}}{{rotateHint}}",
         "resetFineRotation": "Fijne rotatie herstellen",
         "rotateHint": " (Shift+O om te roteren)",
@@ -609,8 +442,7 @@
         "straighten": "Rechtzettenstool (S)",
         "switchOrientation": "Oriëntatie wisselen",
         "switchToLandscape": "Overschakelen naar liggend",
-        "switchToPortrait": "Overschakelen naar staand",
-        "transform": "Perspectief en keystonecorrectie"
+        "switchToPortrait": "Overschakelen naar staand"
       }
     },
     "externalEdit": {
@@ -621,7 +453,6 @@
     "guided": {
       "cancel": "Annuleren",
       "drawingActive": "Tekenen actief",
-      "hint": "Teken langs randen in uw foto die verticaal of horizontaal moeten zijn.",
       "linesStatus": "Actieve hulplijnen",
       "toast": {
         "angleRejected": "Lijnhoek is te ver van horizontaal of verticaal",
@@ -634,7 +465,6 @@
     "masks": {
       "actions": {
         "addNewComponent": "Nieuw component toevoegen",
-        "applyPreset": "Voorinstelling toepassen",
         "copyComponent": "Component kopiëren",
         "copyMask": "Masker kopiëren",
         "deleteComponent": "Component verwijderen",
@@ -646,7 +476,6 @@
         "hideComponent": "Component verbergen",
         "hideMask": "Masker verbergen",
         "intersectMaskWith": "Masker snijden met",
-        "noPresets": "Geen voorinstellingen",
         "pasteComponent": "Component plakken",
         "pasteMask": "Masker plakken",
         "pasteMaskAdjustments": "Maskeraanpassingen plakken",
@@ -663,11 +492,7 @@
       "aiTitle": "AI-selecties",
       "basicTitle": "Basisgereedschappen",
       "brush": {
-        "brush": "Penseel",
-        "eraser": "Gum",
-        "feather": "Penseelrandvervaging",
-        "flow": "Stroom",
-        "size": "Penseelgrootte"
+        "flow": "Stroom"
       },
       "comingSoon": "Binnenkort beschikbaar",
       "depthRange": {
@@ -681,10 +506,7 @@
       "maskingTitle": "Maskering",
       "masksTitle": "Maskers",
       "params": {
-        "feather": "Randvervaging",
-        "globalFeather": "Globale randvervaging",
-        "grow": "Groeien",
-        "tolerance": "Tolerantie"
+        "globalFeather": "Globale randvervaging"
       },
       "patches": {
         "copyName": "{{name}} kopie",
@@ -697,32 +519,15 @@
       "resetMaskingTooltip": "Maskering herstellen",
       "settings": {
         "aiModelDownloading": "AI-model downloaden: ",
-        "applyPreset": "Voorinstelling toepassen",
         "componentPropertiesTitle": "{{name}} eigenschappen",
         "copySectionSettings": "{{section}} instellingen kopiëren",
-        "faceParts": {
-          "bodySkin": "Lichaamshuid",
-          "eyebrows": "Wenkbrauwen",
-          "eyeWhites": "Oogwit",
-          "faceSkin": "Gezichtshuid",
-          "hair": "Haar",
-          "iris": "Iris en pupil",
-          "lips": "Lippen",
-          "nose": "Neus",
-          "teeth": "Tanden"
-        },
-        "generateTextMask": "Masker maken",
         "invertComponent": "Component omkeren",
         "invertMask": "Masker omkeren",
         "maskPropertiesTitle": "Maskereigenschappen",
-        "noPresetsFound": "Geen voorinstellingen gevonden",
         "opacity": "Dekking",
         "pasteSectionSettings": "{{section}} instellingen plakken",
         "pasteSettings": "Instellingen plakken",
-        "resetSectionSettings": "{{section}} instellingen herstellen",
-        "select": "Selecteren",
-        "selectPresetTooltip": "Selecteer een voorinstelling om toe te passen",
-        "textPromptPlaceholder": "bijv. persoon, auto, water"
+        "resetSectionSettings": "{{section}} instellingen herstellen"
       },
       "toggleAnalyticsInAdjustments": "Analyse in aanpassingspaneel aan/uit",
       "toggleAnalyticsTooltip": "Analytische weergave aan/uit",
@@ -732,124 +537,19 @@
         "selectNewSourcePoint": "{{modifier}} + klik om een nieuw bronpunt te selecteren"
       }
     },
-    "metadata": {
-      "author": {
-        "creatorDetails": "Makerdetails",
-        "title": "Auteur & auteursrecht"
-      },
-      "camera": {
-        "aperture": "Diafragma",
-        "focalLength": "Brandpuntsafstand",
-        "iso": "ISO",
-        "lens": "Lens",
-        "shutterSpeed": "Sluitertijd",
-        "title": "Cameradetails"
-      },
-      "clickToEdit": "Klik om te bewerken",
-      "copied": "Gekopieerd",
-      "copy": "Kopiëren",
-      "emptyClickToAdd": "Leeg (klik om toe te voegen)",
-      "extendedExif": {
-        "title": "Uitgebreide EXIF"
-      },
-      "fields": {
-        "author": "Auteur",
-        "comments": "Opmerkingen",
-        "copyright": "Auteursrecht",
-        "title": "Titel"
-      },
-      "fileInfo": {
-        "dimensions": "{{width}} × {{height}} px • {{megapixels}} MP",
-        "dimensionsNoMp": "{{width}} × {{height}} px",
-        "emptyDimensions": "- × - px",
-        "title": "Bestandsinformatie",
-        "virtualCopy": "Virtuele kopie"
-      },
-      "gps": {
-        "altitude": "Hoogte",
-        "clickToOpenTooltip": "Klik om kaart in nieuw tabblad te openen",
-        "latitude": "Breedtegraad",
-        "longitude": "Lengtegraad",
-        "title": "GPS-locatie"
-      },
-      "organization": {
-        "addTagPlaceholder": "Tag toevoegen...",
-        "colorLabel": "Kleurlabel",
-        "none": "Geen",
-        "noTags": "Geen tags",
-        "rating": "Beoordeling",
-        "ratingLabels": "Beoordeling & labels",
-        "tags": "Tags",
-        "title": "Organisatie"
-      },
-      "title": "Metadata"
-    },
-    "presets": {
-      "amount": "Hoeveelheid",
-      "dialog": {
-        "allPresetFiles": "Alle voorinstellingsbestanden",
-        "exportAllTitle": "Alle voorinstellingen exporteren",
-        "exportTitle": "{{type}} exporteren",
-        "importPresetsTitle": "Voorinstellingen importeren",
-        "legacyPreset": "Verouderde voorinstelling",
-        "presetFile": "Voorinstellingsbestand",
-        "rapidRawPreset": "RapidRAW-voorinstelling"
-      },
-      "menu": {
-        "configurePreset": "Voorinstelling configureren",
-        "deleteFolder": "Map verwijderen",
-        "deletePreset": "Voorinstelling verwijderen",
-        "duplicatePreset": "Voorinstelling dupliceren",
-        "exportFolder": "Map exporteren",
-        "exportPreset": "Voorinstelling exporteren",
-        "newFolder": "Nieuwe map",
-        "newPreset": "Nieuwe voorinstelling",
-        "overwrite": "Overschrijven",
-        "renameFolder": "Map hernoemen",
-        "sortAll": "Alles alfabetisch sorteren"
-      },
-      "status": {
-        "empty": "Nog geen voorinstellingen opgeslagen. Maak uw eigen, importeer uit een bestand of verken community-voorinstellingen.",
-        "getCommunity": "Community-voorinstellingen ophalen",
-        "loading": "Voorinstellingen laden..."
-      },
-      "supports": {
-        "cropTransform": "Bijsnijden & transformeren",
-        "label": "Ondersteunt {{features}}",
-        "masks": "Maskers"
-      },
-      "title": "Voorinstellingen",
-      "tooltips": {
-        "explore": "Community-voorinstellingen verkennen",
-        "export": "Alle voorinstellingen exporteren naar .rrpreset-bestand",
-        "import": "Voorinstellingen importeren uit .rrpreset-bestand",
-        "saveNew": "Opslaan als nieuwe voorinstelling"
-      },
-      "types": {
-        "folder": "Map",
-        "preset": "Voorinstelling",
-        "style": "Stijl",
-        "tool": "Gereedschap"
-      }
-    },
     "switcher": {
       "tooltips": {
         "adjust": "Aanpassen",
         "crop": "Bijsnijden",
         "export": "Exporteren",
-        "info": "Info",
         "inpaint": "Inpainting",
-        "masks": "Maskers",
-        "presets": "Voorinstellingen",
-        "tethering": "Kabelopname"
+        "masks": "Maskers"
       }
     },
     "toolbar": {
       "history": "Geschiedenis",
-      "switchToVariant": "Overschakelen naar {{label}}",
       "tooltips": {
         "aperture": "Diafragma",
-        "backToLibrary": "Terug naar bibliotheek",
         "compare": "Voor / na (B) of modi (rechtsklik)",
         "focalLength": "Brandpuntsafstand",
         "fullscreen": "Volledig scherm aan/uit (F)",
@@ -864,23 +564,8 @@
   "export": {
     "advanced": {
       "exportMasks": "Maskers exporteren als afzonderlijke bestanden",
-      "preserveFolders": "Mapstructuur behouden",
       "preserveTimestamps": "Bestandstijdstempels instellen vanuit EXIF-opnamedatum",
       "title": "Exportinstellingen"
-    },
-    "border": {
-      "addBorder": "Rand toevoegen",
-      "bases": {
-        "eachEdge": "Elke respectieve zijde",
-        "longEdge": "Langste zijde",
-        "shortEdge": "Kortste zijde"
-      },
-      "basis": "Dikte-basis",
-      "color": "Randkleur",
-      "invalidPercent": "Voer een getal in tussen 0 en 100 voor beide.",
-      "leftRight": "Links & rechts",
-      "percent": "%",
-      "topBottom": "Boven & onder"
     },
     "bytes": {
       "bytes": "Bytes",
@@ -896,10 +581,7 @@
       "subfolderPlaceholder": "bijv. definitief, WebP"
     },
     "dialog": {
-      "saveEditedImageTitle": "Bewerkte afbeelding opslaan",
-      "selectFolderTitle": "Map selecteren om {{count}} afbeelding(en) te exporteren",
-      "selectFolderTitle_one": "Map selecteren om {{count}} afbeelding te exporteren",
-      "selectFolderTitle_other": "Map selecteren om {{count}} afbeeldingen te exporteren"
+      "saveEditedImageTitle": "Bewerkte afbeelding opslaan"
     },
     "file": {
       "dpi": "DPI",
@@ -912,425 +594,39 @@
     },
     "labels": {
       "image": "Afbeelding",
-      "image_plural": "Afbeeldingen",
-      "lut": "LUT",
-      "lut_plural": "LUT's"
+      "lut": "LUT"
     },
     "metadata": {
       "removeGps": "GPS-gegevens verwijderen",
       "saveWithMetadata": "Opslaan met metadata"
-    },
-    "pad": {
-      "aspectRatio": "Beeldverhouding",
-      "backgroundColor": "Achtergrondkleur",
-      "invalidRatio": "Voer een positief getal in voor zowel breedte als hoogte.",
-      "padToAspectRatio": "Opvullen tot beeldverhouding",
-      "ratioHeight": "Beeldverhouding hoogte",
-      "ratioWidth": "Beeldverhouding breedte"
-    },
-    "resize": {
-      "dontEnlarge": "Niet vergroten",
-      "modes": {
-        "height": "Hoogte",
-        "longEdge": "Langste zijde",
-        "shortEdge": "Kortste zijde",
-        "width": "Breedte"
-      },
-      "pixels": "pixels",
-      "resizeToFit": "Aanpassen aan kader"
     },
     "sections": {
       "advanced": "Geavanceerd",
       "destination": "Bestemming",
       "fileNaming": "Bestandsnaamgeving",
       "fileSettings": "Bestandsinstellingen",
-      "imageSizing": "Afbeeldingsgrootte",
-      "metadata": "Metadata",
-      "watermark": "Watermerk"
+      "metadata": "Metadata"
     },
     "status": {
       "cancelExport": "Export annuleren",
       "cancelled": "Export geannuleerd",
       "cancelling": "Export annuleren…",
-      "estimatedAverageSize": " ({{size}} gem.)",
       "estimatedSize": "Geschatte bestandsgrootte: ~{{size}}",
-      "estimatedTotalSize": "Geschatte totale grootte: ~{{size}}",
       "estimatingSize": "Grootte schatten...",
       "exporting": "Exporteren…",
-      "exportingProgress": "Exporteren… ({{current}}/{{total}})",
-      "exportMultiple": "{{count}} {{label}} exporteren",
-      "exportMultiple_one": "{{count}} {{label}} exporteren",
-      "exportMultiple_other": "{{count}} {{label}} exporteren",
       "exportSingle": "{{label}} exporteren",
       "failed": "Export mislukt",
       "noImageSelected": "Geen afbeelding geselecteerd voor export.",
-      "noImagesSelected": "Geen afbeeldingen geselecteerd.",
       "success": "Export geslaagd!"
     },
-    "title": "Exporteren",
-    "watermark": {
-      "addWatermark": "Watermerk toevoegen",
-      "anchors": {
-        "bottomCenter": "Onder midden",
-        "bottomLeft": "Onder links",
-        "bottomRight": "Onder rechts",
-        "center": "Midden",
-        "centerLeft": "Midden links",
-        "centerRight": "Midden rechts",
-        "topCenter": "Boven midden",
-        "topLeft": "Boven links",
-        "topRight": "Boven rechts"
-      },
-      "logoText": "Logo",
-      "opacity": "Dekking",
-      "previewText": "Voorbeeld",
-      "scale": "Schaal",
-      "spacing": "Tussenruimte",
-      "watermarkImage": "Watermarkafbeelding"
-    }
-  },
-  "immich": {
-    "close": {
-      "cancel": "Annuleren",
-      "closeAnyway": "Toch sluiten",
-      "message": "Bewerkingen die op Immich wachten: {{number}}. Ze blijven op deze computer en worden verstuurd zodra RapidRAW weer draait en Immich bereikbaar is.",
-      "title": "Bewerkingen nog niet in Immich"
-    },
-    "export": {
-      "album": "Album",
-      "destination": "Immich",
-      "noAlbum": "Geen album",
-      "sourceAlbum": "Album waaruit de afbeelding is geopend",
-      "withOriginal": "Origineel ook uploaden",
-      "withOriginalDesc": "Voor afbeeldingen uit een lokale map: het origineel wordt met zijn bewerkingen geüpload en de export wordt erbovenop gestapeld. Afbeeldingen uit Immich worden altijd op hun origineel gestapeld."
-    },
-    "section": {
-      "empty": "Geen albums op de server.",
-      "error": "Immich is niet bereikbaar.",
-      "loading": "Albums laden…",
-      "refresh": "Albums vernieuwen",
-      "timeline": "Tijdlijn",
-      "title": "Immich"
-    },
-    "settings": {
-      "apiKey": "API-sleutel",
-      "apiKeyDesc": "Maak er een aan in Immich onder Accountinstellingen → API-sleutels met deze rechten: album.read, albumAsset.create, albumAsset.delete, asset.read, asset.view, asset.download, asset.upload, asset.update, asset.delete, stack.read, stack.create en user.read.",
-      "connected": "Verbonden als {{user}} (Immich {{version}})",
-      "description": "Blader door de foto's van je Immich-server in de bibliotheek en bewerk ze direct. Originelen worden gedownload als je ze opent, en je bewerkingen worden in Immich opgeslagen, zodat ze op elke computer hetzelfde zijn.",
-      "keyInFile": "Opgeslagen in een bestand dat alleen jij kunt lezen: er is geen sleutelopslag beschikbaar. Zet in KDE de Secret Service-interface aan in de instellingen van KDE Wallet en sla opnieuw op.",
-      "keyInStore": "Opgeslagen in de sleutelopslag van het systeem.",
-      "save": "Opslaan",
-      "saved": "Opgeslagen.",
-      "serverUrl": "Serveradres",
-      "serverUrlDesc": "Het adres waarmee je Immich in de browser opent.",
-      "test": "Verbinding testen",
-      "title": "Immich",
-      "working": "Bezig…"
-    },
-    "sync": {
-      "offline": "Offline",
-      "pending": "Bewerkingen die op Immich wachten: {{number}}"
-    },
-    "toasts": {
-      "backOnline": "Immich is weer bereikbaar en alle bewerkingen zijn daar opgeslagen.",
-      "downloadFailed": "Downloaden van Immich mislukt: {{error}}",
-      "editsConflict": "{{fileName}} is ook op een andere computer bewerkt. Je bewerkingen blijven en de andere versie wordt bewaard als virtuele kopie.",
-      "offline": "Immich is niet bereikbaar. Je bewerkingen blijven hier en worden verstuurd zodra het weer bereikbaar is.",
-      "trashFailed": "Verplaatsen naar de prullenbak van Immich mislukt: {{error}}",
-      "uploaded": "Geüpload naar Immich: {{number}}"
-    }
+    "title": "Exporteren"
   },
   "library": {
-    "aiJobs": {
-      "discard": "Resterende AI-verwerking verwijderen",
-      "failed": "Mislukt ({{failedCount}})",
-      "kinds": {
-        "denoise": "AI-ruisonderdrukking",
-        "depthMap": "Diepte analyseren",
-        "depthMask": "Dieptemasker maken",
-        "faceMask": "Gezichtsmasker maken",
-        "foregroundMask": "Voorgrondmasker maken",
-        "normalMap": "Oppervlakken analyseren",
-        "skyMask": "Luchtmasker maken",
-        "subjectMask": "Onderwerpmasker maken",
-        "textMask": "Tekstmasker maken"
-      },
-      "more": "+{{moreCount}} meer",
-      "pause": "AI-verwerking pauzeren",
-      "paused": "Gepauzeerd · {{remaining}} resterend",
-      "pausedItem": "Gepauzeerd",
-      "pausing": "Pauzeert na de huidige stap…",
-      "process": "Afbeeldingen verwerken",
-      "progress": "{{current}}/{{total}}",
-      "queue": "Wachtrij",
-      "queuedItem": "In wachtrij",
-      "resume": "AI-verwerking hervatten",
-      "retry": "Opnieuw proberen",
-      "taskWithMask": "{{task}} ‘{{mask}}’",
-      "thumbnailPaused": "AI-verwerking gepauzeerd",
-      "thumbnailPending": "AI-verwerking in behandeling",
-      "title": "AI-verwerking",
-      "unprocessed_one": "{{count}} afbeelding heeft AI-verwerking nodig",
-      "unprocessed_other": "{{count}} afbeeldingen hebben AI-verwerking nodig",
-      "waiting": "AI-verwerking voorbereiden…"
-    },
-    "community": {
-      "actionSave": "Opslaan",
-      "actionSaved": "Opgeslagen",
-      "actionSaving": "Opslaan...",
-      "fetchingPresets": "Voorinstellingen ophalen van GitHub...",
-      "footerHeading": "Wilt u uw voorinstelling laten uitlichten?",
-      "footerLinkText": "Maak een issue aan op GitHub",
-      "headerDesc": "Ontdek voorinstellingen gemaakt door de community.",
-      "headerTitle": "Community-voorinstellingen",
-      "presetBy": "door {{creator}}",
-      "searchPlaceholder": "Voorinstellingen zoeken...",
-      "sortBy": "Sorteren op:",
-      "sortMethods": {
-        "name": "Naam (A-Z)"
-      }
-    },
     "filterExit": {
       "hiddenMultiple_one": "{{count}} afbeeldingen komen niet meer overeen met het filter",
       "hiddenMultiple_other": "{{count}} afbeeldingen komen niet meer overeen met het filter",
       "hiddenSingle": "{{name}} komt niet meer overeen met het filter",
       "undo": "Ongedaan maken"
-    },
-    "filters": {
-      "edited": {
-        "all": "Alle afbeeldingen",
-        "editedOnly": "Alleen bewerkte",
-        "uneditedOnly": "Alleen onbewerkte"
-      },
-      "flag": {
-        "all": "",
-        "excludeRejected": "",
-        "picked": "",
-        "rejected": ""
-      },
-      "noMatch": "Geen afbeeldingen gevonden die overeenkomen met uw filter.",
-      "rating": {
-        "all": "Alles weergeven",
-        "andDownSuffix": "& lager",
-        "andUpSuffix": "& hoger",
-        "fiveOnly": "Alleen 5",
-        "fourAndUp": "4 & hoger",
-        "oneAndUp": "1 & hoger",
-        "onlySuffix": "alleen",
-        "threeAndUp": "3 & hoger",
-        "twoAndUp": "2 & hoger",
-        "unrated": "Alleen zonder beoordeling"
-      },
-      "raw": {
-        "all": "Alle typen",
-        "nonRawOnly": "Alleen niet-RAW",
-        "rawOnly": "Alleen RAW"
-      }
-    },
-    "folders": {
-      "addFolder": "Map toevoegen",
-      "albumsEmpty": "Rechtermuisknop om een album te maken.",
-      "collapseSection": "{{section}} inklappen",
-      "expandSection": "{{section}} uitklappen",
-      "loading": "Mappen laden...",
-      "noFoldersFound": "Geen mappen gevonden.",
-      "openFolderInstruction": "Open een map om de structuur te zien.",
-      "searchPlaceholder": "Mappen zoeken...",
-      "sections": {
-        "albums": "Albums",
-        "folders": "Mappen",
-        "pinned": "Vastgezet"
-      },
-      "sort": {
-        "created": "Aanmaakdatum",
-        "imageCount": "Aantal afbeeldingen",
-        "modified": "Wijzigingsdatum",
-        "name": "Alfabetisch"
-      },
-      "sourcesTitle": "Bronnen",
-      "tooltips": {
-        "clearSearch": "Zoekopdracht wissen",
-        "collapse": "Inklappen",
-        "expand": "Uitklappen",
-        "moreOptions": "Opties",
-        "navBack": "Terug",
-        "navForward": "Vooruit",
-        "sortFolders": "Mappen sorteren"
-      }
-    },
-    "grid": {
-      "columns": {
-        "aperture": "Diafragma",
-        "focal": "Brandpunt",
-        "iso": "ISO",
-        "label": "Label",
-        "modified": "Gewijzigd",
-        "name": "Naam",
-        "rating": "Beoordeling",
-        "shutter": "Sluitertijd"
-      }
-    },
-    "header": {
-      "cancel": "Annuleren",
-      "deselectAll": "Alles deselecteren",
-      "search": {
-        "addFilterOrSearch": "Filter toevoegen of zoeken...",
-        "indexingImages": "Afbeeldingen indexeren...",
-        "indexingProgress": "Indexeren... ({{current}}/{{total}})",
-        "matchAll": "Alle tags overeenkomen",
-        "matchAny": "Elke tag overeenkomen",
-        "searchOrQuery": "Zoeken of query toevoegen",
-        "tooltipAdvancedQueries": "Geavanceerde query's: iso:>800, f:<=2.8, s:1/200, mm:50, camera:sony",
-        "tooltipClearSearch": "Zoekopdracht wissen",
-        "tooltipSearchFilter": "Zoeken of filteren"
-      },
-      "selectAll": "Alles selecteren",
-      "selectItems": "Items selecteren",
-      "title": "Bibliotheek",
-      "viewOptions": {
-        "currentFolder": "Huidige map",
-        "displayMode": "Weergavemodus",
-        "exifDisabledTooltip": "Schakel EXIF-lezen in bij instellingen om deze optie te gebruiken.",
-        "filterByColorLabel": "Filteren op kleurlabel",
-        "filterByEdited": "Filteren op bewerkingsstatus",
-        "filterByFileType": "Filteren op bestandstype",
-        "filterByFlag": "",
-        "filterByRating": "Filteren op beoordeling",
-        "groupEditedFiles": "Bewerkte bestanden in groepen opnemen",
-        "groupIgnoreMetadata": "Niet-overeenkomende EXIF-datums negeren",
-        "groupOff": "Uit",
-        "groupPreferJpeg": "JPEG voorkeur",
-        "groupPreferRaw": "RAW voorkeur",
-        "groupRawJpeg": "RAW + JPEG groeperen",
-        "metadataAlways": "Altijd",
-        "metadataHover": "Bij aanwijzen",
-        "metadataOff": "Uit",
-        "noLabel": "Geen label",
-        "ratingOperator": {
-          "eq": "Precies deze beoordeling",
-          "gte": "Deze beoordeling of hoger",
-          "lte": "Deze beoordeling of lager"
-        },
-        "recursive": "Recursief",
-        "showMetadata": "Metadata weergeven",
-        "sortAscending": "Oplopend sorteren",
-        "sortBy": "Sorteren op",
-        "sortDescending": "Aflopend sorteren",
-        "thumbnailFit": "Miniatuur aanpassen",
-        "thumbnailSize": "Miniatuurgrootte",
-        "title": "Weergaveopties"
-      }
-    },
-    "items": {
-      "cloudPlaceholder": "Opgeslagen in iCloud — niet gedownload",
-      "collapseFolder": "Map inklappen",
-      "currentFolder": "Huidige map",
-      "expandFolder": "Map uitklappen",
-      "imagesCount_one": "1 afbeelding",
-      "imagesCount_other": "{{count}} afbeeldingen",
-      "immichPlaceholder": "Opgeslagen in Immich — niet gedownload",
-      "rejected": "",
-      "tooltipAperture": "Diafragma",
-      "tooltipFocalLength": "Brandpuntsafstand",
-      "tooltipIso": "ISO",
-      "tooltipShutterSpeed": "Sluitertijd",
-      "tooltipVirtualCopy": "Virtuele kopie"
-    },
-    "jobs": {
-      "active": "Bezig",
-      "cancel": "Export annuleren",
-      "cancelling": "Annuleren…",
-      "clear": "Wissen",
-      "copyError": "Klik om te kopiëren",
-      "empty": "Geen actieve taken",
-      "emptyHint": "Exports, imports, bestandsoverdrachten en AI-taken verschijnen hier.",
-      "errorCopied": "Fout naar klembord gekopieerd",
-      "images_one": "{{count}} afbeelding",
-      "images_other": "{{count}} afbeeldingen",
-      "kinds": {
-        "aiTagging": "AI-tagging",
-        "copy": "Bestanden kopiëren",
-        "export": "Export",
-        "import": "Import",
-        "modelDownload": "AI-model downloaden",
-        "move": "Bestanden verplaatsen"
-      },
-      "openInLibrary": "Openen in bibliotheek",
-      "recent": "Recent",
-      "title": "Taken"
-    },
-    "reject": {
-      "deleteConfirm": "",
-      "deleteMessage_one": "",
-      "deleteMessage_other": "",
-      "deleteTitle": "",
-      "noneToDelete": "",
-      "virtualCopiesWarning_one": "",
-      "virtualCopiesWarning_other": ""
-    },
-    "search": {
-      "noResults": "Geen resultaten gevonden",
-      "noResultsAiHint": " Voor een uitgebreidere zoekopdracht kunt u automatische tags inschakelen bij instellingen.",
-      "noResultsDesc": "Kon geen afbeelding vinden op basis van bestandsnaam of tags."
-    },
-    "sort": {
-      "aperture": "Diafragma",
-      "dateModified": "Wijzigingsdatum",
-      "dateTaken": "Opnamedatum",
-      "editedStatus": "Bewerkingsstatus",
-      "fileName": "Bestandsnaam",
-      "focalLength": "Brandpuntsafstand",
-      "iso": "ISO",
-      "rating": "Beoordeling",
-      "shutterSpeed": "Sluitertijd"
-    },
-    "splash": {
-      "addFolder": "Map toevoegen",
-      "brand": "RapidRAW",
-      "continueSession": "Sessie voortzetten",
-      "contribute": "Bijdragen op GitHub",
-      "descriptionAndroid": "Een razendsnelle, GPU-versnelde RAW-beeldeditor. Open de bibliotheek om te beginnen.",
-      "descriptionDesktop": "Een razendsnelle, GPU-versnelde RAW-beeldeditor. Open een map om te beginnen.",
-      "donate": "Doneren op Ko-Fi",
-      "downloadVersion": "Klik om versie {{version}} te downloaden",
-      "goToSettings": "Naar instellingen",
-      "imagesBy": "Afbeeldingen door",
-      "latestVersion": "U gebruikt de nieuwste versie",
-      "newVersionAvailable": "Nieuwe versie beschikbaar!",
-      "openFolder": "Map openen",
-      "openLibrary": "Bibliotheek openen",
-      "or": "of",
-      "version": "Versie {{version}}",
-      "welcomeBack": "Welkom terug!",
-      "welcomeBackDesc": "Ga verder waar u gebleven was of begin een nieuwe sessie."
-    },
-    "status": {
-      "downloading": "Downloaden {{status}}...",
-      "importing": "Afbeeldingen importeren... ({{current}}/{{total}})",
-      "indexing": "Afbeeldingen indexeren... ({{current}}/{{total}})",
-      "moment": "Dit kan even duren.",
-      "processing": "Afbeeldingen verwerken..."
-    },
-    "thumbnailFit": {
-      "fillSquare": "Vierkant vullen",
-      "justified": "Metselwerk",
-      "originalRatio": "Originele verhouding"
-    },
-    "thumbnailSize": {
-      "large": "Groot",
-      "list": "Lijst",
-      "medium": "Middel",
-      "small": "Klein"
-    },
-    "tooltips": {
-      "communityPresets": "Community-voorinstellingen",
-      "goHome": "Naar startpagina",
-      "importImages": "Afbeeldingen importeren",
-      "select": "Selecteren"
-    },
-    "viewMode": {
-      "grid": "",
-      "list": ""
     }
   },
   "masks": {
@@ -1340,46 +636,17 @@
       "clone": "Klonen",
       "color": "Kleur",
       "depth": "Diepte",
-      "face": "Gezicht",
       "flow": "Doorstroming",
-      "foreground": "Voorgrond",
       "heal": "Herstellen",
       "linear": "Lineair",
       "liquify": "Uitvloeien",
       "luminance": "Luminantie",
       "others": "Overige",
-      "quickErase": "Snel wissen",
-      "quickEraser": "Snel wissen",
       "radial": "Radiaal",
-      "retouch": "Retoucheren",
-      "sky": "Lucht",
-      "subject": "Onderwerp",
-      "text": "Tekst"
-    }
-  },
-  "menus": {
-    "tagging": {
-      "addTagTooltip": "Tag toevoegen",
-      "noTags": "Geen tags toegevoegd",
-      "placeholder": "Tag toevoegen...",
-      "removeTooltip": "Tag \"{{tag}}\" verwijderen",
-      "shortcutsHeading": "SNELKOPPELINGEN"
+      "retouch": "Retoucheren"
     }
   },
   "modals": {
-    "configurePreset": {
-      "cancel": "Annuleren",
-      "includeCropTransform": "Bijsnijden & transformeren opnemen",
-      "includeMasks": "Maskers opnemen",
-      "placeholder": "Naam van voorinstelling invoeren...",
-      "save": "Opslaan",
-      "titleConfigure": "Voorinstelling configureren",
-      "titleSave": "Nieuwe voorinstelling opslaan",
-      "typeStyleDesc": "Past de volledige look toe. Dit overschrijft al uw huidige instellingen om exact overeen te komen met de voorinstelling.",
-      "typeStyleLabel": "Stijl",
-      "typeToolDesc": "Past alleen specifieke wijzigingen toe zonder uw andere instellingen te beïnvloeden.",
-      "typeToolLabel": "Gereedschap"
-    },
     "confirm": {
       "cancel": "Annuleren",
       "confirm": "Bevestigen"
@@ -1427,18 +694,6 @@
       "selectNone": "Niets selecteren",
       "title": "Instellingen kopiëren & plakken"
     },
-    "createAlbum": {
-      "placeholder": "Albumnaam invoeren..."
-    },
-    "createFolder": {
-      "cancel": "Annuleren",
-      "create": "Maken",
-      "placeholder": "Mapnaam invoeren...",
-      "title": "Nieuwe map maken"
-    },
-    "createGroup": {
-      "placeholder": "Groepsnaam invoeren..."
-    },
     "focusStack": {
       "cancel": "Annuleren",
       "close": "Sluiten",
@@ -1456,283 +711,86 @@
       "start": "Starten",
       "title": "Focusstapeling"
     },
-    "importSettings": {
-      "cancel": "Annuleren",
-      "dateFormat": "Datumnotatie",
-      "dateFormatPlaceholder": "bijv. YYYY/MM-DD",
-      "deleteAfterImport": "Originelen verwijderen na succesvolle import",
-      "deleteWarning": "Bestanden worden verplaatst naar de systeemprullenbak.",
-      "fileNaming": "Bestandsnaamgeving",
-      "folderOrganization": "Maporganisatie",
-      "notUniqueWarning": "Zonder {original_filename}, {original_filename_number} of {sequence} kunnen bestanden dezelfde naam krijgen. Die bestanden worden niet geïmporteerd.",
-      "organizeByDate": "Ordenen in submappen op datum",
-      "sourceFiles": "Bronbestanden",
-      "startImport": "Import starten",
-      "title": "Importinstellingen"
-    },
     "lensCorrection": {
       "amount": "Hoeveelheid",
-      "apply": "Toepassen",
-      "autoDetectLens": "Lens automatisch detecteren",
-      "autoDetectStatus": "Status automatische detectie",
-      "cancel": "Annuleren",
       "chooseSavedLens": "Opgeslagen lens kiezen",
       "chromaticAberration": "Chromatische aberratie",
-      "compareTooltip": "Vasthouden om te vergelijken",
-      "corrections": "Correcties",
       "databaseNotice": "Lensdatabase geleverd door het <0>Lensfun-project</0> (<1>CC BY-SA 3.0</1>).",
-      "detecting": "Detecteren...",
       "detectingExif": "EXIF detecteren...",
       "distortion": "Vervorming",
-      "lensFound": "Lens gevonden",
       "lensProfileNotFound": "Lensprofiel niet gevonden",
       "manageLensesPlaceholder": "Beheer uw lenzen in instellingen",
-      "manualSelection": "Handmatige selectie",
-      "maskWarning": "Lenscorrectie werkt de basisgeometrie bij. Bestaande maskers kunnen verschuiven en AI-maskers moeten opnieuw worden gegenereerd.",
       "modeAuto": "Automatisch",
       "modeManual": "Handmatig",
-      "notFound": "Niet gevonden",
-      "original": "Origineel",
-      "resetTooltip": "Lenscorrectie herstellen",
-      "resetZoomTooltip": "Zoom herstellen",
       "selectLensModel": "Lensmodel selecteren",
       "selectManufacturer": "Fabrikant selecteren",
       "title": "Lenscorrectie",
       "vignetting": "Vignettering",
-      "waitingAutoDetect": "Wachten op automatische detectie...",
+      "waitingAutoDetect": "Wachten op automatische detectie..."
+    },
+    "negativeConversion": {
+      "blueWeight": "Blauwgewicht",
+      "cancel": "Annuleren",
+      "colorTiming": "Kleurbalans",
+      "compareTooltip": "Houd ingedrukt om te vergelijken",
+      "contrast": "Contrast",
+      "convertAndSave": "Converteren en opslaan",
+      "convertAndSaveAll_one": "{{count}} afbeelding converteren en opslaan",
+      "convertAndSaveAll_other": "{{count}} afbeeldingen converteren en opslaan",
+      "converting": "Converteren...",
+      "convertingProgress": "Converteren ({{current}}/{{total}})...",
+      "exposure": "Belichting",
+      "greenWeight": "Groengewicht",
+      "noticeText": "Inversielogica geïnspireerd op <2>NegPy</2> van marcinz606 (<5>GPL-3.0</5>).",
+      "originalLabel": "Origineel",
+      "printGrade": "Afdrukgradatie",
+      "redWeight": "Roodgewicht",
+      "resetTooltip": "Conversie herstellen",
+      "resetViewTooltip": "Weergave herstellen",
+      "title": "Negatiefconversie",
       "zoomInTooltip": "Inzoomen",
       "zoomOutTooltip": "Uitzoomen"
     },
-    "renameAlbum": {
-      "placeholder": "Nieuwe albumnaam invoeren..."
-    },
-    "renameFile": {
-      "cancel": "Annuleren",
-      "fileNamingTemplate": "Bestandsnaamsjabloon",
-      "newName": "Nieuwe naam",
-      "notUniqueWarning": "Zonder {original_filename}, {original_filename_number} of {sequence} kunnen bestanden dezelfde naam krijgen. Dan wordt er niets hernoemd.",
-      "save": "Opslaan",
-      "titleMultiple": "{{count}} afbeeldingen hernoemen",
-      "titleMultiple_one": "{{count}} afbeelding hernoemen",
-      "titleMultiple_other": "{{count}} afbeeldingen hernoemen",
-      "titleSingle": "Afbeelding hernoemen"
-    },
-    "renameFolder": {
-      "cancel": "Annuleren",
-      "placeholder": "Nieuwe mapnaam invoeren...",
-      "save": "Opslaan",
-      "title": "Map hernoemen"
-    },
-    "renameGroup": {
-      "placeholder": "Nieuwe groepsnaam invoeren..."
-    },
     "transform": {
       "amount": "Hoeveelheid",
-      "apply": "Toepassen",
       "aspect": "Beeldverhouding",
-      "cancel": "Annuleren",
-      "compareTooltip": "Vasthouden om te vergelijken",
       "distortion": "Vervorming",
       "geometry": "Geometrie",
       "guided": "Geleid perspectief",
       "horizontal": "Horizontaal",
-      "manual": "Handmatig transformeren",
-      "maskWarning": "Transformeren werkt de basisgeometrie bij. Bestaande maskers kunnen verschuiven en AI-maskers moeten opnieuw worden gegenereerd.",
       "offset": "Verschuiving",
-      "original": "Origineel",
       "perspective": "Perspectief",
-      "resetTooltip": "Transformeren herstellen",
-      "resetZoomTooltip": "Zoom herstellen",
       "rotate": "Roteren",
       "scale": "Schaal",
       "title": "Transformeren",
-      "toggleGridTooltip": "Raster aan/uit",
-      "toggleHelperLinesTooltip": "Hulplijnen aan/uit",
       "vertical": "Verticaal",
       "xAxis": "X-as",
-      "yAxis": "Y-as",
-      "zoomInTooltip": "Inzoomen",
-      "zoomOutTooltip": "Uitzoomen"
+      "yAxis": "Y-as"
     }
   },
   "settings": {
-    "categories": {
-      "general": "Algemeen",
-      "processing": "Verwerking",
-      "shortcuts": "Besturing"
-    },
-    "controls": {
-      "keyboardTitle": "Toetsenbordbesturing",
-      "modes": {
-        "mouse": "Muis",
-        "trackpad": "Trackpad"
-      },
-      "notAssigned": "Niet toegewezen",
-      "optimization": "Optimalisatie invoerapparaat",
-      "optimizationDesc": "Kies het primaire invoerapparaat dat u gebruikt om het canvas te pannen en te zoomen.",
-      "pressKey": "Druk op een toets... (Esc om te wissen)",
-      "resetDefaults": "Alles herstellen naar standaard",
-      "speed": "Snelheid",
-      "title": "Muisbesturing",
-      "zoom": "Zoomsnelheidsmultiplicator",
-      "zoomClick": "Foto zoomen naar 100%",
-      "zoomClickDesc": "Foto in editor zoomen naar 100% bij muisklik",
-      "zoomClickInfo": "Klik op de foto om direct in te zoomen naar 100% (1:1 pixels) om scherpte en ruis te beoordelen. Als dit uitgeschakeld is, zoomt klikken geleidelijk in.",
-      "zoomDesc": "Pas aan hoe snel het canvas in- en uitzoomt bij gebruik van het scrollwiel of knijpgebaar."
-    },
-    "data": {
-      "aiTags": "AI-tags wissen",
-      "aiTagsDesc": "Verwijdert door AI gegenereerde tags van alle afbeeldingen in je hoofdmappen. Je eigen tags blijven behouden.",
-      "allTags": "Alle tags wissen",
-      "allTagsDesc": "Verwijdert door AI gegenereerde en zelf toegevoegde tags van alle afbeeldingen in je hoofdmappen. Kleurlabels blijven behouden.",
-      "clear": "Wissen",
-      "delete": "Verwijderen",
-      "deleteEdits": "Alle bewerkingen verwijderen",
-      "deleteEditsDesc": "Verwijdert alle .rrdata-sidecarbestanden (je bewerkingen) in alle hoofdmappen. Dit kan niet ongedaan worden gemaakt.",
-      "libraryAndWorkspace": "Bibliotheek & werkruimte",
-      "limit": "Limiet",
-      "modals": {
-        "aiDenoiseMessage": "Weet je zeker dat je de AI-ruisonderdrukkingscache wilt wissen?\n\nAfbeeldingen met AI-ruisonderdrukking ingeschakeld moeten opnieuw worden verwerkt, wat per afbeelding enkele minuten kan duren.",
-        "aiMapsMessage": "Weet je zeker dat je de diepte- en normal maps wilt wissen?\n\nAfbeeldingen met lensvervaging, mist of herbelichting maken hun maps opnieuw aan wanneer ze weer worden geopend.",
-        "aiMessage": "Weet u zeker dat u alle door AI gegenereerde tags van alle afbeeldingen in alle actieve hoofdmappen wilt verwijderen?\n\nDit heeft geen invloed op door gebruikers toegevoegde tags. Deze actie kan niet ongedaan worden gemaakt.",
-        "allMessage": "Weet u zeker dat u alle door AI gegenereerde en door gebruikers toegevoegde tags van alle afbeeldingen in alle actieve hoofdmappen wilt verwijderen?\n\nDeze actie kan niet ongedaan worden gemaakt.",
-        "cacheMessage": "Weet u zeker dat u de miniatuurcache wilt wissen?\n\nAlle miniaturen moeten opnieuw worden gegenereerd, wat langzaam kan zijn voor grote mappen.",
-        "confirmAiTitle": "AI-tagverwijdering bevestigen",
-        "confirmAllTitle": "Alle tagverwijdering bevestigen",
-        "confirmClear": "Wissen",
-        "confirmClearAi": "AI-tags wissen",
-        "confirmClearAll": "Alle tags wissen",
-        "confirmDeleteAllEdits": "Alle bewerkingen verwijderen",
-        "confirmResetLayout": "Indeling herstellen",
-        "confirmResetLayoutTitle": "Werkruimte-indeling herstellen",
-        "confirmTitle": "Verwijdering bevestigen",
-        "immichMessage": "Weet je zeker dat je de gedownloade Immich-originelen wilt wissen?\n\nJe bewerkingen blijven behouden. Originelen worden opnieuw gedownload wanneer je ze opent.",
-        "metadataMessage": "Weet je zeker dat je de metadatacache wilt wissen?\n\nMetadata wordt opnieuw uit je bestanden gelezen terwijl je bladert.",
-        "modelsMessage": "Weet je zeker dat je de gedownloade AI-modellen wilt verwijderen?\n\nZe worden opnieuw gedownload wanneer je weer een AI-functie gebruikt.",
-        "resetLayoutMessage": "Weet u zeker dat u de werkruimte-indeling wilt herstellen? Alle gedockte panelen, breedtes en schakelposities worden teruggezet naar hun standaardwaarden.",
-        "sidecarMessage": "Weet u zeker dat u alle sidecar-bestanden wilt verwijderen?\n\nDit verwijdert permanent al uw bewerkingen voor alle afbeeldingen in alle actieve hoofdmappen en hun submappen."
-      },
-      "noFolders": "Geen mappen geselecteerd",
-      "refresh": "Vernieuwen",
-      "reset": "Herstellen",
-      "resetLayoutDesc": "Paneeldocks, zijsplitsers, hoogtes en paneelschakelaars terugzetten naar de standaardindeling.",
-      "resetLayoutTitle": "Werkruimte-indeling herstellen",
-      "show": "Tonen",
-      "statuses": {
-        "aiDenoiseSuccess": "AI-ruisonderdrukkingscache succesvol gewist.",
-        "aiSuccess": "{{count}} bestanden bijgewerkt. AI-tags verwijderd.",
-        "aiSuccess_one": "{{count}} bestand bijgewerkt. AI-tags verwijderd.",
-        "aiSuccess_other": "{{count}} bestanden bijgewerkt. AI-tags verwijderd.",
-        "allSuccess": "{{count}} bestanden bijgewerkt. Alle niet-kleur-tags verwijderd.",
-        "allSuccess_one": "{{count}} bestand bijgewerkt. Alle niet-kleur-tags verwijderd.",
-        "allSuccess_other": "{{count}} bestanden bijgewerkt. Alle niet-kleur-tags verwijderd.",
-        "cacheSuccess": "Miniatuurcache succesvol gewist.",
-        "cleared": "Succesvol gewist.",
-        "layoutResetSuccess": "Werkruimte-indeling hersteld naar standaard.",
-        "sidecarSuccess": "{{count}} sidecar-bestanden succesvol verwijderd.",
-        "sidecarSuccess_one": "{{count}} sidecar-bestand succesvol verwijderd.",
-        "sidecarSuccess_other": "{{count}} sidecar-bestanden succesvol verwijderd."
-      },
-      "storage": {
-        "aiDenoise": "AI-ruisonderdrukking",
-        "aiDenoiseDesc": "Gecachete ruisonderdrukkingsresultaten.",
-        "aiMaps": "Diepte- & normal maps",
-        "aiMapsDesc": "Gebruikt door lensvervaging, mist en herbelichting.",
-        "immich": "Immich",
-        "immichDesc": "Gedownloade originelen. De langst niet gebruikte worden verwijderd zodra de limiet is bereikt; je bewerkingen blijven behouden.",
-        "logs": "Logboeken",
-        "logsDesc": "Logbestanden van de app voor probleemoplossing. Worden bij elke start gewist.",
-        "metadata": "Metadata",
-        "metadataDesc": "Gecachete EXIF-gegevens om mappen sneller te laden.",
-        "models": "AI-modellen",
-        "modelsDesc": "Worden gedownload wanneer een AI-functie voor het eerst wordt gebruikt.",
-        "thumbnails": "Miniaturen",
-        "thumbnailsDesc": "Worden automatisch opnieuw gemaakt terwijl je bladert."
-      },
-      "storageTitle": "Opslag",
-      "title": "Gegevensbeheer",
-      "totalUsed": "RapidRAW gebruikt {{size}} op dit apparaat."
-    },
-    "general": {
-      "createXmp": "Ontbrekende XMP-bestanden maken",
-      "createXmpDesc": "Automatisch een nieuw XMP-sidecar-bestand maken als er geen bestaat voor een afbeelding.",
-      "createXmpMissing": "XMP maken indien ontbrekend",
-      "displayEditIcon": "Bewerkingspictogram weergeven",
-      "displayEditIconDesc": "Toon een klein schuifregelaarpictogram op miniaturen die zijn bewerkt.",
-      "enableFocusMode": "Focusmodus inschakelen",
-      "enableNeutralGreyCanvas": "Neutrale grijze achtergrond inschakelen",
-      "enableOsTitlebar": "OS-titelbalk inschakelen",
-      "enableToolFocusMode": "Toolfocusmodus inschakelen",
-      "enableXmpSync": "XMP-synchronisatie inschakelen",
-      "focusMode": "Focusmodus",
-      "focusModeDesc": "Helpt u te concentreren door andere panelen automatisch te sluiten wanneer u een nieuw paneel opent.",
-      "folderImageCounts": "Aantal afbeeldingen in map",
-      "folderImageCountsDesc": "Toon het aantal afbeeldingen in mappen bij het aanwijzen van de mappenstructuur.",
-      "font": "Lettertype",
-      "fontDesc": "Het toepassingslettertype wijzigen.",
-      "nativeTitlebar": "Systeemeigen titelbalk",
-      "nativeTitlebarDesc": "Gebruik de standaard venstertitelbalk van uw systeem in plaats van de aangepaste titelbalk van RapidRAW.",
-      "neutralGreyCanvas": "Neutraal grijs canvas",
-      "neutralGreyCanvasDesc": "Gebruik een neutraal grijs canvas voor nauwkeurigere kleur- en belichtingsgradering zonder het thema van de app te wijzigen.",
-      "poppins": "Poppins",
-      "showImageCounts": "Aantal afbeeldingen weergeven",
-      "system": "Systeemstandaard",
-      "theme": "Thema",
-      "themeDesc": "De look en feel van de toepassing wijzigen.",
-      "title": "Algemene instellingen",
-      "toolFocusMode": "Toolfocusmodus",
-      "toolFocusModeDesc": "Vouw automatisch de overige gereedschappen in een paneel samen wanneer je er één uitvouwt.",
-      "xmpSync": "XMP-metadatasynchronisatie",
-      "xmpSyncDesc": "Synchroniseer beoordelingen, kleurlabels en tags naar standaard XMP-sidecar-bestanden voor compatibiliteit met andere foto-editors."
-    },
     "keybinds": {
       "actions": {
         "auto_straighten": "Automatisch rechtzetten",
         "brush_size_down": "Penseelgrootte verkleinen",
         "brush_size_up": "Penseelgrootte vergroten",
-        "color_label_blue": "Kleurlabel: blauw",
-        "color_label_green": "Kleurlabel: groen",
-        "color_label_none": "Kleurlabel: geen",
-        "color_label_purple": "Kleurlabel: paars",
-        "color_label_red": "Kleurlabel: rood",
-        "color_label_yellow": "Kleurlabel: geel",
         "copy_adjustments": "Geselecteerde aanpassingen kopiëren",
-        "copy_files": "Geselecteerd(e) bestand(en) kopiëren",
         "copy_image_path": "Pad van geselecteerde afbeelding(en) kopiëren",
         "cycle_zoom": "Zoom wisselen (passend, 2x passend, 100%)",
-        "delete_selected": "Geselecteerd(e) bestand(en) verwijderen",
-        "focus_search": "Zoekveld activeren",
-        "open_image": "Geselecteerde afbeelding openen",
-        "open_settings": "Instellingen openen",
         "paste_adjustments": "Gekopieerde aanpassingen plakken",
-        "paste_files": "Bestand(en) plakken in huidige map",
-        "preview_next": "Volgende afbeelding",
-        "preview_prev": "Vorige afbeelding",
-        "rate_0": "Sterrenbeoordeling: 0",
-        "rate_1": "Sterrenbeoordeling: 1",
-        "rate_2": "Sterrenbeoordeling: 2",
-        "rate_3": "Sterrenbeoordeling: 3",
-        "rate_4": "Sterrenbeoordeling: 4",
-        "rate_5": "Sterrenbeoordeling: 5",
         "redo": "Aanpassing opnieuw uitvoeren",
         "rotate_left": "90° tegen de klok in roteren",
         "rotate_right": "90° met de klok mee roteren",
-        "select_all": "Alle afbeeldingen selecteren",
         "show_original": "Origineel weergeven (voor/na)",
         "toggle_adjustments": "Aanpassingspaneel aan/uit",
         "toggle_ai": "AI-paneel aan/uit",
         "toggle_analytics": "Analyseweergave aan/uit",
-        "toggle_bottom_panel": "Filmstrip aan/uit",
         "toggle_crop": "Bijsnijden / rechtzetten aan/uit",
         "toggle_crop_panel": "Bijsnijdpaneel aan/uit",
         "toggle_export": "Exportpaneel aan/uit",
-        "toggle_folder_tree": "Mappenstructuurpaneel aan/uit",
         "toggle_fullscreen": "Volledig scherm aan/uit",
         "toggle_left_panel": "Linkerpaneel aan/uit",
-        "toggle_library_exif": "EXIF-overlay aan/uit",
         "toggle_masks": "Maskerpaneel aan/uit",
-        "toggle_metadata": "Metadatapaneel aan/uit",
-        "toggle_presets": "Voorinstellingspaneel aan/uit",
         "toggle_right_panel": "Rechterpaneel aan/uit",
         "undo": "Aanpassing ongedaan maken",
         "zoom_100": "Zoomen naar 100%",
@@ -1744,306 +802,28 @@
       },
       "sections": {
         "editing": "Bewerken",
-        "library": "Bibliotheek",
         "panels": "Panelen",
-        "rating": "Beoordeling & labels",
         "view": "Weergave"
       }
-    },
-    "language": "Taal",
-    "languageDesc": "De taal van de toepassing wijzigen.",
-    "lenses": {
-      "addButton": "Toevoegen aan mijn lenzen",
-      "addNew": "Nieuwe lens toevoegen",
-      "description": "Maak een lijst van uw veelgebruikte lenzen om er snel toegang toe te hebben in het lenscorrectiepaneel.",
-      "manufacturerPlaceholder": "Fabrikant selecteren",
-      "modelPlaceholder": "Lensmodel selecteren",
-      "noLenses": "Nog geen lenzen toegevoegd.",
-      "removeTooltip": "Lens verwijderen",
-      "saved": "Opgeslagen lenzen",
-      "title": "Mijn lenzen"
-    },
-    "processing": {
-      "advanced": {
-        "auto": "Automatisch",
-        "exportMemoryLimit": "Geheugenlimiet voor exports",
-        "exportMemoryLimitDesc": "Deel van het vrije RAM dat batch-exports mogen gebruiken. Verlaag dit om andere apps responsief te houden tijdens grote exports.",
-        "exportThreads": "Parallelle exports",
-        "exportThreadsDesc": "Aantal afbeeldingen dat tegelijk wordt geëxporteerd. Automatisch kiest een waarde op basis van je CPU. Verlaag dit als grote exports mislukken of je GPU weinig geheugen heeft.",
-        "heading": "Geavanceerd",
-        "headingDesc": "Prestatie-instellingen voor miniaturen, cache en exports. De standaardwaarden werken voor de meeste gebruikers.",
-        "title": "Geavanceerde instellingen"
-      },
-      "ai": {
-        "aiFree": {
-          "description": "Schakelt alle AI-functies uit. Alle AI-gerelateerde bedieningselementen worden verborgen, zodat RapidRAW werkt als een puur traditionele RAW-editor.",
-          "feature1": "Geen AI-maskers, lensonscherpte of generatieve bewerkingen in de interface",
-          "feature2": "Bestaande AI-bewerkingen worden nog gewoon weergegeven",
-          "feature3": "Een overzichtelijkere, meer gerichte interface",
-          "title": "Zonder AI"
-        },
-        "connector": {
-          "address": "AI-verbindingsadres",
-          "addressDesc": "Voer het adres en poort in van uw actieve AI-verbindingsinstantie. Vereist voor generatieve AI-functies.",
-          "description": "Voor gebruikers met een krachtige GPU die maximale controle willen, verbindt u RapidRAW met uw eigen Connector-server. Dit geeft u volledige controle voor technische workflows.",
-          "failed": "Verbinding mislukt.",
-          "feature1": "Gebruik uw eigen ComfyUI-instantie",
-          "feature2": "Kostenloze geavanceerde generatieve bewerkingen",
-          "feature3": "Aangepaste workflowselectie",
-          "success": "Verbinding geslaagd!",
-          "test": "Testen",
-          "testing": "Testen...",
-          "title": "Zelfgehost (RapidRAW AI Connector)"
-        },
-        "cpu": {
-          "description": "Rechtstreeks geïntegreerd in RapidRAW, draaien deze functies volledig op uw computer. Ze zijn snel, gratis en vereisen geen installatie, waardoor ze ideaal zijn voor dagelijkse workflowversnelling.",
-          "feature1": "AI-maskering (onderwerp, lucht, voorgrond)",
-          "feature2": "Automatische afbeeldingstagging",
-          "feature3": "Eenvoudige generatieve vervanging op het apparaat",
-          "gpuAcceleration": "GPU-versnelling",
-          "gpuAccelerationDesc": "Voert ingebouwde AI-functies zoals ruisonderdrukking, maskers, diepte- en normaalkaarten en taggen uit op de grafische kaart voor veel snellere resultaten. Schakel dit uit als je crashes of onjuiste AI-resultaten ervaart.",
-          "gpuAccelerationLabel": "GPU gebruiken voor AI-modellen",
-          "title": "Ingebouwde AI"
-        },
-        "description": "De AI van RapidRAW is gebouwd voor flexibiliteit. Kies uw ideale workflow, van snelle lokale tools tot krachtige zelfhosting.",
-        "providers": {
-          "aiConnector": "AI-verbinding",
-          "aiFree": "Zonder AI",
-          "cpu": "Ingebouwd"
-        },
-        "title": "Generatieve AI"
-      },
-      "alwaysDecodeRaw": "RAW altijd decoderen",
-      "alwaysDecodeRawDesc": "Forceer volledige RAW-decodering voor miniaturen in plaats van gebruik te maken van ingesloten JPEG-voorbeelden. Schakel dit in als uw miniaturen er anders uitzien qua kleur of contrast vergeleken met de geopende afbeelding.",
-      "alwaysDecodeRawLabel": "RAW altijd decoderen voor miniaturen",
-      "backend": "Verwerkingsbackend",
-      "backendDesc": "Selecteer de grafische API. 'Automatisch' wordt aanbevolen. Kan crashes op sommige systemen verhelpen.",
-      "backends": {
-        "auto": "Automatisch",
-        "dx12": "DirectX 12",
-        "gl": "OpenGL",
-        "metal": "Metal",
-        "vulkan": "Vulkan"
-      },
-      "dynamicDesc": "De editor rendert het voorbeeld om overeen te komen met de werkelijke pixeldichtheid van uw beeldscherm. Dit zorgt ervoor dat elk detail wordt weergegeven met 1:1 pixelnauwkeurigheid, wat maximale helderheid biedt bij zoomen en scherpte controleren.",
-      "enableLivePreviews": "Live voorbeelden inschakelen",
-      "highDpi": "High-DPI-rendering",
-      "highDpiDesc": "Voorbeelden renderen op de native {{dpr}}x fysieke pixelresolutie van uw scherm. Produceert het scherpste mogelijk voorbeeld maar gebruikt aanzienlijk meer geheugen.",
-      "highDpiDescStandard": "Deze instelling is alleen van invloed op high-DPI-beeldschermen. Uw huidige beeldscherm heeft een standaardresolutie.",
-      "imageCache": "Gedecodeerde afbeeldingscache",
-      "imageCacheDesc": "Maximum aantal volledige-resolutie-afbeeldingen in RAM. Hogere waarden maken het wisselen tussen recent bewerkte afbeeldingen instant, maar gebruiken aanzienlijk meer geheugen.",
-      "images": "Afbeeldingen",
-      "linuxCompat": "Linux-compatibiliteitsmodus",
-      "linuxCompatDesc": "Forceer software-compositing om GPU-stuurprogrammacrashes te omzeilen. Nvidia GPU's krijgen al een lichtere, automatische omzeiling, dus schakel dit alleen in als u nog steeds crashes ervaart bij opstarten of het openen van afbeeldingen.",
-      "linuxCompatLabel": "Compatibiliteitsmodus inschakelen",
-      "livePreviewQuality": "Live-voorbeeldkwaliteit",
-      "livePreviewQualityDesc": "Bepaalt de resolutie en compressie van de afbeelding tijdens het slepen van schuifregelaars. Lagere kwaliteit verbetert de responsiviteit aanzienlijk.",
-      "livePreviews": "Live interactieve voorbeelden",
-      "livePreviewsDesc": "Het voorbeeld direct bijwerken tijdens het slepen van schuifregelaars. Schakel dit uit als de interface traag aanvoelt tijdens aanpassingen.",
-      "mediumThumbnailRes": "Editorminiatuurresolutie",
-      "mediumThumbnailResDesc": "Resolutie van het voorbeeld dat wordt weergegeven terwijl volledige afbeeldingen laden in de editor.",
-      "modes": {
-        "dynamic": "Dynamisch",
-        "static": "Vaste resolutie"
-      },
-      "nativeDpi": "Renderen op native DPI",
-      "preprocessing": {
-        "appleRaw9": "Apple RAW 9-engine",
-        "appleRaw9Desc": "RAW-bestanden ontwikkelen met Apple's Core Image RAW 9-decoder, die demosaïcering en ruisonderdrukking in één stap uitvoert op de Neural Engine. Vereist macOS 27 of hoger en een ondersteunde camera; niet-ondersteunde bestanden gebruiken automatisch de ingebouwde decoder. Langzamer dan de standaarddecoder. Miniaturen worden niet beïnvloed.",
-        "applyPreprocessing": "Voorverwerking toepassen op niet-RAW-bestanden",
-        "applyPreprocessingDesc": "Als ingeschakeld, wordt de basiskleurruisonderdrukking en voorverscherping hierboven ook toegepast op standaardformaten.",
-        "baselineExposure": "Basisbelichting",
-        "baselineExposureAmount": "Basiswaarde",
-        "baselineExposureAmountDesc": "Belichting die aan RAW-bestanden wordt toegevoegd. darktable gebruikt +0,7 EV.",
-        "baselineExposureDesc": "Maakt alle RAW-bestanden een vaste hoeveelheid lichter, zoals de scene-referred standaard van darktable, plus de DNG-tag BaselineExposure als die aanwezig is. Afbeeldingen die vóór deze optie zijn bewerkt, veranderen niet.",
-        "colorNr": "Basis kleurruisonderdrukking",
-        "colorNrDesc": "Past een cross-bilateraal filter vroeg in de pijplijn toe om chroominantieruis te verwijderen. Hogere waarde = Sterkere ruisonderdrukking.",
-        "defaultNonRawTonemapper": "Standaard niet-RAW-toonmapping",
-        "defaultNonRawTonemapperDesc": "De toonmapping die wordt toegepast op niet-RAW-afbeeldingen (bijv. JPEG, PNG).",
-        "defaultRawTonemapper": "Standaard RAW-toonmapping",
-        "defaultRawTonemapperDesc": "De toonmapping die wordt toegepast op RAW-afbeeldingen.",
-        "enableAppleRaw9": "Apple RAW 9 gebruiken voor RAW-bestanden",
-        "enableBaselineExposure": "Basisbelichting toepassen op RAW-bestanden",
-        "enableHighlightPreservation": "Cameramodi voor bescherming van hoge lichten compenseren",
-        "enablePreprocessingNonRaws": "Inschakelen voor niet-RAW-bestanden",
-        "enableTonemapperOverride": "Toonmappingoverride inschakelen",
-        "highlightPreservation": "Compensatie voor bescherming van hoge lichten",
-        "highlightPreservationDesc": "Herstelt de belichting die de camera inhield in modi die de hoge lichten beschermen, uitgelezen uit het RAW-bestand (Fujifilm DR200/DR400, Canon Prioriteit hoge lichten en Auto Lighting Optimizer, Nikon Actieve D-Lighting, Olympus gradatie, Pentax DR-uitbreiding). Afbeeldingen die vóór deze optie zijn bewerkt, veranderen niet.",
-        "highlightRecovery": "RAW-hooglichtenherstel",
-        "highlightRecoveryDesc": "Bepaalt hoeveel detail wordt hersteld van uitgeknipte hooglichten in RAW-bestanden. Hogere waarden herstellen meer detail maar kunnen paarse artefacten introduceren.",
-        "linearOptions": {
-          "auto": "Automatisch",
-          "gamma": "Gamma toepassen",
-          "gamma_skip_calib": "Gamma toepassen & kalibratie overslaan",
-          "skip_calib": "Kalibratie overslaan"
-        },
-        "linearRaw": "Lineaire RAW-verwerking",
-        "linearRawDesc": "Verhelpt kleurcasts of roze tint in sommige DNG-bestanden. Bepaalt hoe al verwerkte LinearRAW-gegevens worden geïnterpreteerd.",
-        "sharpening": "Basis voorverscherping",
-        "sharpeningDesc": "Past zachte detailverbetering vroeg in de pijplijn toe. Hogere waarde = Meer verscherping.",
-        "title": "Afbeeldingsvoorverwerking",
-        "tonemapperOptions": {
-          "agx": "AgX",
-          "basic": "Basis"
-        },
-        "tonemapperOverride": "Globale toonmappingoverride",
-        "tonemapperOverrideDesc": "Forceer een specifieke toonmapping globaal voor alle afbeeldingen, waardoor de toonmappingschakelaar verborgen wordt in het aanpassingspaneel."
-      },
-      "previewRes": "Voorbeeldresolutie",
-      "previewResDesc": "Bepaalt de maximale resolutie van het voorbeeld. Lagere waarden verbeteren de prestaties aanzienlijk.",
-      "previewStrategy": "Voorbeeldrenderstrategie",
-      "qualities": {
-        "high": "Hoge kwaliteit",
-        "performance": "Prestaties"
-      },
-      "renderScale": "Renderresolutieschaal",
-      "renderScaleDesc": "Schaalt de renderresolutie ten opzichte van uw beeldscherm. Lagere waarden verbeteren de prestaties op hoge-resolutie-schermen ten koste van wat scherpte.",
-      "restartRequired": "Wijzigingen in de verwerkingsmotor vereisen een herstart van de toepassing om effect te hebben.",
-      "saveRelaunch": "Opslaan & opnieuw starten",
-      "smallThumbnailRes": "Rasterminiatuurresolutie",
-      "smallThumbnailResDesc": "Resolutie van miniaturen weergegeven in het bibliotheekoverzicht.",
-      "staticDesc": "De editor rendert de afbeelding op een vaste resolutie. Deze modus is het snelst en meest consistent, waardoor het ideaal is voor minder krachtige hardware waar vloeiende prestaties prioriteit hebben boven pixelperfecte zoom.",
-      "staticPreviewRes": "Statische voorbeeldresolutie",
-      "staticPreviewResDesc": "Stelt de resolutie in voor statische voorbeelden zoals bijsnijdmodus, lenscorrectie en perspectief-tools. Heeft geen invloed op het hoofdeditorvoorbeeld.",
-      "threads": "Threads",
-      "thumbnailRes": "Miniatuurresolutie",
-      "thumbnailResDesc": "Bepaalt de resolutie van gegenereerde bibliotheekminiaturen. Hogere waarden produceren scherpere afbeeldingen tijdens het laden.",
-      "title": "Verwerkingsmotor",
-      "wgpu": "WGPU directe rendering",
-      "wgpuDescAndroid": "Omzeilt browsercodering voor direct responsieve live voorbeelden. (Uitgeschakeld op Android: native WGPU-surface creatie wordt momenteel niet ondersteund naast de mobiele webweergave.)",
-      "wgpuDescLinux": "Omzeilt browsercodering voor direct responsieve live voorbeelden. (Uitgeschakeld op Linux: Tauri gebruikt GTK voor webweergaven, wat conflicteert met WGPU op hetzelfde X11-surface en flikkering veroorzaakt.)",
-      "wgpuDescRecommended": "Omzeilt browsercodering voor direct responsieve live voorbeelden. Sterk aanbevolen voor prestaties.",
-      "wgpuLabel": "Directe WGPU-rendering inschakelen",
-      "workerThreads": "Miniatuurwerkerthreads",
-      "workerThreadsDesc": "Aantal parallelle threads dat wordt gebruikt om miniaturen te genereren. Hogere waarden versnellen het laden van de bibliotheek maar gebruiken meer CPU en RAM."
-    },
-    "tagging": {
-      "addCustomPlaceholder": "Aangepaste AI-tags toevoegen (komma gescheiden)...",
-      "addCustomTooltip": "AI-tag toevoegen",
-      "addShortcutsPlaceholder": "Snelkoppelingen toevoegen (komma gescheiden)...",
-      "addShortcutTooltip": "Snelkoppeling toevoegen",
-      "aiTagging": "AI-tagging",
-      "aiTaggingDesc": "Schakelt automatische afbeeldingstagging in met behulp van een AI (CLIP) model. Dit downloadt een extra model en beïnvloedt de prestaties tijdens het bladeren door mappen. Tags worden gebruikt voor het doorzoeken van een map.",
-      "amount": "Hoeveelheid",
-      "automaticAiTagging": "Automatische AI-tagging",
-      "clearCustomTooltip": "Aangepaste AI-taglijst wissen",
-      "clearShortcutsTooltip": "Snelkoppelingstaglijst wissen",
-      "customList": "Aangepaste AI-taglijst",
-      "customListDesc": "Als opgegeven, gebruikt de AI ALLEEN tags uit deze lijst, waardoor de ingebouwde lijst van RapidRAW wordt overschreven. Tagging werkt alleen in het Engels.",
-      "maxAiTags": "Maximum AI-tags",
-      "maxAiTagsDesc": "Het maximale aantal tags dat per afbeelding wordt gegenereerd.",
-      "noCustomTags": "Geen aangepaste AI-tags (ingebouwde lijst gebruiken)",
-      "noShortcuts": "Geen snelkoppelingen toegevoegd",
-      "removeCustomTooltip": "Tag \"{{tag}}\" verwijderen",
-      "removeShortcutTooltip": "Snelkoppeling \"{{shortcut}}\" verwijderen",
-      "shortcuts": "Tagsnelkoppelingen",
-      "shortcutsDesc": "Een lijst met tags die als snelkoppelingen verschijnen in het tagcontextmenu.",
-      "title": "Tagging"
-    },
-    "thanks": {
-      "description": "Veel dank aan de volgende projecten die zeer belangrijk waren bij de ontwikkeling van RapidRAW:",
-      "list": {
-        "birefnet": "Voor het segmentatiemodel met hoge resolutie dat de AI-voorgronddetectie aandrijft.",
-        "darktable": "Voor enkele referentie-implementaties die delen van dit werk hebben geleid.",
-        "depth": "Voor het krachtige monoculaire diepteschattingsmodel dat de AI-dieptemaskering mogelijk maakt.",
-        "efficientsam3": "Voor het efficiënte, uit SAM 3 gedistilleerde segmentatiemodel met tekstprompts dat de AI-lucht- en tekstmaskers aandrijft.",
-        "lama": "Voor het krachtige en eenvoudige afbeeldingsinpainting-model dat inhoudsgebaseerde opvulling en objectverwijdering mogelijk maakt.",
-        "lensfun": "Voor de onschatbare open-source bibliotheek en uitgebreide database voor automatische lenscorrectie.",
-        "libgphoto2": "Voor de uitgebreide cameracommuicatiebibliotheek die het tethering- en afstandsbedieningssysteem van RapidRAW aandrijft.",
-        "mediapipe": "Voor de snelle gezichtslandmark- en segmentatiemodellen achter de AI-gezichtsmaskers.",
-        "negpy": "Voor de inspiratie achter de negatief-omzetlogica.",
-        "nind": "Voor het leveren van AI-modellen die de AI-ruisonderdrukkingmogelijkheden in RapidRAW aandrijven.",
-        "rawler": "Voor de uitstekende Rust-crate die de basis vormt voor RAW-bestandsverwerking in dit project.",
-        "sam2": "Voor het leveren van het basismodel dat wordt gebruikt voor de AI-onderwerpdetectiemogelijkheden.",
-        "spektrafilm": "Voor de spectraalgebaseerde filmemulatie-LUT's door Andrea Volpato, gebruikt voor de ingebouwde filmemulaties van RapidRAW. Gelicenseerd onder CC BY-SA 4.0.",
-        "you": "Voor het gebruiken en ondersteunen van RapidRAW. Uw interesse houdt dit project levend en evoluerend.",
-        "youLabel": "U"
-      },
-      "title": "Speciale dank"
     },
     "themes": {
       "dark": "Donker",
       "grey": "Grijs",
       "light": "Licht"
-    },
-    "title": "Instellingen",
-    "tooltips": {
-      "goHome": "Naar startpagina"
     }
-  },
-  "tethering": {
-    "aperture": "Diafragma",
-    "aperturePlaceholder": "bijv. 2.8",
-    "autoApplyPreset": "Voorinstelling automatisch toepassen",
-    "autoOpenCaptured": "Vastgelegde afbeelding automatisch openen",
-    "cameraConnected": "Camera verbonden",
-    "capturing": "Vastleggen...",
-    "changePreset": "Wijzigen",
-    "clearPreset": "Voorinstelling wissen",
-    "connectCamera": "Camera verbinden",
-    "expComp": "Bel. comp.",
-    "expCompPlaceholder": "bijv. 0.0",
-    "expMode": "Bel. modus",
-    "exposureSettings": "Belichtingsinstellingen",
-    "flipHorizontal": "Horizontaal spiegelen",
-    "generalSettings": "Algemene instellingen",
-    "ghostOverlayAlt": "Geest-overlay",
-    "iso": "ISO",
-    "isoPlaceholder": "bijv. 400",
-    "liveViewAlt": "Live-weergave",
-    "metering": "Lichtmeetmodus",
-    "noCameraDetected": "Geen camera gedetecteerd",
-    "noCamerasFound": "Geen camera's gevonden. Controleer of de camera is aangesloten en in PC-afstandsmodus staat.",
-    "overlayLastShot": "Laatste opname als overlay",
-    "overlayOff": "Uit",
-    "rotate90": "90° roteren",
-    "scanTooltip": "Scannen naar camera's",
-    "selectCamera": "Camera selecteren",
-    "selectCameraPlaceholder": "Selecteer een camera",
-    "shutter": "Sluitertijd",
-    "shutterPlaceholder": "bijv. 1/200",
-    "startLiveView": "Live-weergave starten",
-    "status": "Status",
-    "stopLiveView": "Live-weergave stoppen",
-    "title": "Kabelopname",
-    "toasts": {
-      "afFailed": "Autofocustrigger mislukt",
-      "cameraDisconnected": "Camera verbroken",
-      "captureFailed": "Vastleggen mislukt: {{err}}",
-      "communicationFailed": "Communicatie met camera mislukt",
-      "connectionFailed": "Verbinding mislukt: {{err}}",
-      "detectionFailed": "Detectie mislukt: {{err}}",
-      "noCamerasFound": "Geen camera's gevonden. Controleer of de camera in PC-afstandsmodus staat.",
-      "presetApplyFailed": "Voorinstelling toepassen op vastgelegde afbeelding mislukt",
-      "selectFolderFirst": "Selecteer eerst een standaardmap in uw bibliotheek.",
-      "setFailed": "Instellen van {{key}} mislukt: {{err}}"
-    },
-    "triggerAutofocus": "Autofocus activeren",
-    "triggerCapture": "Vastleggen",
-    "wbTemp": "WB-temp. (K)",
-    "wbTempPlaceholder": "bijv. 5600",
-    "whiteBalance": "Witbalans"
   },
   "ui": {
     "bottomBar": {
-      "imagesSelected": "{{current}} van {{total}} afbeeldingen geselecteerd",
       "tooltips": {
-        "collapseFilmstrip": "Filmstrip inklappen",
         "collapseLeft": "Linkerpaneel inklappen",
         "collapseRight": "Rechterpaneel inklappen",
         "copyPasteSettings": "Instellingen kopiëren & plakken",
         "copySettings": "Instellingen kopiëren",
         "customZoom": "Klik om aangepast zoompercentage in te voeren",
-        "expandFilmstrip": "Filmstrip uitklappen",
         "expandLeft": "Linkerpaneel uitklappen",
         "expandRight": "Rechterpaneel uitklappen",
-        "export": "Exporteren",
         "pasteSettings": "Instellingen plakken",
-        "quickFilter": "Snel filter",
-        "rateStars_one": "1 ster beoordelen",
-        "rateStars_other": "{{count}} sterren beoordelen",
-        "resetZoom": "Zoom herstellen om venster te passen",
-        "selectToRate": "Selecteer een afbeelding om te beoordelen"
+        "resetZoom": "Zoom herstellen om venster te passen"
       },
       "zoomLabel": "Zoom",
       "zoomLabelReset": "Zoom herstellen"
@@ -2060,22 +840,6 @@
       "saturation": "Verzadiging",
       "saturationAbbreviation": "V:"
     },
-    "exportPresets": {
-      "deleteTooltip": "Voorinstelling verwijderen",
-      "heading": "Exportvoorinstellingen",
-      "overwriteTooltip": "Geselecteerde voorinstelling overschrijven",
-      "placeholder": "Selecteer een voorinstelling...",
-      "presetNamePlaceholder": "Naam voorinstelling",
-      "saveAsNewTooltip": "Huidige instellingen opslaan als nieuwe voorinstelling",
-      "savedTooltip": "Opgeslagen!"
-    },
-    "filmstrip": {
-      "tooltips": {
-        "color": "Kleur: {{color}}",
-        "virtualCopy": "Virtuele kopie"
-      },
-      "virtualCopyAbbreviation": "VK"
-    },
     "imagePicker": {
       "clearImage": "Afbeelding wissen",
       "filterLabel": "Afbeeldingsbestanden",
@@ -2085,7 +849,6 @@
     "lut": {
       "clearLut": "LUT wissen",
       "customLuts": "Aangepaste LUT's",
-      "empty": "Nog geen LUT's — importeer er enkele",
       "filmEmulations": "Filmemulaties",
       "filterLabel": "LUT-bestanden",
       "import": "Profielen importeren",
@@ -2094,8 +857,7 @@
       "label": "LUT",
       "removeLut": "LUT verwijderen",
       "select": "Selecteren",
-      "selectLutFile": "Selecteer een LUT-bestand",
-      "unsupportedFormat": "Niet-ondersteund(e) bestandsformaat(en) gedetecteerd: .{{ext}}"
+      "selectLutFile": "Selecteer een LUT-bestand"
     },
     "slider": {
       "clickToEdit": "Klik om te bewerken",

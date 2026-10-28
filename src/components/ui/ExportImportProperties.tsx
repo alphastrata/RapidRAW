@@ -47,55 +47,11 @@ export interface ExportSettings {
   tiffBitDepth: TiffBitDepth;
   keepMetadata: boolean;
   preserveTimestamps: boolean;
-  resize: {
-    mode: string;
-    value: number;
-    dontEnlarge: boolean;
-  } | null;
-  border: {
-    basis: BorderBasis;
-    horizontalPercent: number;
-    verticalPercent: number;
-    color: string;
-  } | null;
-  pad: {
-    ratioWidth: number;
-    ratioHeight: number;
-    color: string;
-  } | null;
   stripGps: boolean;
-  watermark: WatermarkSettings | null;
   exportMasks?: boolean;
-  preserveFolders?: boolean;
   destinationType?: string;
   subfolder?: string;
   dpi?: number;
-}
-
-export enum BorderBasis {
-  LongEdge = 'longEdge',
-  ShortEdge = 'shortEdge',
-  EachEdge = 'eachEdge',
-}
-
-export enum WatermarkAnchor {
-  TopLeft = 'topLeft',
-  TopCenter = 'topCenter',
-  TopRight = 'topRight',
-  CenterLeft = 'centerLeft',
-  Center = 'center',
-  CenterRight = 'centerRight',
-  BottomLeft = 'bottomLeft',
-  BottomCenter = 'bottomCenter',
-  BottomRight = 'bottomRight',
-}
-
-interface WatermarkSettings {
-  path: string;
-  anchor: WatermarkAnchor;
-  scale: number;
-  spacing: number;
-  opacity: number;
 }
 
 export interface ExportState {
@@ -127,41 +83,4 @@ export enum Status {
   Idle = 'idle',
   Importing = 'importing',
   Success = 'success',
-}
-
-export interface ExportPreset {
-  id: string;
-  name: string;
-  fileFormat: string;
-  jpegQuality: number;
-  tiffBitDepth?: TiffBitDepth;
-  dpi?: number;
-  enableResize: boolean;
-  resizeMode: string;
-  resizeValue: number;
-  dontEnlarge: boolean;
-  enablePad?: boolean;
-  padRatioWidth?: number;
-  padRatioHeight?: number;
-  padColor?: string;
-  enableBorder?: boolean;
-  borderBasis?: string;
-  borderHorizontalPercent?: number;
-  borderVerticalPercent?: number;
-  borderColor?: string;
-  keepMetadata: boolean;
-  preserveTimestamps: boolean;
-  stripGps: boolean;
-  exportMasks?: boolean;
-  preserveFolders?: boolean;
-  filenameTemplate: string;
-  enableWatermark: boolean;
-  watermarkPath: string | null;
-  watermarkAnchor: string;
-  watermarkScale: number;
-  watermarkSpacing: number;
-  watermarkOpacity: number;
-  lastExportPath?: string;
-  destinationType?: string;
-  subfolder?: string;
 }
