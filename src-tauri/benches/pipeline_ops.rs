@@ -175,7 +175,7 @@ fn encode_png(b: Bencher) {
 
 fn encode(image: &DynamicImage, format: &str) -> Vec<u8> {
     let settings: export_processing::ExportSettings =
-        serde_json::from_value(json!({"jpegQuality": 85, "keepMetadata": false, "stripGps": true, "resize": null, "filenameTemplate": null, "watermark": null})).unwrap();
+        serde_json::from_value(json!({"jpegQuality": 85, "keepMetadata": false, "stripGps": true, "filenameTemplate": null})).unwrap();
     encode_image_to_bytes(image, format, &settings).unwrap()
 }
 
