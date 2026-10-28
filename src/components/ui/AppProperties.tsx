@@ -50,7 +50,6 @@ export enum Invokes {
   CopyFiles = 'copy_files',
   CreateFolder = 'create_folder',
   CreateVirtualCopy = 'create_virtual_copy',
-  CullImages = 'cull_images',
   DeleteFolder = 'delete_folder',
   DiscardAiJobs = 'discard_ai_jobs',
   DuplicateFile = 'duplicate_file',
@@ -101,9 +100,6 @@ export enum Invokes {
   ResumeAiJobs = 'resume_ai_jobs',
   RetryFailedAiJobs = 'retry_failed_ai_jobs',
   SaveMetadataAndUpdateThumbnail = 'save_metadata_and_update_thumbnail',
-  SaveCollage = 'save_collage',
-  SavePanorama = 'save_panorama',
-  SaveHdr = 'save_hdr',
   SavePresets = 'save_presets',
   SaveSettings = 'save_settings',
   SetColorLabelForPaths = 'set_color_label_for_paths',
@@ -111,11 +107,9 @@ export enum Invokes {
   SetFlagForPaths = 'set_flag_for_paths',
   ShowInFinder = 'show_in_finder',
   StartBackgroundIndexing = 'start_background_indexing',
-  StitchPanorama = 'stitch_panorama',
   StitchFocusStack = 'stitch_focus_stack',
   SubscribeAnalytics = 'subscribe_analytics',
   SaveFocusStack = 'save_focus_stack',
-  MergeHdr = 'merge_hdr',
   TestAIConnectorConnection = 'test_ai_connector_connection',
   UpdateWgpuTransform = 'update_wgpu_transform',
   ReleaseOriginalPreview = 'release_original_preview',
@@ -433,7 +427,6 @@ export interface SupportedTypes {
 
 export enum LibraryDisplayMode {
   Grid = 'grid',
-  Cull = 'cull',
   List = 'list',
 }
 
@@ -480,34 +473,6 @@ export interface WaveformData {
   parade: ImageBitmap | null;
   vectorscope: ImageBitmap | null;
   width: number;
-}
-
-export interface CullingSettings {
-  similarityThreshold: number;
-  blurThreshold: number;
-  groupSimilar: boolean;
-  filterBlurry: boolean;
-}
-
-interface ImageAnalysisResult {
-  path: string;
-  qualityScore: number;
-  sharpnessMetric: number;
-  centerFocusMetric: number;
-  exposureMetric: number;
-  width: number;
-  height: number;
-}
-
-interface CullGroup {
-  representative: ImageAnalysisResult;
-  duplicates: ImageAnalysisResult[];
-}
-
-export interface CullingSuggestions {
-  similarGroups: CullGroup[];
-  blurryImages: ImageAnalysisResult[];
-  failedPaths: string[];
 }
 
 interface KeybindHandler {

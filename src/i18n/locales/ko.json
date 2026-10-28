@@ -231,15 +231,12 @@
       "confirmReset": "초기화 확인",
       "convertNegative": "네거티브 변환",
       "copyAdjustments": "조정값 복사",
-      "cullImage": "자동 선별",
       "denoise": "노이즈 제거",
       "editImage": "이미지 편집",
       "exportImage": "이미지 내보내기",
       "flag": "플래그",
       "flagPick": "선택됨",
       "flagReject": "거부됨",
-      "frameImage": "프레임 편집기",
-      "mergeHdr": "HDR로 병합",
       "noLabel": "레이블 없음",
       "noRating": "평점 없음",
       "pasteAdjustments": "조정값 붙여넣기",
@@ -251,7 +248,6 @@
       "removeDenoise": "노이즈 제거 해제",
       "removeNegativeConversion": "네거티브 변환 해제",
       "resetAdjustments": "조정값 초기화",
-      "stitchPanorama": "파노라마 스티칭",
       "tagging": "태그 지정",
       "undo": "실행 취소",
       "unflagged": "플래그 없음"
@@ -299,14 +295,10 @@
       "autoLensCorrection_other": "자동 렌즈 교정",
       "autoStraighten_one": "자동 수평 맞추기",
       "autoStraighten_other": "자동 수평 맞추기",
-      "collage_one": "프레임 편집기",
-      "collage_other": "콜라주 만들기",
       "confirmDelete": "삭제 확인",
       "confirmDeleteVc": "삭제 + 가상 복사본 확인",
       "copyImage_one": "이미지 복사",
       "copyImage_other": "이미지 {{count}}개 복사",
-      "cullImage_one": "자동 선별",
-      "cullImage_other": "자동 선별",
       "deleteAssociated": "삭제 + 연결된 항목",
       "deleteImage_one": "이미지 삭제",
       "deleteImage_other": "이미지 {{count}}개 삭제",
@@ -1094,31 +1086,6 @@
         "name": "이름 (가나다순)"
       }
     },
-    "culling": {
-      "addTagPlaceholder": "태그 추가...",
-      "altCullingPreviewHighRes": "고해상도 선별 미리보기",
-      "altThumbnailLoading": "썸네일 로딩 중",
-      "aperture": "조리개",
-      "cameraSettings": "카메라 설정",
-      "clickThumbnailsHint": "비교 뷰에 추가하려면 오른쪽 사이드바에서 썸네일을 클릭하세요.",
-      "colorLabel": "색상 라벨",
-      "dimensions": "크기",
-      "editImage": "이미지 편집",
-      "focalLength": "초점 거리",
-      "iso": "ISO",
-      "metadata": "메타데이터",
-      "noMetadataAvailable": "메타데이터 없음",
-      "none": "없음",
-      "noTagsAdded": "추가된 태그 없음",
-      "rateAndLabel": "평가 및 라벨",
-      "rating": "평가",
-      "selectImagesToCompare": "비교할 이미지 선택",
-      "shutterSpeed": "셔터 속도",
-      "syncZoomAndPan": "줌 및 이동 동기화",
-      "tags": "태그",
-      "toggleFit": "1:1 / 맞춤 전환",
-      "vc": "VC"
-    },
     "filterExit": {
       "hiddenMultiple_other": "이미지 {{count}}개가 더 이상 필터와 일치하지 않습니다",
       "hiddenSingle": "{{name}}이(가) 더 이상 필터와 일치하지 않습니다",
@@ -1356,7 +1323,6 @@
       "select": "선택"
     },
     "viewMode": {
-      "culling": "",
       "grid": "",
       "list": ""
     }
@@ -1395,24 +1361,6 @@
     }
   },
   "modals": {
-    "collage": {
-      "aspectRatio": "종횡비",
-      "background": "배경",
-      "borderRadius": "테두리 반경",
-      "cancel": "취소",
-      "close": "닫기",
-      "done": "완료",
-      "errorTitle": "오류가 발생했습니다",
-      "exportSize": "내보내기 크기 (px)",
-      "keepOriginalRatio": "원본 종횡비 유지",
-      "layout": "레이아웃",
-      "original": "원본",
-      "saveButton": "콜라주 저장",
-      "saved": "콜라주가 저장되었습니다!",
-      "saving": "저장 중...",
-      "shuffleTooltip": "이미지 섞기",
-      "spacing": "간격"
-    },
     "configurePreset": {
       "cancel": "취소",
       "includeCropTransform": "자르기 및 변형 포함",
@@ -1485,38 +1433,6 @@
     "createGroup": {
       "placeholder": "그룹 이름 입력..."
     },
-    "culling": {
-      "actionDelete": "휴지통으로 이동",
-      "actionRateZero": "평점을 1점으로 설정",
-      "actionReject": "거부됨으로 표시",
-      "applyButton_one": "이미지 1개에 적용",
-      "applyButton_other": "이미지 {{count}}개에 적용",
-      "bestImage": "최고의 이미지",
-      "blurryImagesTab": "흐릿한 이미지",
-      "blurThreshold": "흐림 임계값",
-      "blurThresholdDesc": "선명도 점수가 이 값보다 낮은 이미지가 표시됩니다. 값이 높을수록 더 엄격합니다.",
-      "cancel": "취소",
-      "close": "닫기",
-      "cullingFailed": "선별 실패",
-      "cullingSuggestions": "선별 제안",
-      "done": "완료",
-      "duplicatesHeader": "중복 ({{count}})",
-      "duplicatesHeader_one": "중복 ({{count}})",
-      "duplicatesHeader_other": "중복 ({{count}})",
-      "filterBlurry": "흐릿한 이미지 필터링",
-      "groupHeader": "그룹 {{index}}",
-      "groupSimilar": "유사한 이미지 그룹화",
-      "noIssuesDesc": "모든 이미지가 고유하고 선명한 것으로 보입니다.",
-      "noIssuesFound": "문제를 찾을 수 없습니다!",
-      "score": "점수: {{score}}",
-      "sharpness": "선명도: {{sharpness}}",
-      "similarGroupsTab": "유사한 그룹",
-      "similarityThreshold": "유사도 임계값",
-      "similarityThresholdDesc": "값이 낮을수록 더 엄격합니다 (완전 중복). 높을수록 더 느슨합니다 (유사 중복). 24~32 값을 권장합니다.",
-      "startCulling": "선별 시작",
-      "starting": "시작 중...",
-      "title": "이미지 선별"
-    },
     "focusStack": {
       "cancel": "취소",
       "close": "닫기",
@@ -1533,24 +1449,6 @@
       "stacking": "포커스 스태킹 중",
       "start": "시작",
       "title": "포커스 스태킹"
-    },
-    "hdr": {
-      "cancel": "취소",
-      "close": "닫기",
-      "description": "브래킷 노출을 단일 HDR(High Dynamic Range) 이미지로 결합합니다.",
-      "descriptionWithCount": "브래킷 노출 {{count}}개를 단일 HDR(High Dynamic Range) 이미지로 결합합니다.",
-      "descriptionWithCount_one": "브래킷 노출 {{count}}개를 단일 HDR(High Dynamic Range) 이미지로 결합합니다.",
-      "descriptionWithCount_other": "브래킷 노출 {{count}}개를 단일 HDR(High Dynamic Range) 이미지로 결합합니다.",
-      "failed": "HDR 병합 실패",
-      "initializing": "초기화 중...",
-      "merging": "HDR 병합 중",
-      "openInEditor": "편집기에서 열기",
-      "retry": "다시 시도",
-      "save": "저장",
-      "savedSuccess": "HDR이 성공적으로 저장되었습니다!",
-      "speedNotice": "노출의 개수와 크기에 따라 몇 분이 걸릴 수 있습니다.",
-      "start": "시작",
-      "title": "HDR로 병합"
     },
     "importSettings": {
       "cancel": "취소",
@@ -1598,24 +1496,6 @@
       "waitingAutoDetect": "자동 감지 대기 중...",
       "zoomInTooltip": "확대",
       "zoomOutTooltip": "축소"
-    },
-    "panorama": {
-      "cancel": "취소",
-      "close": "닫기",
-      "descCount": "겹치는 이미지 {{count}}개를 매끄러운 파노라마로 결합합니다.",
-      "descCount_one": "겹치는 이미지 {{count}}개를 매끄러운 파노라마로 결합합니다.",
-      "descCount_other": "겹치는 이미지 {{count}}개를 매끄러운 파노라마로 결합합니다.",
-      "descGeneric": "겹치는 이미지를 매끄러운 파노라마로 결합합니다.",
-      "failed": "파노라마 실패",
-      "initializing": "초기화 중...",
-      "openInEditor": "편집기에서 열기",
-      "retry": "다시 시도",
-      "save": "저장",
-      "savedSuccess": "파노라마가 성공적으로 저장되었습니다!",
-      "speedNotice": "이미지의 개수와 크기에 따라 몇 분이 걸릴 수 있습니다.",
-      "start": "시작",
-      "stitchingProgress": "파노라마 스티칭 중",
-      "title": "파노라마 스티칭"
     },
     "renameAlbum": {
       "placeholder": "새 앨범 이름 입력..."

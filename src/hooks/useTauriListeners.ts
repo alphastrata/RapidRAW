@@ -415,79 +415,6 @@ export function useTauriListeners({
           editorState.setEditor({ hasRenderedFirstFrame: true });
         }
       }),
-      listen('panorama-progress', (event: any) => {
-        if (isEffectActive) {
-          useUIStore.getState().setUI((state) => {
-            if (state.panoramaModalState.finalImageBase64 || state.panoramaModalState.error) return state;
-            return { panoramaModalState: { ...state.panoramaModalState, progressMessage: event.payload } };
-          });
-        }
-      }),
-      listen('panorama-complete', (event: any) => {
-        if (isEffectActive) {
-          useUIStore.getState().setUI((state) => ({
-            panoramaModalState: {
-              ...state.panoramaModalState,
-              error: null,
-              finalImageBase64: event.payload.base64,
-              isProcessing: false,
-              progressMessage: null,
-            },
-          }));
-        }
-      }),
-      listen('panorama-error', (event: any) => {
-        if (isEffectActive) {
-          useUIStore.getState().setUI((state) => ({
-            panoramaModalState: {
-              ...state.panoramaModalState,
-              error: String(event.payload),
-              finalImageBase64: null,
-              isProcessing: false,
-              progressMessage: null,
-            },
-          }));
-        }
-      }),
-      listen('hdr-progress', (event: any) => {
-        if (isEffectActive) {
-          useUIStore.getState().setUI((state) => ({
-            hdrModalState: {
-              ...state.hdrModalState,
-              error: null,
-              finalImageBase64: null,
-              isOpen: true,
-              progressMessage: event.payload,
-            },
-          }));
-        }
-      }),
-      listen('hdr-complete', (event: any) => {
-        if (isEffectActive) {
-          useUIStore.getState().setUI((state) => ({
-            hdrModalState: {
-              ...state.hdrModalState,
-              error: null,
-              finalImageBase64: event.payload.base64,
-              isProcessing: false,
-              progressMessage: 'Hdr Ready',
-            },
-          }));
-        }
-      }),
-      listen('hdr-error', (event: any) => {
-        if (isEffectActive) {
-          useUIStore.getState().setUI((state) => ({
-            hdrModalState: {
-              ...state.hdrModalState,
-              error: String(event.payload),
-              finalImageBase64: null,
-              isProcessing: false,
-              progressMessage: 'An error occurred.',
-            },
-          }));
-        }
-      }),
       listen('focus-stack-progress', (event: any) => {
         if (isEffectActive) {
           useUIStore.getState().setUI((state) => {
@@ -521,40 +448,6 @@ export function useTauriListeners({
               isProcessing: false,
               progressMessage: null,
             },
-          }));
-        }
-      }),
-      listen('culling-start', (event: any) => {
-        if (isEffectActive) {
-          useUIStore.getState().setUI((state) => ({
-            cullingModalState: {
-              ...state.cullingModalState,
-              isOpen: true,
-              progress: { current: 0, total: event.payload, stage: 'Initializing...' },
-              suggestions: null,
-              error: null,
-            },
-          }));
-        }
-      }),
-      listen('culling-progress', (event: any) => {
-        if (isEffectActive) {
-          useUIStore
-            .getState()
-            .setUI((state) => ({ cullingModalState: { ...state.cullingModalState, progress: event.payload } }));
-        }
-      }),
-      listen('culling-complete', (event: any) => {
-        if (isEffectActive) {
-          useUIStore.getState().setUI((state) => ({
-            cullingModalState: { ...state.cullingModalState, progress: null, suggestions: event.payload },
-          }));
-        }
-      }),
-      listen('culling-error', (event: any) => {
-        if (isEffectActive) {
-          useUIStore.getState().setUI((state) => ({
-            cullingModalState: { ...state.cullingModalState, progress: null, error: String(event.payload) },
           }));
         }
       }),

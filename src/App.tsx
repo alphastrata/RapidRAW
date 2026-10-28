@@ -426,11 +426,6 @@ function App() {
   );
 
   const {
-    handleStartPanorama,
-    handleSavePanorama,
-    handleStartHdr,
-    handleSaveHdr,
-    handleSaveCollage,
     handleStartFocusStack,
     handleSaveFocusStack,
   } = useProductivityActions(handleLibraryRefresh);
@@ -1019,20 +1014,12 @@ function App() {
         </div>
         <AppModals
           handleImageSelect={handleImageSelect}
-          handleSavePanorama={handleSavePanorama}
-          handleStartPanorama={handleStartPanorama}
           handleStartFocusStack={handleStartFocusStack}
           handleSaveFocusStack={handleSaveFocusStack}
-          handleSaveHdr={handleSaveHdr}
-          handleStartHdr={handleStartHdr}
           handleCreateFolder={handleCreateFolder}
           handleRenameFolder={handleRenameFolder}
           handleSaveRename={handleSaveRename}
           handleStartImport={handleStartImport}
-          handleSetFlag={handleSetFlag}
-          handleRate={handleRate}
-          executeDelete={executeDelete}
-          handleSaveCollage={handleSaveCollage}
           handleCreateAlbumItem={handleCreateAlbumItem}
           handleRenameAlbumItem={handleRenameAlbumItem}
         />

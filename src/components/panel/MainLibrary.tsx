@@ -12,12 +12,10 @@ import {
   Search,
   Users,
   LayoutGrid,
-  Columns,
   SlidersHorizontal,
   Rows3,
   X,
 } from 'lucide-react';
-import CullingView from './library/CullingView';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useTranslation } from 'react-i18next';
 import Button from '../ui/Button';
@@ -113,11 +111,6 @@ function DisplayModeSwitch({ displayMode, setDisplayMode, t }: DisplayModeSwitch
         id: LibraryDisplayMode.List,
         Icon: Rows3,
         tooltip: t('library.viewMode.list', { defaultValue: 'List View' }),
-      },
-      {
-        id: LibraryDisplayMode.Cull,
-        Icon: Columns,
-        tooltip: t('library.viewMode.culling', { defaultValue: 'Culling View' }),
       },
     ],
     [t],
@@ -658,16 +651,12 @@ export default function MainLibrary(props: MainLibraryProps) {
       </header>
 
       {props.imageList.length > 0 ? (
-        libraryDisplayMode === LibraryDisplayMode.Cull ? (
-          <CullingView {...props} />
-        ) : (
-          <LibraryGrid
-            {...props}
-            libraryDisplayMode={libraryDisplayMode}
-            selectionModeActive={selectionModeActive}
-            thumbnailSizeOptions={translatedThumbnailSizeOptions}
-          />
-        )
+        <LibraryGrid
+          {...props}
+          libraryDisplayMode={libraryDisplayMode}
+          selectionModeActive={selectionModeActive}
+          thumbnailSizeOptions={translatedThumbnailSizeOptions}
+        />
       ) : props.aiTaggingJob || props.aiModelDownloadStatus || props.importState.status === Status.Importing ? (
         <div className="flex-1 flex flex-col items-center justify-center" onContextMenu={props.onEmptyAreaContextMenu}>
           <Loader2 className="h-12 w-12 text-secondary animate-spin mb-4" />

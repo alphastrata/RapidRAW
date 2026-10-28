@@ -167,13 +167,13 @@ const showFilterExitToast = (
 };
 
 const applyWithAutoAdvance = (changedPaths: string[], undoable: boolean, applyChange: () => void) => {
-  const { activeView, cullingModalState } = useUIStore.getState();
+  const { activeView } = useUIStore.getState();
   const activePath =
     activeView === 'editor'
       ? (useEditorStore.getState().selectedImage?.path ?? null)
       : useLibraryStore.getState().libraryActivePath;
 
-  if (!activePath || !changedPaths.includes(activePath) || cullingModalState.isOpen) {
+  if (!activePath || !changedPaths.includes(activePath)) {
     applyChange();
     return;
   }

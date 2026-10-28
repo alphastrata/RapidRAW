@@ -231,15 +231,12 @@
       "confirmReset": "確認重置",
       "convertNegative": "轉換負片",
       "copyAdjustments": "複製調整",
-      "cullImage": "自動篩選",
       "denoise": "降噪",
       "editImage": "編輯影像",
       "exportImage": "匯出影像",
       "flag": "標記",
       "flagPick": "留用",
       "flagReject": "已拒絕",
-      "frameImage": "邊框編輯器",
-      "mergeHdr": "合併為 HDR",
       "noLabel": "無標籤",
       "noRating": "無評分",
       "pasteAdjustments": "貼上調整",
@@ -251,7 +248,6 @@
       "removeDenoise": "移除降噪",
       "removeNegativeConversion": "移除負片轉換",
       "resetAdjustments": "重置調整",
-      "stitchPanorama": "拼接全景圖",
       "tagging": "標籤",
       "undo": "復原",
       "unflagged": "無標記"
@@ -299,14 +295,10 @@
       "autoLensCorrection_other": "自動鏡頭校正",
       "autoStraighten_one": "自動拉直",
       "autoStraighten_other": "自動拉直",
-      "collage_one": "邊框編輯器",
-      "collage_other": "建立拼貼畫",
       "confirmDelete": "確認刪除",
       "confirmDeleteVc": "確認刪除 + 虛擬副本",
       "copyImage_one": "複製影像",
       "copyImage_other": "複製 {{count}} 張影像",
-      "cullImage_one": "自動篩選",
-      "cullImage_other": "自動篩選",
       "deleteAssociated": "刪除 + 關聯檔案",
       "deleteImage_one": "刪除影像",
       "deleteImage_other": "刪除 {{count}} 張影像",
@@ -1094,31 +1086,6 @@
         "name": "名稱（A-Z）"
       }
     },
-    "culling": {
-      "addTagPlaceholder": "新增標籤...",
-      "altCullingPreviewHighRes": "高解析度篩選預覽",
-      "altThumbnailLoading": "縮圖載入中",
-      "aperture": "光圈",
-      "cameraSettings": "相機設定",
-      "clickThumbnailsHint": "按一下右側邊欄中的縮圖，將其新增至比較檢視中。",
-      "colorLabel": "顏色標籤",
-      "dimensions": "尺寸",
-      "editImage": "編輯影像",
-      "focalLength": "焦距",
-      "iso": "ISO",
-      "metadata": "中繼資料",
-      "noMetadataAvailable": "無可用中繼資料",
-      "none": "無",
-      "noTagsAdded": "未新增標籤",
-      "rateAndLabel": "評分與標籤",
-      "rating": "評分",
-      "selectImagesToCompare": "選擇要比較的影像",
-      "shutterSpeed": "快門速度",
-      "syncZoomAndPan": "同步縮放與平移",
-      "tags": "標籤",
-      "toggleFit": "切換 1:1 / 適應",
-      "vc": "VC"
-    },
     "filterExit": {
       "hiddenMultiple_other": "{{count}} 張影像已不再符合篩選條件",
       "hiddenSingle": "{{name}} 已不再符合篩選條件",
@@ -1356,7 +1323,6 @@
       "select": "選擇"
     },
     "viewMode": {
-      "culling": "",
       "grid": "",
       "list": ""
     }
@@ -1395,24 +1361,6 @@
     }
   },
   "modals": {
-    "collage": {
-      "aspectRatio": "寬高比",
-      "background": "背景",
-      "borderRadius": "邊框圓角",
-      "cancel": "取消",
-      "close": "關閉",
-      "done": "完成",
-      "errorTitle": "發生錯誤",
-      "exportSize": "匯出大小（畫素）",
-      "keepOriginalRatio": "保持原始寬高比",
-      "layout": "版面配置",
-      "original": "原始",
-      "saveButton": "儲存拼貼畫",
-      "saved": "拼貼畫已儲存！",
-      "saving": "儲存中...",
-      "shuffleTooltip": "隨機排列影像",
-      "spacing": "間距"
-    },
     "configurePreset": {
       "cancel": "取消",
       "includeCropTransform": "包含裁剪與變換",
@@ -1485,38 +1433,6 @@
     "createGroup": {
       "placeholder": "輸入組名稱..."
     },
-    "culling": {
-      "actionDelete": "移至垃圾桶",
-      "actionRateZero": "將評分設為 1 星",
-      "actionReject": "標記為已拒絕",
-      "applyButton_one": "應用到 1 張影像",
-      "applyButton_other": "應用到 {{count}} 張影像",
-      "bestImage": "最佳影像",
-      "blurryImagesTab": "模糊影像",
-      "blurThreshold": "模糊臨界值",
-      "blurThresholdDesc": "銳度評分低於此值的影像將被標記。值越高越嚴格。",
-      "cancel": "取消",
-      "close": "關閉",
-      "cullingFailed": "篩選失敗",
-      "cullingSuggestions": "篩選建議",
-      "done": "完成",
-      "duplicatesHeader": "重複項（{{count}}）",
-      "duplicatesHeader_one": "重複項（{{count}}）",
-      "duplicatesHeader_other": "重複項（{{count}}）",
-      "filterBlurry": "過濾模糊影像",
-      "groupHeader": "第 {{index}} 組",
-      "groupSimilar": "分組相似影像",
-      "noIssuesDesc": "所有影像似乎都是唯一且清晰的。",
-      "noIssuesFound": "未發現問題！",
-      "score": "評分：{{score}}",
-      "sharpness": "銳度：{{sharpness}}",
-      "similarGroupsTab": "相似組",
-      "similarityThreshold": "相似度臨界值",
-      "similarityThresholdDesc": "值越低越嚴格（完全重複）。值越高越寬鬆（近似重複）。建議值 24-32。",
-      "startCulling": "開始篩選",
-      "starting": "啟動中...",
-      "title": "篩選影像"
-    },
     "focusStack": {
       "cancel": "取消",
       "close": "關閉",
@@ -1533,24 +1449,6 @@
       "stacking": "正在合成焦距",
       "start": "開始",
       "title": "焦距合成"
-    },
-    "hdr": {
-      "cancel": "取消",
-      "close": "關閉",
-      "description": "將您的包圍曝光合併為一張高動態範圍影像。",
-      "descriptionWithCount": "將 {{count}} 張包圍曝光合併為一張高動態範圍影像。",
-      "descriptionWithCount_one": "將 {{count}} 張包圍曝光合併為一張高動態範圍影像。",
-      "descriptionWithCount_other": "將 {{count}} 張包圍曝光合併為一張高動態範圍影像。",
-      "failed": "HDR 合併失敗",
-      "initializing": "初始化中...",
-      "merging": "合併 HDR 中",
-      "openInEditor": "在編輯器中開啟",
-      "retry": "重試",
-      "save": "儲存",
-      "savedSuccess": "HDR 儲存成功！",
-      "speedNotice": "這可能需要幾分鐘，具體取決於曝光影像的數量和大小。",
-      "start": "開始",
-      "title": "合併為 HDR"
     },
     "importSettings": {
       "cancel": "取消",
@@ -1598,24 +1496,6 @@
       "waitingAutoDetect": "等待自動檢測...",
       "zoomInTooltip": "放大",
       "zoomOutTooltip": "縮小"
-    },
-    "panorama": {
-      "cancel": "取消",
-      "close": "關閉",
-      "descCount": "將 {{count}} 張重疊影像合併為一張無縫全景圖。",
-      "descCount_one": "將 {{count}} 張重疊影像合併為一張無縫全景圖。",
-      "descCount_other": "將 {{count}} 張重疊影像合併為一張無縫全景圖。",
-      "descGeneric": "將您的重疊影像合併為一張無縫全景圖。",
-      "failed": "全景圖拼接失敗",
-      "initializing": "初始化中...",
-      "openInEditor": "在編輯器中開啟",
-      "retry": "重試",
-      "save": "儲存",
-      "savedSuccess": "全景圖儲存成功！",
-      "speedNotice": "這可能需要幾分鐘，具體取決於影像的數量和大小。",
-      "start": "開始",
-      "stitchingProgress": "拼接全景圖中",
-      "title": "拼接全景圖"
     },
     "renameAlbum": {
       "placeholder": "輸入新的相簿名稱..."

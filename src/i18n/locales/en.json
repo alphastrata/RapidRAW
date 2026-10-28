@@ -231,15 +231,12 @@
       "confirmReset": "Confirm Reset",
       "convertNegative": "Convert Negative",
       "copyAdjustments": "Copy Adjustments",
-      "cullImage": "Auto Cull",
       "denoise": "Denoise",
       "editImage": "Edit Image",
       "exportImage": "Export Image",
       "flag": "Flag",
       "flagPick": "Picked",
       "flagReject": "Rejected",
-      "frameImage": "Frame Editor",
-      "mergeHdr": "Merge to HDR",
       "noLabel": "No Label",
       "noRating": "No Rating",
       "pasteAdjustments": "Paste Adjustments",
@@ -251,7 +248,6 @@
       "removeDenoise": "Remove Denoise",
       "removeNegativeConversion": "Remove Negative Conversion",
       "resetAdjustments": "Reset Adjustments",
-      "stitchPanorama": "Stitch Panorama",
       "tagging": "Tagging",
       "undo": "Undo",
       "unflagged": "Unflagged"
@@ -299,14 +295,10 @@
       "autoLensCorrection_other": "Auto Lens Correction",
       "autoStraighten_one": "Auto Straighten",
       "autoStraighten_other": "Auto Straighten",
-      "collage_one": "Frame Editor",
-      "collage_other": "Create Collage",
       "confirmDelete": "Confirm Delete",
       "confirmDeleteVc": "Confirm Delete + Virtual Copies",
       "copyImage_one": "Copy Image",
       "copyImage_other": "Copy {{count}} Images",
-      "cullImage_one": "Auto Cull",
-      "cullImage_other": "Auto Cull",
       "deleteAssociated": "Delete + Associated",
       "deleteImage_one": "Delete Image",
       "deleteImage_other": "Delete {{count}} Images",
@@ -1098,31 +1090,6 @@
         "name": "Name (A-Z)"
       }
     },
-    "culling": {
-      "addTagPlaceholder": "Add tag...",
-      "altCullingPreviewHighRes": "Culling Preview High Res",
-      "altThumbnailLoading": "Thumbnail Loading",
-      "aperture": "Aperture",
-      "cameraSettings": "Camera Settings",
-      "clickThumbnailsHint": "Click thumbnails in the right sidebar to add them to the comparison view.",
-      "colorLabel": "Color Label",
-      "dimensions": "Dimensions",
-      "editImage": "Edit Image",
-      "focalLength": "Focal Length",
-      "iso": "ISO",
-      "metadata": "Metadata",
-      "noMetadataAvailable": "No metadata available",
-      "none": "None",
-      "noTagsAdded": "No tags added",
-      "rateAndLabel": "Rate & Label",
-      "rating": "Rating",
-      "selectImagesToCompare": "Select images to compare",
-      "shutterSpeed": "Shutter Speed",
-      "syncZoomAndPan": "Sync Zoom and Pan",
-      "tags": "Tags",
-      "toggleFit": "Toggle 1:1 / Fit",
-      "vc": "VC"
-    },
     "filterExit": {
       "hiddenMultiple_one": "{{count}} images no longer match the filter",
       "hiddenMultiple_other": "{{count}} images no longer match the filter",
@@ -1362,7 +1329,6 @@
       "select": "Select"
     },
     "viewMode": {
-      "culling": "Culling View",
       "grid": "Grid View",
       "list": "List View"
     }
@@ -1401,24 +1367,6 @@
     }
   },
   "modals": {
-    "collage": {
-      "aspectRatio": "Aspect Ratio",
-      "background": "Background",
-      "borderRadius": "Border Radius",
-      "cancel": "Cancel",
-      "close": "Close",
-      "done": "Done",
-      "errorTitle": "An Error Occurred",
-      "exportSize": "Export Size (px)",
-      "keepOriginalRatio": "Keep Original Aspect Ratio",
-      "layout": "Layout",
-      "original": "Original",
-      "saveButton": "Save Collage",
-      "saved": "Collage Saved!",
-      "saving": "Saving...",
-      "shuffleTooltip": "Shuffle Images",
-      "spacing": "Spacing"
-    },
     "configurePreset": {
       "cancel": "Cancel",
       "includeCropTransform": "Include Crop & Transform",
@@ -1491,38 +1439,6 @@
     "createGroup": {
       "placeholder": "Enter group name..."
     },
-    "culling": {
-      "actionDelete": "Move to Trash",
-      "actionRateZero": "Set Rating to 1 Stars",
-      "actionReject": "Mark as Rejected",
-      "applyButton_one": "Apply to 1 image",
-      "applyButton_other": "Apply to {{count}} images",
-      "bestImage": "Best Image",
-      "blurryImagesTab": "Blurry Images",
-      "blurThreshold": "Blur Threshold",
-      "blurThresholdDesc": "Images with a sharpness score below this value are flagged. Higher is stricter.",
-      "cancel": "Cancel",
-      "close": "Close",
-      "cullingFailed": "Culling Failed",
-      "cullingSuggestions": "Culling Suggestions",
-      "done": "Done",
-      "duplicatesHeader": "Duplicates ({{count}})",
-      "duplicatesHeader_one": "Duplicates ({{count}})",
-      "duplicatesHeader_other": "Duplicates ({{count}})",
-      "filterBlurry": "Filter Blurry Images",
-      "groupHeader": "Group {{index}}",
-      "groupSimilar": "Group Similar Images",
-      "noIssuesDesc": "All images seem to be unique and sharp.",
-      "noIssuesFound": "No issues found!",
-      "score": "Score: {{score}}",
-      "sharpness": "Sharpness: {{sharpness}}",
-      "similarGroupsTab": "Similar Groups",
-      "similarityThreshold": "Similarity Threshold",
-      "similarityThresholdDesc": "Lower is stricter (exact duplicates). Higher is looser (near duplicates). A value of 24-32 is recommended.",
-      "startCulling": "Start Culling",
-      "starting": "Starting...",
-      "title": "Cull Images"
-    },
     "focusStack": {
       "cancel": "Cancel",
       "close": "Close",
@@ -1539,24 +1455,6 @@
       "stacking": "Stacking Focus",
       "start": "Start",
       "title": "Focus Stacking"
-    },
-    "hdr": {
-      "cancel": "Cancel",
-      "close": "Close",
-      "description": "Combine your bracketed exposures into a single High Dynamic Range image.",
-      "descriptionWithCount": "Combine {{count}} bracketed exposures into a single High Dynamic Range image.",
-      "descriptionWithCount_one": "Combine {{count}} bracketed exposure into a single High Dynamic Range image.",
-      "descriptionWithCount_other": "Combine {{count}} bracketed exposures into a single High Dynamic Range image.",
-      "failed": "HDR Merge Failed",
-      "initializing": "Initializing...",
-      "merging": "Merging HDR",
-      "openInEditor": "Open in Editor",
-      "retry": "Retry",
-      "save": "Save",
-      "savedSuccess": "HDR Saved Successfully!",
-      "speedNotice": "This may take a few minutes depending on the number and size of your exposures.",
-      "start": "Start",
-      "title": "Merge to HDR"
     },
     "importSettings": {
       "cancel": "Cancel",
@@ -1604,24 +1502,6 @@
       "waitingAutoDetect": "Waiting for Auto-Detect...",
       "zoomInTooltip": "Zoom In",
       "zoomOutTooltip": "Zoom Out"
-    },
-    "panorama": {
-      "cancel": "Cancel",
-      "close": "Close",
-      "descCount": "Combine {{count}} overlapping images into a seamless panorama.",
-      "descCount_one": "Combine {{count}} overlapping image into a seamless panorama.",
-      "descCount_other": "Combine {{count}} overlapping images into a seamless panorama.",
-      "descGeneric": "Combine your overlapping images into a seamless panorama.",
-      "failed": "Panorama Failed",
-      "initializing": "Initializing...",
-      "openInEditor": "Open in Editor",
-      "retry": "Retry",
-      "save": "Save",
-      "savedSuccess": "Panorama Saved Successfully!",
-      "speedNotice": "This may take a few minutes depending on the number and size of images.",
-      "start": "Start",
-      "stitchingProgress": "Stitching Panorama",
-      "title": "Stitch Panorama"
     },
     "renameAlbum": {
       "placeholder": "Enter new album name..."

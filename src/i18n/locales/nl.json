@@ -231,15 +231,12 @@
       "confirmReset": "Herstellen bevestigen",
       "convertNegative": "Negatief omzetten",
       "copyAdjustments": "Aanpassingen kopiëren",
-      "cullImage": "Autom. selecteren",
       "denoise": "Ruis verwijderen",
       "editImage": "Afbeelding bewerken",
       "exportImage": "Afbeelding exporteren",
       "flag": "",
       "flagPick": "",
       "flagReject": "",
-      "frameImage": "Kadereditor",
-      "mergeHdr": "Samenvoegen naar HDR",
       "noLabel": "Geen label",
       "noRating": "Geen beoordeling",
       "pasteAdjustments": "Aanpassingen plakken",
@@ -251,7 +248,6 @@
       "removeDenoise": "Ruisonderdrukking verwijderen",
       "removeNegativeConversion": "Negatiefconversie verwijderen",
       "resetAdjustments": "Aanpassingen herstellen",
-      "stitchPanorama": "Panorama samenvoegen",
       "tagging": "Tags toevoegen",
       "undo": "Ongedaan maken",
       "unflagged": ""
@@ -299,14 +295,10 @@
       "autoLensCorrection_other": "Autom. lenscorrectie",
       "autoStraighten_one": "Automatisch rechtzetten",
       "autoStraighten_other": "Automatisch rechtzetten",
-      "collage_one": "Kadereditor",
-      "collage_other": "Collage maken",
       "confirmDelete": "Verwijderen bevestigen",
       "confirmDeleteVc": "Verwijderen + virtuele kopieën bevestigen",
       "copyImage_one": "Afbeelding kopiëren",
       "copyImage_other": "{{count}} afbeeldingen kopiëren",
-      "cullImage_one": "Autom. selecteren",
-      "cullImage_other": "Autom. selecteren",
       "deleteAssociated": "Verwijderen + bijbehorende bestanden",
       "deleteImage_one": "Afbeelding verwijderen",
       "deleteImage_other": "{{count}} afbeeldingen verwijderen",
@@ -1098,31 +1090,6 @@
         "name": "Naam (A-Z)"
       }
     },
-    "culling": {
-      "addTagPlaceholder": "Tag toevoegen...",
-      "altCullingPreviewHighRes": "Selectievoorbeeld hoge resolutie",
-      "altThumbnailLoading": "Miniatuur laden",
-      "aperture": "Diafragma",
-      "cameraSettings": "Camera-instellingen",
-      "clickThumbnailsHint": "Klik op miniaturen in de rechterzijbalk om ze toe te voegen aan de vergelijkingsweergave.",
-      "colorLabel": "Kleurlabel",
-      "dimensions": "Afmetingen",
-      "editImage": "Afbeelding bewerken",
-      "focalLength": "Brandpuntsafstand",
-      "iso": "ISO",
-      "metadata": "Metadata",
-      "noMetadataAvailable": "Geen metadata beschikbaar",
-      "none": "Geen",
-      "noTagsAdded": "Geen tags toegevoegd",
-      "rateAndLabel": "Beoordelen & labelen",
-      "rating": "Beoordeling",
-      "selectImagesToCompare": "Selecteer afbeeldingen om te vergelijken",
-      "shutterSpeed": "Sluitertijd",
-      "syncZoomAndPan": "Zoom en pan synchroniseren",
-      "tags": "Tags",
-      "toggleFit": "1:1 / Passend aan/uit",
-      "vc": "VK"
-    },
     "filterExit": {
       "hiddenMultiple_one": "{{count}} afbeeldingen komen niet meer overeen met het filter",
       "hiddenMultiple_other": "{{count}} afbeeldingen komen niet meer overeen met het filter",
@@ -1362,7 +1329,6 @@
       "select": "Selecteren"
     },
     "viewMode": {
-      "culling": "",
       "grid": "",
       "list": ""
     }
@@ -1401,24 +1367,6 @@
     }
   },
   "modals": {
-    "collage": {
-      "aspectRatio": "Beeldverhouding",
-      "background": "Achtergrond",
-      "borderRadius": "Randradius",
-      "cancel": "Annuleren",
-      "close": "Sluiten",
-      "done": "Gereed",
-      "errorTitle": "Er is een fout opgetreden",
-      "exportSize": "Exportgrootte (px)",
-      "keepOriginalRatio": "Originele beeldverhouding behouden",
-      "layout": "Indeling",
-      "original": "Origineel",
-      "saveButton": "Collage opslaan",
-      "saved": "Collage opgeslagen!",
-      "saving": "Opslaan...",
-      "shuffleTooltip": "Afbeeldingen door elkaar schudden",
-      "spacing": "Tussenruimte"
-    },
     "configurePreset": {
       "cancel": "Annuleren",
       "includeCropTransform": "Bijsnijden & transformeren opnemen",
@@ -1491,38 +1439,6 @@
     "createGroup": {
       "placeholder": "Groepsnaam invoeren..."
     },
-    "culling": {
-      "actionDelete": "Naar prullenbak verplaatsen",
-      "actionRateZero": "Beoordeling instellen op 1 ster",
-      "actionReject": "Markeren als afgewezen (rood label)",
-      "applyButton_one": "Toepassen op 1 afbeelding",
-      "applyButton_other": "Toepassen op {{count}} afbeeldingen",
-      "bestImage": "Beste afbeelding",
-      "blurryImagesTab": "Onscherpe afbeeldingen",
-      "blurThreshold": "Onscherptedrempel",
-      "blurThresholdDesc": "Afbeeldingen met een scherptewaarde onder deze waarde worden gemarkeerd. Hoger is strenger.",
-      "cancel": "Annuleren",
-      "close": "Sluiten",
-      "cullingFailed": "Selectie mislukt",
-      "cullingSuggestions": "Selectiesuggesties",
-      "done": "Gereed",
-      "duplicatesHeader": "Duplicaten ({{count}})",
-      "duplicatesHeader_one": "Duplicaten ({{count}})",
-      "duplicatesHeader_other": "Duplicaten ({{count}})",
-      "filterBlurry": "Onscherpe afbeeldingen filteren",
-      "groupHeader": "Groep {{index}}",
-      "groupSimilar": "Vergelijkbare afbeeldingen groeperen",
-      "noIssuesDesc": "Alle afbeeldingen lijken uniek en scherp te zijn.",
-      "noIssuesFound": "Geen problemen gevonden!",
-      "score": "Score: {{score}}",
-      "sharpness": "Scherpte: {{sharpness}}",
-      "similarGroupsTab": "Vergelijkbare groepen",
-      "similarityThreshold": "Gelijkheidsdrempel",
-      "similarityThresholdDesc": "Lager is strenger (exacte duplicaten). Hoger is losser (bijna-duplicaten). Een waarde van 24-32 wordt aanbevolen.",
-      "startCulling": "Selectie starten",
-      "starting": "Starten...",
-      "title": "Afbeeldingen selecteren"
-    },
     "focusStack": {
       "cancel": "Annuleren",
       "close": "Sluiten",
@@ -1539,24 +1455,6 @@
       "stacking": "Focus stapelen",
       "start": "Starten",
       "title": "Focusstapeling"
-    },
-    "hdr": {
-      "cancel": "Annuleren",
-      "close": "Sluiten",
-      "description": "Combineer uw belichting met haakjes tot één High Dynamic Range-afbeelding.",
-      "descriptionWithCount": "Combineer {{count}} belichtingen met haakjes tot één High Dynamic Range-afbeelding.",
-      "descriptionWithCount_one": "Combineer {{count}} belichting met haakjes tot één High Dynamic Range-afbeelding.",
-      "descriptionWithCount_other": "Combineer {{count}} belichtingen met haakjes tot één High Dynamic Range-afbeelding.",
-      "failed": "HDR-samenvoeging mislukt",
-      "initializing": "Initialiseren...",
-      "merging": "HDR samenvoegen",
-      "openInEditor": "Openen in editor",
-      "retry": "Opnieuw",
-      "save": "Opslaan",
-      "savedSuccess": "HDR succesvol opgeslagen!",
-      "speedNotice": "Dit kan enkele minuten duren afhankelijk van het aantal en de grootte van uw belichtingen.",
-      "start": "Starten",
-      "title": "Samenvoegen naar HDR"
     },
     "importSettings": {
       "cancel": "Annuleren",
@@ -1604,24 +1502,6 @@
       "waitingAutoDetect": "Wachten op automatische detectie...",
       "zoomInTooltip": "Inzoomen",
       "zoomOutTooltip": "Uitzoomen"
-    },
-    "panorama": {
-      "cancel": "Annuleren",
-      "close": "Sluiten",
-      "descCount": "Combineer {{count}} overlappende afbeeldingen tot een naadloos panorama.",
-      "descCount_one": "Combineer {{count}} overlappende afbeelding tot een naadloos panorama.",
-      "descCount_other": "Combineer {{count}} overlappende afbeeldingen tot een naadloos panorama.",
-      "descGeneric": "Combineer uw overlappende afbeeldingen tot een naadloos panorama.",
-      "failed": "Panorama mislukt",
-      "initializing": "Initialiseren...",
-      "openInEditor": "Openen in editor",
-      "retry": "Opnieuw",
-      "save": "Opslaan",
-      "savedSuccess": "Panorama succesvol opgeslagen!",
-      "speedNotice": "Dit kan enkele minuten duren afhankelijk van het aantal en de grootte van afbeeldingen.",
-      "start": "Starten",
-      "stitchingProgress": "Panorama samenvoegen",
-      "title": "Panorama samenvoegen"
     },
     "renameAlbum": {
       "placeholder": "Nieuwe albumnaam invoeren..."

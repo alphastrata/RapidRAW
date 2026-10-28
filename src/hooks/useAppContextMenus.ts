@@ -16,13 +16,11 @@ import {
   FolderInput,
   FolderPlus,
   Images,
-  LayoutTemplate,
   LayersArrowDown,
   Redo,
   RefreshCw,
   RotateCcw,
   Star,
-  SquaresUnite,
   Palette,
   Tag,
   Trash2,
@@ -347,24 +345,12 @@ export function useAppContextMenus(latestProps: UseAppContextMenusProps) {
                 }),
               disabled: !selectedImage?.isReady,
             },
-            {
-              icon: LayoutTemplate,
-              label: t('contextMenus.editor.frameImage'),
-              onClick: () => {
-                setUI({ collageModalState: { isOpen: true, sourceImages: [selectedImage] } });
-              },
-            },
-            { label: t('contextMenus.editor.cullImage'), icon: Users, disabled: true },
           ],
         },
         {
           label: t('contextMenus.merge.title'),
           icon: LayersArrowDown,
-          submenu: [
-            { disabled: true, icon: SquaresUnite, label: t('contextMenus.editor.stitchPanorama') },
-            { disabled: true, icon: Images, label: t('contextMenus.editor.mergeHdr') },
-            { disabled: true, icon: Layers, label: t('contextMenus.merge.focusStack') },
-          ],
+          submenu: [{ disabled: true, icon: Layers, label: t('contextMenus.merge.focusStack') }],
         },
         { type: OPTION_SEPARATOR },
         buildRatingMenu(),
@@ -520,11 +506,7 @@ export function useAppContextMenus(latestProps: UseAppContextMenusProps) {
       const copyLabel = t('contextMenus.thumbnail.copyImage', { count: selectionCount });
       const autoAdjustLabel = t('contextMenus.thumbnail.autoAdjust', { count: selectionCount });
       const renameLabel = t('contextMenus.thumbnail.renameImage', { count: selectionCount });
-      const cullLabel = t('contextMenus.thumbnail.cullImage', { count: selectionCount });
-      const collageLabel = t('contextMenus.thumbnail.collage', { count: selectionCount });
-      const stitchLabel = t('contextMenus.editor.stitchPanorama');
       const denoiseLabel = t('contextMenus.thumbnail.denoise', { count: selectionCount });
-      const mergeLabel = t('contextMenus.editor.mergeHdr');
 
       const handleCreateVirtualCopy = async (sourcePath: string) => {
         try {
@@ -690,70 +672,12 @@ export function useAppContextMenus(latestProps: UseAppContextMenusProps) {
                 },
               ],
             },
-            {
-              icon: LayoutTemplate,
-              label: collageLabel,
-              onClick: () => {
-                const imagesForCollage = imageList.filter((img) => finalSelection.includes(img.path));
-                setUI({ collageModalState: { isOpen: true, sourceImages: imagesForCollage } });
-              },
-              disabled: selectionCount === 0 || selectionCount > 9,
-            },
-            {
-              label: cullLabel,
-              icon: Users,
-              onClick: () =>
-                setUI({
-                  cullingModalState: {
-                    isOpen: true,
-                    progress: null,
-                    suggestions: null,
-                    error: null,
-                    pathsToCull: finalSelection,
-                  },
-                }),
-              disabled: selectionCount < 2,
-            },
           ],
         },
         {
           label: t('contextMenus.merge.title'),
           icon: LayersArrowDown,
           submenu: [
-            {
-              disabled: selectionCount < 2 || selectionCount > 30,
-              icon: SquaresUnite,
-              label: stitchLabel,
-              onClick: () => {
-                setUI({
-                  panoramaModalState: {
-                    error: null,
-                    finalImageBase64: null,
-                    isOpen: true,
-                    isProcessing: false,
-                    progressMessage: null,
-                    stitchingSourcePaths: finalSelection,
-                  },
-                });
-              },
-            },
-            {
-              disabled: selectionCount < 2 || selectionCount > 9,
-              icon: Images,
-              label: mergeLabel,
-              onClick: () => {
-                setUI({
-                  hdrModalState: {
-                    error: null,
-                    finalImageBase64: null,
-                    isOpen: true,
-                    isProcessing: false,
-                    progressMessage: null,
-                    stitchingSourcePaths: finalSelection,
-                  },
-                });
-              },
-            },
             {
               disabled: selectionCount < 2,
               icon: Layers,

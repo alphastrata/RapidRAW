@@ -231,15 +231,12 @@
       "confirmReset": "确认重置",
       "convertNegative": "转换负片",
       "copyAdjustments": "复制调整",
-      "cullImage": "自动筛选",
       "denoise": "降噪",
       "editImage": "编辑图像",
       "exportImage": "导出图像",
       "flag": "标记",
       "flagPick": "留用",
       "flagReject": "已拒绝",
-      "frameImage": "边框编辑器",
-      "mergeHdr": "合并为 HDR",
       "noLabel": "无标签",
       "noRating": "无评分",
       "pasteAdjustments": "粘贴调整",
@@ -251,7 +248,6 @@
       "removeDenoise": "移除降噪",
       "removeNegativeConversion": "移除负片转换",
       "resetAdjustments": "重置调整",
-      "stitchPanorama": "拼接全景图",
       "tagging": "标签",
       "undo": "撤销",
       "unflagged": "无标记"
@@ -299,14 +295,10 @@
       "autoLensCorrection_other": "自动镜头校正",
       "autoStraighten_one": "自动拉直",
       "autoStraighten_other": "自动拉直",
-      "collage_one": "边框编辑器",
-      "collage_other": "创建拼贴画",
       "confirmDelete": "确认删除",
       "confirmDeleteVc": "确认删除 + 虚拟副本",
       "copyImage_one": "复制图像",
       "copyImage_other": "复制 {{count}} 张图像",
-      "cullImage_one": "自动筛选",
-      "cullImage_other": "自动筛选",
       "deleteAssociated": "删除 + 关联文件",
       "deleteImage_one": "删除图像",
       "deleteImage_other": "删除 {{count}} 张图像",
@@ -1094,31 +1086,6 @@
         "name": "名称（A-Z）"
       }
     },
-    "culling": {
-      "addTagPlaceholder": "添加标签...",
-      "altCullingPreviewHighRes": "高分辨率筛选预览",
-      "altThumbnailLoading": "缩略图加载中",
-      "aperture": "光圈",
-      "cameraSettings": "相机设置",
-      "clickThumbnailsHint": "在右侧边栏中单击缩略图以将它们添加到比较视图中。",
-      "colorLabel": "颜色标签",
-      "dimensions": "尺寸",
-      "editImage": "编辑图像",
-      "focalLength": "焦距",
-      "iso": "ISO",
-      "metadata": "元数据",
-      "noMetadataAvailable": "无可用元数据",
-      "none": "无",
-      "noTagsAdded": "未添加标签",
-      "rateAndLabel": "评分与标签",
-      "rating": "评分",
-      "selectImagesToCompare": "选择要比较的图像",
-      "shutterSpeed": "快门速度",
-      "syncZoomAndPan": "同步缩放和平移",
-      "tags": "标签",
-      "toggleFit": "切换 1:1 / 适应",
-      "vc": "VC"
-    },
     "filterExit": {
       "hiddenMultiple_other": "{{count}} 张图像已不再符合筛选条件",
       "hiddenSingle": "{{name}} 已不再符合筛选条件",
@@ -1356,7 +1323,6 @@
       "select": "选择"
     },
     "viewMode": {
-      "culling": "",
       "grid": "",
       "list": ""
     }
@@ -1395,24 +1361,6 @@
     }
   },
   "modals": {
-    "collage": {
-      "aspectRatio": "宽高比",
-      "background": "背景",
-      "borderRadius": "边框圆角",
-      "cancel": "取消",
-      "close": "关闭",
-      "done": "完成",
-      "errorTitle": "发生错误",
-      "exportSize": "导出大小（像素）",
-      "keepOriginalRatio": "保持原始宽高比",
-      "layout": "布局",
-      "original": "原始",
-      "saveButton": "保存拼贴画",
-      "saved": "拼贴画已保存！",
-      "saving": "保存中...",
-      "shuffleTooltip": "随机排列图像",
-      "spacing": "间距"
-    },
     "configurePreset": {
       "cancel": "取消",
       "includeCropTransform": "包含裁剪与变换",
@@ -1485,38 +1433,6 @@
     "createGroup": {
       "placeholder": "输入组名称..."
     },
-    "culling": {
-      "actionDelete": "移至回收站",
-      "actionRateZero": "将评分设为 1 星",
-      "actionReject": "标记为已拒绝",
-      "applyButton_one": "应用到 1 张图像",
-      "applyButton_other": "应用到 {{count}} 张图像",
-      "bestImage": "最佳图像",
-      "blurryImagesTab": "模糊图像",
-      "blurThreshold": "模糊阈值",
-      "blurThresholdDesc": "锐度评分低于此值的图像将被标记。值越高越严格。",
-      "cancel": "取消",
-      "close": "关闭",
-      "cullingFailed": "筛选失败",
-      "cullingSuggestions": "筛选建议",
-      "done": "完成",
-      "duplicatesHeader": "重复项（{{count}}）",
-      "duplicatesHeader_one": "重复项（{{count}}）",
-      "duplicatesHeader_other": "重复项（{{count}}）",
-      "filterBlurry": "过滤模糊图像",
-      "groupHeader": "第 {{index}} 组",
-      "groupSimilar": "分组相似图像",
-      "noIssuesDesc": "所有图像似乎都是唯一且清晰的。",
-      "noIssuesFound": "未发现问题！",
-      "score": "评分：{{score}}",
-      "sharpness": "锐度：{{sharpness}}",
-      "similarGroupsTab": "相似组",
-      "similarityThreshold": "相似度阈值",
-      "similarityThresholdDesc": "值越低越严格（完全重复）。值越高越宽松（近似重复）。建议值 24-32。",
-      "startCulling": "开始筛选",
-      "starting": "启动中...",
-      "title": "筛选图像"
-    },
     "focusStack": {
       "cancel": "取消",
       "close": "关闭",
@@ -1533,24 +1449,6 @@
       "stacking": "正在合成焦距",
       "start": "开始",
       "title": "焦距合成"
-    },
-    "hdr": {
-      "cancel": "取消",
-      "close": "关闭",
-      "description": "将您的包围曝光合并为一张高动态范围图像。",
-      "descriptionWithCount": "将 {{count}} 张包围曝光合并为一张高动态范围图像。",
-      "descriptionWithCount_one": "将 {{count}} 张包围曝光合并为一张高动态范围图像。",
-      "descriptionWithCount_other": "将 {{count}} 张包围曝光合并为一张高动态范围图像。",
-      "failed": "HDR 合并失败",
-      "initializing": "初始化中...",
-      "merging": "合并 HDR 中",
-      "openInEditor": "在编辑器中打开",
-      "retry": "重试",
-      "save": "保存",
-      "savedSuccess": "HDR 保存成功！",
-      "speedNotice": "这可能需要几分钟，具体取决于曝光图像的数量和大小。",
-      "start": "开始",
-      "title": "合并为 HDR"
     },
     "importSettings": {
       "cancel": "取消",
@@ -1598,24 +1496,6 @@
       "waitingAutoDetect": "等待自动检测...",
       "zoomInTooltip": "放大",
       "zoomOutTooltip": "缩小"
-    },
-    "panorama": {
-      "cancel": "取消",
-      "close": "关闭",
-      "descCount": "将 {{count}} 张重叠图像合并为一张无缝全景图。",
-      "descCount_one": "将 {{count}} 张重叠图像合并为一张无缝全景图。",
-      "descCount_other": "将 {{count}} 张重叠图像合并为一张无缝全景图。",
-      "descGeneric": "将您的重叠图像合并为一张无缝全景图。",
-      "failed": "全景图拼接失败",
-      "initializing": "初始化中...",
-      "openInEditor": "在编辑器中打开",
-      "retry": "重试",
-      "save": "保存",
-      "savedSuccess": "全景图保存成功！",
-      "speedNotice": "这可能需要几分钟，具体取决于图像的数量和大小。",
-      "start": "开始",
-      "stitchingProgress": "拼接全景图中",
-      "title": "拼接全景图"
     },
     "renameAlbum": {
       "placeholder": "输入新的相册名称..."
