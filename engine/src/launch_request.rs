@@ -8,17 +8,6 @@ pub struct ExternalEditSession {
     pub jpeg_quality: u8,
 }
 
-#[derive(Clone, Debug)]
-pub struct HeadlessExportSession {
-    pub source: String,
-    pub output: String,
-    pub format: String,
-    pub quality: u8,
-    pub tiff_bit_depth: TiffBitDepth,
-    pub keep_metadata: bool,
-    pub adjustments_override: Option<String>,
-}
-
 #[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq, Eq, Default)]
 #[serde(try_from = "u8", into = "u8")]
 pub enum TiffBitDepth {

@@ -3,22 +3,16 @@ use std::path::PathBuf;
 use std::sync::atomic::{AtomicI32, Ordering};
 use tauri::Emitter;
 
-pub use engine::launch_request::{ExternalEditSession, HeadlessExportSession, TiffBitDepth};
+pub use engine::launch_request::ExternalEditSession;
 
 #[derive(Clone, Debug)]
 pub enum LaunchRequest {
     None,
     OpenFile(String),
     EditSession(ExternalEditSession),
-    HeadlessExport(HeadlessExportSession),
-    InvalidHeadless(String),
 }
 
 static PROCESS_EXIT_CODE: AtomicI32 = AtomicI32::new(0);
-
-pub fn set_process_exit_code(code: i32) {
-    PROCESS_EXIT_CODE.store(code, Ordering::SeqCst);
-}
 
 pub fn process_exit_code() -> i32 {
     PROCESS_EXIT_CODE.load(Ordering::SeqCst)
@@ -39,81 +33,6 @@ pub struct LaunchPayload {
 }
 
 pub fn parse_launch_args(args: &[String]) -> LaunchRequest {
-    if args.first().map(|s| s.as_str()) == Some("export") {
-        let mut iter = args.iter().skip(1);
-
-        let mut source = String::new();
-        let mut output = String::new();
-        let mut format = String::from("jpeg");
-        let mut quality = 90;
-        let mut tiff_bit_depth = TiffBitDepth::default();
-        let mut keep_metadata = false;
-        let mut adjustments_override = None;
-
-        if let Some(src) = iter.next()
-            && !src.starts_with('-')
-        {
-            source = src.clone();
-        }
-
-        while let Some(arg) = iter.next() {
-            match arg.as_str() {
-                "--output" => {
-                    if let Some(out) = iter.next() {
-                        output = out.clone();
-                    }
-                }
-                "--format" => {
-                    if let Some(fmt) = iter.next() {
-                        format = fmt.clone();
-                    }
-                }
-                "--quality" => {
-                    if let Some(q) = iter.next() {
-                        quality = q.parse().unwrap_or(90);
-                    }
-                }
-                "--tiff-bit-depth" => {
-                    let Some(value) = iter.next() else {
-                        return LaunchRequest::InvalidHeadless(
-                            "Missing value for --tiff-bit-depth; expected 8 or 16.".to_string(),
-                        );
-                    };
-                    let Ok(value) = value.parse::<u8>() else {
-                        return LaunchRequest::InvalidHeadless(format!(
-                            "Invalid TIFF bit depth '{}'; expected 8 or 16.",
-                            value
-                        ));
-                    };
-                    let Ok(value) = TiffBitDepth::try_from(value) else {
-                        return LaunchRequest::InvalidHeadless(format!(
-                            "Invalid TIFF bit depth '{}'; expected 8 or 16.",
-                            value
-                        ));
-                    };
-                    tiff_bit_depth = value;
-                }
-                "--keep-metadata" => keep_metadata = true,
-                "--adjustments" => {
-                    if let Some(adj) = iter.next() {
-                        adjustments_override = Some(adj.clone());
-                    }
-                }
-                _ => {}
-            }
-        }
-
-        return LaunchRequest::HeadlessExport(HeadlessExportSession {
-            source,
-            output,
-            format,
-            quality,
-            tiff_bit_depth,
-            keep_metadata,
-            adjustments_override,
-        });
-    }
-
     let mut edit: Option<String> = None;
     let mut output: Option<String> = None;
     let mut format: Option<String> = None;
@@ -177,14 +96,6 @@ pub fn emit_launch_request(app_handle: &tauri::AppHandle, request: LaunchRequest
         }
         LaunchRequest::OpenFile(path) => {
             handle_file_open(app_handle, PathBuf::from(path));
-        }
-        LaunchRequest::HeadlessExport(_) => {
-            cli_println!(
-                "Error: Headless export cannot be attached to an already running GUI instance."
-            );
-        }
-        LaunchRequest::InvalidHeadless(error) => {
-            log::error!("Invalid headless export request: {}", error);
         }
         LaunchRequest::None => {}
     }

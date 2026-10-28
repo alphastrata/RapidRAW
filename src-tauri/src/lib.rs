@@ -15,13 +15,6 @@ macro_rules! cli_println {
     }};
 }
 
-macro_rules! cli_eprintln {
-    ($($arg:tt)*) => {{
-        use std::io::Write as _;
-        let _ = writeln!(std::io::stderr(), $($arg)*);
-    }};
-}
-
 mod ai_commands;
 pub mod cache_utils;
 pub mod focus_stacking;
@@ -36,9 +29,9 @@ pub use engine::apple_raw;
 pub mod auto_straighten;
 mod file_management;
 pub use engine::formats;
+mod ai_denoise;
 pub mod guided_perspective;
 mod inpainting;
-mod ai_denoise;
 pub use engine::bm3d;
 pub mod export_processing;
 pub use engine::highlight_reconstruction;
@@ -75,13 +68,14 @@ use crate::formats::is_raw_file;
 use crate::gpu_processing::DisplayLayer;
 use crate::image_loader::prepare_base_image_cow;
 use crate::image_processing::{
-    Crop, RenderRequest, apply_coarse_rotation, apply_flip, apply_geometry_warp, downscale_f32_image, get_all_adjustments_from_json,
-    get_geometry_params_from_json, get_or_init_gpu_context, is_geometry_identity,
-    process_and_get_dynamic_image, resolve_render_options, warp_image_geometry,
+    Crop, RenderRequest, apply_coarse_rotation, apply_flip, apply_geometry_warp,
+    downscale_f32_image, get_all_adjustments_from_json, get_geometry_params_from_json,
+    get_or_init_gpu_context, is_geometry_identity, process_and_get_dynamic_image,
+    resolve_render_options, warp_image_geometry,
 };
 use crate::mask_generation::{
-    MaskDefinition, build_warped_image_for_masks,
-    generate_mask_bitmap, get_cached_or_generate_masks, resolve_warped_image_for_masks,
+    MaskDefinition, build_warped_image_for_masks, generate_mask_bitmap,
+    get_cached_or_generate_masks, resolve_warped_image_for_masks,
 };
 use crate::window_customizer::PinchZoomDisablePlugin;
 pub use adjustment_utils::*;
@@ -1297,6 +1291,7 @@ fn frontend_log(level: String, message: String) -> Result<(), String> {
 }
 
 #[derive(Clone, Copy, Debug)]
+#[cfg(not(target_os = "android"))]
 struct MonitorBounds {
     x: i32,
     y: i32,
@@ -1326,11 +1321,7 @@ fn available_monitor_bounds(window: &tauri::WebviewWindow) -> Vec<MonitorBounds>
         .unwrap_or_default()
 }
 
-#[cfg(target_os = "android")]
-fn available_monitor_bounds(_window: &tauri::WebviewWindow) -> Vec<MonitorBounds> {
-    Vec::new()
-}
-
+#[cfg(not(target_os = "android"))]
 fn saved_window_state_is_usable(
     state: &WindowState,
     monitors: &[MonitorBounds],
@@ -1440,42 +1431,33 @@ pub fn run() {
 
     let args: Vec<String> = std::env::args().skip(1).collect();
     let launch_req = parse_launch_args(&args);
-    if let LaunchRequest::InvalidHeadless(error) = &launch_req {
-        eprintln!("Headless export failed: {}", error);
-        std::process::exit(2);
-    }
-    let is_headless = matches!(launch_req, LaunchRequest::HeadlessExport(_));
 
     let mut builder = tauri::Builder::default();
 
     #[cfg(target_os = "linux")]
     {
-        if !is_headless {
-            builder = builder.plugin(tauri_plugin_wayland_nvidia_quirk::init());
-        }
+        builder = builder.plugin(tauri_plugin_wayland_nvidia_quirk::init());
     }
 
     #[cfg(not(any(target_os = "android", target_os = "ios")))]
     {
-        if !is_headless {
-            builder = builder.plugin(tauri_plugin_single_instance::init(|app, argv, _cwd| {
-                log::info!(
-                    "New instance launched with args: {:?}. Focusing main window.",
-                    argv
-                );
-                if let Some(window) = app.get_webview_window("main") {
-                    if let Err(e) = window.unminimize() {
-                        log::error!("Failed to unminimize window: {}", e);
-                    }
-                    if let Err(e) = window.set_focus() {
-                        log::error!("Failed to set focus on window: {}", e);
-                    }
+        builder = builder.plugin(tauri_plugin_single_instance::init(|app, argv, _cwd| {
+            log::info!(
+                "New instance launched with args: {:?}. Focusing main window.",
+                argv
+            );
+            if let Some(window) = app.get_webview_window("main") {
+                if let Err(e) = window.unminimize() {
+                    log::error!("Failed to unminimize window: {}", e);
                 }
+                if let Err(e) = window.set_focus() {
+                    log::error!("Failed to set focus on window: {}", e);
+                }
+            }
 
-                let forwarded_args = argv.get(1..).unwrap_or(&[]);
-                emit_launch_request(app, parse_launch_args(forwarded_args));
-            }));
-        }
+            let forwarded_args = argv.get(1..).unwrap_or(&[]);
+            emit_launch_request(app, parse_launch_args(forwarded_args));
+        }));
     }
 
     #[cfg(any(target_os = "windows", target_os = "macos", target_os = "linux"))]
@@ -1521,9 +1503,6 @@ pub fn run() {
             }
 
             let app_handle = app.handle().clone();
-
-            if !is_headless {
-                }
 
             if let Ok(cache_dir) = app_handle.path().app_cache_dir() {
                 crate::ai_denoise::initialize_cache_dir(cache_dir.clone());
@@ -1627,29 +1606,6 @@ pub fn run() {
                 );
             }
 
-            match launch_req {
-                LaunchRequest::HeadlessExport(session) => {
-                    let app_handle_clone = app_handle.clone();
-                    tauri::async_runtime::spawn(async move {
-                        match crate::export_processing::run_headless_export(session, app_handle_clone.clone()).await {
-                            Ok(_) => {
-                                cli_println!("Headless export completed successfully.");
-                                app_handle_clone.exit(0);
-                            }
-                            Err(e) => {
-                                cli_eprintln!("Headless export failed: {}", e);
-                                set_process_exit_code(1);
-                                app_handle_clone.exit(1);
-                            }
-                        }
-                    });
-
-                    return Ok(());
-                }
-                LaunchRequest::InvalidHeadless(_) => unreachable!("invalid headless arguments exit before app setup"),
-                _ => {}
-            }
-
             start_preview_worker(app_handle.clone());
             start_analytics_worker(app_handle.clone());
             jxl_oxide::integration::register_image_decoding_hook();
@@ -1680,6 +1636,10 @@ pub fn run() {
             let _window = window_builder.build().expect("Failed to build window");
 
             #[cfg(target_os = "android")]
+            let _ = &_window;
+
+            #[cfg(not(target_os = "android"))]
+            let window = &_window;
 
             #[cfg(not(target_os = "android"))]
             {
