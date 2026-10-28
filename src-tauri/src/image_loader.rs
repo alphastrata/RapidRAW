@@ -77,12 +77,6 @@ pub async fn load_image(
             .lock()
             .unwrap_or_else(|e| e.into_inner())
             .clear();
-
-        *state.hdr_result.lock().unwrap_or_else(|e| e.into_inner()) = None;
-        *state
-            .panorama_result
-            .lock()
-            .unwrap_or_else(|e| e.into_inner()) = None;
     }
 
     let (source_path, sidecar_path) = parse_virtual_path(&path);
