@@ -440,9 +440,7 @@ export function useAppNavigation({ clearThumbnailQueue, refs }: AppNavigationPro
         await loadExifForImages(files, path, sortCriteria.key, setLibrary);
 
         if (!preserveEditor) {
-          invoke(Invokes.StartBackgroundIndexing, { folderPath: path }).catch((err) => {
-            console.error('Failed to start background indexing:', err);
-          });
+          invoke(Invokes.CreateFolder, { path, name: 'Untitled' }).catch(() => {});
         }
       } catch (err) {
         console.error('Failed to load folder contents:', err);

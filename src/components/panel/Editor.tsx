@@ -201,7 +201,7 @@ export default function Editor({ onBackToLibrary, onContextMenu, onImageSelect, 
 
   const isAndroid = osPlatform === 'android';
 
-  const { handleGenerateAiMask, handleQuickErase, handleDirectPatch } = useAiMasking();
+  const { handleDirectPatch } = useAiMasking();
   const { setAdjustments, toggleCompare, selectCompareMode } = useEditorActions();
 
   const [crop, setCrop] = useState<Crop | null>(null);
@@ -814,7 +814,6 @@ export default function Editor({ onBackToLibrary, onContextMenu, onImageSelect, 
     (isMasking &&
       (activeSubMask?.type === Mask.Brush ||
         activeSubMask?.type === Mask.Flow ||
-        activeSubMask?.type === Mask.AiSubject ||
         activeSubMask?.type === Mask.Color ||
         activeSubMask?.type === Mask.Luminance ||
         activeSubMask?.parameters?.isInitialDraw)) ||
@@ -825,8 +824,6 @@ export default function Editor({ onBackToLibrary, onContextMenu, onImageSelect, 
         activeSubMask?.type === Mask.Liquify ||
         activeSubMask?.type === Mask.Retouch ||
         activeSubMask?.type === Mask.Heal ||
-        activeSubMask?.type === Mask.AiSubject ||
-        activeSubMask?.type === Mask.QuickEraser ||
         activeSubMask?.type === Mask.Color ||
         activeSubMask?.type === Mask.Luminance ||
         activeSubMask?.parameters?.isInitialDraw)) ||
@@ -2621,12 +2618,10 @@ export default function Editor({ onBackToLibrary, onContextMenu, onImageSelect, 
               isRotationActive={isRotationActive}
               isSliderDragging={isSliderDragging}
               maskOverlayUrl={maskOverlayUrl}
-              onGenerateAiMask={handleGenerateAiMask}
               onSelectAiPatchContainer={handleSelectAiPatchContainer}
               onSelectMaskContainer={handleSelectMaskContainer}
               onLiveMaskPreview={handleLiveMaskPreview}
               onDirectPatch={handleDirectPatch}
-              onQuickErase={handleQuickErase}
               onSelectAiSubMask={handleSelectAiSubMask}
               onSelectMask={handleSelectMask}
               onStraighten={handleStraighten}

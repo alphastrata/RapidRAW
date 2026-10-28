@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo, memo } from 'react';
-import { Image as ImageIcon, Star, SlidersHorizontal, Loader2, Pause } from 'lucide-react';
+import { Image as ImageIcon, Star, SlidersHorizontal, Loader2 } from 'lucide-react';
 import clsx from 'clsx';
 import { Grid, useGridCallbackRef } from 'react-window';
 import { useTranslation } from 'react-i18next';
@@ -59,8 +59,6 @@ const FilmstripThumbnail = memo(
   }) => {
     const { t } = useTranslation();
     const thumbData = useProcessStore((s) => s.thumbnails[imageFile.path]);
-    const isAiPending = useProcessStore((s) => !!s.aiPendingPaths[imageFile.path]);
-    const isAiPaused = useProcessStore((s) => s.aiJobs.paused);
 
     const [layers, setLayers] = useState<ImageLayer[]>([]);
 
@@ -98,7 +96,7 @@ const FilmstripThumbnail = memo(
     const isRejected = flag === ImageFlag.Reject;
     const hasRating = rating > 0 && !isRejected;
     const hasOtherBadge = hasEditIcon || hasColorLabel || hasRating || !!flag;
-    const hasAnyOverlay = hasOtherBadge || isAiPending;
+    const hasAnyOverlay = hasOtherBadge;
 
     const cleanPath = path.split('?')[0];
     const filename = cleanPath.split(/[\\/]/).pop() || '';
@@ -287,20 +285,6 @@ const FilmstripThumbnail = memo(
 
             <FlagBadges flag={flag} hasPrecedingBadge={hasEditIcon || hasColorLabel || hasRating} />
 
-            <div
-              className={clsx(
-                'flex items-center shrink-0 transition-all duration-200 ease-out overflow-hidden',
-                isAiPending ? 'max-w-4 opacity-100 scale-100' : 'max-w-0 opacity-0 scale-75 pointer-events-none',
-                isAiPending && hasOtherBadge ? 'ml-1.5' : 'ml-0',
-              )}
-              data-tooltip={t(isAiPaused ? 'library.aiJobs.thumbnailPaused' : 'library.aiJobs.thumbnailPending')}
-            >
-              {isAiPaused ? (
-                <Pause size={12} className="text-white" />
-              ) : (
-                <Loader2 size={12} className="text-white animate-spin" />
-              )}
-            </div>
           </div>
         </div>
 

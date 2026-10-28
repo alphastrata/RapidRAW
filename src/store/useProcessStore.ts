@@ -14,27 +14,7 @@ export interface AiTask {
   type: string;
 }
 
-export type AiJobKind =
-  | 'denoise'
-  | 'depthMap'
-  | 'normalMap'
-  | 'foregroundMask'
-  | 'skyMask'
-  | 'textMask'
-  | 'faceMask'
-  | 'depthMask'
-  | 'subjectMask';
-
-export interface AiJobsStatus {
-  current: { path: string; kind: AiJobKind; maskName: string | null } | null;
-  queued: number;
-  completed: number;
-  paused: boolean;
-  failed: Array<{ path: string; error: string }>;
-}
-
 export enum JobKind {
-  AiTagging = 'aiTagging',
   Copy = 'copy',
   Export = 'export',
   Import = 'import',
@@ -68,8 +48,6 @@ export const isJobActive = (status: JobStatus) => status === JobStatus.Running |
 const findActiveJob = (jobs: Record<string, Job>, kind: JobKind) =>
   Object.values(jobs).find((job) => job.kind === kind && isJobActive(job.status));
 
-export const selectAiTaggingJob = (state: ProcessState) => findActiveJob(state.jobs, JobKind.AiTagging) ?? null;
-
 export const selectAiModelDownloadStatus = (state: ProcessState) => {
   const job = findActiveJob(state.jobs, JobKind.ModelDownload);
   if (!job?.detail) return null;
@@ -90,8 +68,6 @@ interface ProcessState {
   initialFileToOpen: string | null;
   externalEditSession: ExternalEditSession | null;
   activeAiTasks: Record<string, AiTask>;
-  aiJobs: AiJobsStatus;
-  aiPendingPaths: Record<string, true>;
   jobs: Record<string, Job>;
   jobsSeenAt: number;
 
@@ -179,8 +155,6 @@ export const useProcessStore = create<ProcessState>((set, get) => ({
   initialFileToOpen: null,
   externalEditSession: null,
   activeAiTasks: {},
-  aiJobs: { current: null, queued: 0, completed: 0, paused: false, failed: [] },
-  aiPendingPaths: {},
   jobs: {},
   jobsSeenAt: Date.now(),
 

@@ -22,7 +22,6 @@ import {
   RotateCcw,
   Star,
   Palette,
-  Tag,
   Trash2,
   Undo,
   X,
@@ -72,7 +71,6 @@ import {
   getAiDenoiseEnablePatch,
   INITIAL_ADJUSTMENTS,
 } from '../utils/adjustments';
-import TaggingSubMenu from '../context/TaggingSubMenu';
 import { buildAutoAdjustModeOptions, reloadAdjustmentsForPaths, useEditorActions } from './useEditorActions';
 import { useLibraryActions } from './useLibraryActions';
 import { transferFiles } from './useFileOperations';
@@ -122,7 +120,7 @@ export function useAppContextMenus(latestProps: UseAppContextMenusProps) {
     handleCopyAdjustments,
     handlePasteAdjustments,
   } = useEditorActions();
-  const { handleRate, handleSetFlag, handleSetColorLabel, handleTagsChanged } = useLibraryActions();
+  const { handleRate, handleSetFlag, handleSetColorLabel } = useLibraryActions();
 
   const buildFlagMenu = useCallback(
     (paths?: string[]) => ({
@@ -191,31 +189,6 @@ export function useAppContextMenus(latestProps: UseAppContextMenusProps) {
     [t],
   );
 
-  const getCommonTags = useCallback((paths: string[]): { tag: string; isUser: boolean }[] => {
-    const { imageList } = useLibraryStore.getState();
-    if (paths.length === 0) return [];
-    const imageFiles = imageList.filter((img) => paths.includes(img.path));
-    if (imageFiles.length === 0) return [];
-
-    const allTagsSets = imageFiles.map((img) => {
-      const tagsWithPrefix = (img.tags || []).filter((t: string) => !t.startsWith('color:'));
-      return new Set(tagsWithPrefix);
-    });
-
-    if (allTagsSets.length === 0) return [];
-
-    const commonTagsWithPrefix = allTagsSets.reduce((intersection, currentSet) => {
-      return new Set([...intersection].filter((tag) => currentSet.has(tag)));
-    });
-
-    return Array.from(commonTagsWithPrefix)
-      .map((tag: string) => ({
-        tag: tag.startsWith('user:') ? tag.substring(5) : tag,
-        isUser: tag.startsWith('user:'),
-      }))
-      .sort((a, b) => a.tag.localeCompare(b.tag));
-  }, []);
-
   const buildAddToAlbumMenu = useCallback(
     (items: AlbumItem[], pathsToAdd: string[]): Option[] => {
       return items.map((item) => {
@@ -275,7 +248,6 @@ export function useAppContextMenus(latestProps: UseAppContextMenusProps) {
 
       const canUndo = historyIndex > 0;
       const canRedo = historyIndex < history.length - 1;
-      const commonTags = getCommonTags([selectedImage.path]);
 
       const options: Array<Option> = [
         {
@@ -356,21 +328,6 @@ export function useAppContextMenus(latestProps: UseAppContextMenusProps) {
         buildRatingMenu(),
         buildFlagMenu(),
         buildColorLabelMenu(),
-        {
-          label: t('contextMenus.editor.tagging'),
-          icon: Tag,
-          submenu: [
-            {
-              customComponent: TaggingSubMenu,
-              customProps: {
-                paths: [selectedImage.path],
-                initialTags: commonTags,
-                onTagsChanged: handleTagsChanged,
-                appSettings,
-              },
-            },
-          ],
-        },
         { type: OPTION_SEPARATOR },
         {
           label: t('contextMenus.editor.resetAdjustments'),
@@ -395,14 +352,12 @@ export function useAppContextMenus(latestProps: UseAppContextMenusProps) {
       showContextMenu(event.clientX, event.clientY, options);
     },
     [
-      getCommonTags,
       handleCopyAdjustments,
       handlePasteAdjustments,
       handleAutoAdjustments,
       handleRate,
       buildFlagMenu,
       handleSetColorLabel,
-      handleTagsChanged,
       showContextMenu,
       t,
     ],
@@ -433,8 +388,6 @@ export function useAppContextMenus(latestProps: UseAppContextMenusProps) {
       } else {
         finalSelection = multiSelectedPaths;
       }
-
-      const commonTags = getCommonTags(finalSelection);
 
       const selectionCount = finalSelection.length;
       const isSingleSelection = selectionCount === 1;
@@ -744,21 +697,6 @@ export function useAppContextMenus(latestProps: UseAppContextMenusProps) {
         buildRatingMenu(finalSelection),
         buildFlagMenu(finalSelection),
         buildColorLabelMenu(finalSelection),
-        {
-          label: t('contextMenus.editor.tagging'),
-          icon: Tag,
-          submenu: [
-            {
-              customComponent: TaggingSubMenu,
-              customProps: {
-                paths: finalSelection,
-                initialTags: commonTags,
-                onTagsChanged: handleTagsChanged,
-                appSettings,
-              },
-            },
-          ],
-        },
         { type: OPTION_SEPARATOR },
         {
           label: t('contextMenus.thumbnail.addToAlbum'),
@@ -812,7 +750,6 @@ export function useAppContextMenus(latestProps: UseAppContextMenusProps) {
       showContextMenu(event.clientX, event.clientY, options);
     },
     [
-      getCommonTags,
       buildAddToAlbumMenu,
       handleCopyAdjustments,
       handlePasteAdjustments,
@@ -820,7 +757,6 @@ export function useAppContextMenus(latestProps: UseAppContextMenusProps) {
       handleRate,
       buildFlagMenu,
       handleSetColorLabel,
-      handleTagsChanged,
       handleResetAdjustments,
       showContextMenu,
       props,

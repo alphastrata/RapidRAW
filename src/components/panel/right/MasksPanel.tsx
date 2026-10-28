@@ -39,7 +39,6 @@ import {
   Plus,
   PlusSquare,
   RotateCcw,
-  Send,
   Trash2,
   SwatchBook,
   SquaresIntersect,
@@ -49,14 +48,12 @@ import {
 import CollapsibleSection from '../../ui/CollapsibleSection';
 import Switch from '../../ui/Switch';
 import Slider from '../../ui/Slider';
-import Input from '../../ui/Input';
 import Button from '../../ui/Button';
 import AdjustmentSection from '../../adjustments/AdjustmentSection';
 import ConnectedWaveform from '../editor/ConnectedWaveform';
 import Resizer from '../../ui/Resizer';
 import { DepthRangePicker } from '../../ui/DepthRangePicker';
 import AdjustmentSectionsSubMenu from './AdjustmentSectionsSubMenu';
-import FacePartsIllustration from './FacePartsIllustration';
 
 import {
   Mask,
@@ -66,7 +63,6 @@ import {
   MASK_RANGE_TYPES,
   MASK_AI_TYPES,
   ALL_MASK_TYPES,
-  FACE_PARTS,
   MASK_ICON_MAP,
   SubMaskMode,
   ToolType,
@@ -95,7 +91,6 @@ import {
 import { useContextMenu } from '../../../context/ContextMenuContext';
 import { OPTION_SEPARATOR, Orientation, Panel } from '../../ui/AppProperties';
 import { createSubMask } from '../../../utils/maskUtils';
-import { usePresets } from '../../../hooks/usePresets';
 import Text from '../../ui/Text';
 import { TEXT_COLOR_KEYS, TextColors, TextVariants, TextWeights } from '../../../types/typography';
 import { useEditorStore } from '../../../store/useEditorStore';
@@ -140,37 +135,6 @@ const SUB_MASK_CONFIG: Record<Mask, any> = {
   [Mask.AiDepth]: {
     parameters: [{ key: 'feather', min: 0, max: 100, step: 1, defaultValue: 15 }],
   },
-  [Mask.AiSubject]: {
-    parameters: [
-      { key: 'grow', min: -100, max: 100, step: 1, defaultValue: 0 },
-      { key: 'feather', min: 0, max: 100, step: 1, defaultValue: 0 },
-    ],
-  },
-  [Mask.AiForeground]: {
-    parameters: [
-      { key: 'grow', min: -100, max: 100, step: 1, defaultValue: 0 },
-      { key: 'feather', min: 0, max: 100, step: 1, defaultValue: 0 },
-    ],
-  },
-  [Mask.AiSky]: {
-    parameters: [
-      { key: 'grow', min: -100, max: 100, step: 1, defaultValue: 0 },
-      { key: 'feather', min: 0, max: 100, step: 1, defaultValue: 0 },
-    ],
-  },
-  [Mask.AiText]: {
-    parameters: [
-      { key: 'grow', min: -100, max: 100, step: 1, defaultValue: 0 },
-      { key: 'feather', min: 0, max: 100, step: 1, defaultValue: 0 },
-    ],
-  },
-  [Mask.AiFace]: {
-    parameters: [
-      { key: 'grow', min: -100, max: 100, step: 1, defaultValue: 0 },
-      { key: 'feather', min: 0, max: 100, step: 1, defaultValue: 0 },
-    ],
-  },
-  [Mask.QuickEraser]: { parameters: [] },
 };
 
 const FlowBrushTool = ({
@@ -231,11 +195,7 @@ export default function MasksPanel() {
   const isAiFree = useSettingsStore((s) => s.appSettings?.aiProvider === 'ai-free');
   const {
     handleGenerateAiDepthMask,
-    handleGenerateAiForegroundMask,
-    handleGenerateAiSkyMask,
-    handleGenerateAiTextMask,
-    handleGenerateAiFaceMask,
-    handleCancelAiTask,
+        handleCancelAiTask,
   } = useAiMasking();
 
   const { setCustomEscapeHandler, isAdjustmentsPanelVisible } = useUIStore(
@@ -334,7 +294,6 @@ export default function MasksPanel() {
   const [pendingAction, setPendingAction] = useState<(() => void) | null>(null);
 
   const { showContextMenu } = useContextMenu();
-  const { presets } = usePresets(adjustments);
 
   const activeContainer = adjustments.masks?.find((m) => m.id === activeMaskContainerId);
   const activeSubMaskData = activeContainer?.subMasks?.find((sm) => sm.id === activeMaskId);
@@ -473,9 +432,6 @@ export default function MasksPanel() {
     onSelectMask(subMask.id);
     setExpandedContainers((prev) => new Set(prev).add(newContainer.id));
     if (type === Mask.Brush || type === Mask.Flow) selectBrushToolForNewMask();
-    if (type === Mask.AiForeground) handleGenerateAiForegroundMask(subMask.id);
-    else if (type === Mask.AiSky) handleGenerateAiSkyMask(subMask.id);
-    else if (type === Mask.AiFace) handleGenerateAiFaceMask(subMask.id, subMask.parameters?.parts ?? []);
     else if (type === Mask.AiDepth) handleGenerateAiDepthMask(subMask.id, subMask.parameters);
   };
 
@@ -505,9 +461,6 @@ export default function MasksPanel() {
     onSelectMask(subMask.id);
     setExpandedContainers((prev) => new Set(prev).add(containerId));
     if (type === Mask.Brush || type === Mask.Flow) selectBrushToolForNewMask();
-    if (type === Mask.AiForeground) handleGenerateAiForegroundMask(subMask.id);
-    else if (type === Mask.AiSky) handleGenerateAiSkyMask(subMask.id);
-    else if (type === Mask.AiFace) handleGenerateAiFaceMask(subMask.id, subMask.parameters?.parts ?? []);
     else if (type === Mask.AiDepth) handleGenerateAiDepthMask(subMask.id, subMask.parameters);
   };
 
@@ -1084,7 +1037,6 @@ export default function MasksPanel() {
                           handlePasteMask={handlePasteMask}
                           copyMaskToClipboard={copyMaskToClipboard}
                           copiedMask={copiedMask}
-                          presets={presets}
                           setAdjustments={setAdjustments}
                           activeDragItem={activeDragItem}
                           activeMaskId={activeMaskId}
@@ -1158,10 +1110,7 @@ export default function MasksPanel() {
                       onDragStateChange={onDragStateChange}
                       isSettingsSectionOpen={isSettingsSectionOpen}
                       setSettingsSectionOpen={setSettingsSectionOpen}
-                      presets={presets}
                       handleGenerateAiDepthMask={handleGenerateAiDepthMask}
-                      handleGenerateAiTextMask={handleGenerateAiTextMask}
-                      handleGenerateAiFaceMask={handleGenerateAiFaceMask}
                       handleCancelAiTask={handleCancelAiTask}
                       activeAiTasks={activeAiTasks}
                     />
@@ -1282,7 +1231,6 @@ function ContainerRow({
   handlePasteMask,
   copyMaskToClipboard,
   copiedMask,
-  presets,
   setAdjustments,
   activeDragItem,
   activeMaskId,
@@ -1331,27 +1279,6 @@ function ContainerRow({
   const onContextMenu = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    const generatePresetSubmenu = (list: any[]): any[] =>
-      list
-        .map((item) => {
-          if (item.folder)
-            return { label: item.folder.name, icon: FolderIcon, submenu: generatePresetSubmenu(item.folder.children) };
-          if (item.preset || item.adjustments)
-            return {
-              label: item.name || item.preset.name,
-              onClick: () => {
-                const newAdj = { ...container.adjustments, ...(item.adjustments || item.preset.adjustments) };
-                newAdj.activeTools = mergeActiveTools(
-                  container.adjustments,
-                  item.adjustments || item.preset.adjustments,
-                );
-                updateContainer(container.id, { adjustments: newAdj });
-              },
-            };
-          return null;
-        })
-        .filter(Boolean);
-
     showContextMenu(e.clientX, e.clientY, [
       {
         label: t('editor.masks.actions.rename'),
@@ -1383,13 +1310,6 @@ function ContainerRow({
             updateContainer(container.id, { adjustments: JSON.parse(JSON.stringify(copiedMask.adjustments)) });
           }
         },
-      },
-      {
-        label: t('editor.masks.actions.applyPreset'),
-        icon: SwatchBook,
-        submenu: generatePresetSubmenu(presets).length
-          ? generatePresetSubmenu(presets)
-          : [{ label: t('editor.masks.actions.noPresets'), disabled: true }],
       },
       { type: OPTION_SEPARATOR },
       {
@@ -1598,73 +1518,20 @@ function SettingsPanel({
   onDragStateChange,
   isSettingsSectionOpen,
   setSettingsSectionOpen,
-  presets,
   handleGenerateAiDepthMask,
-  handleGenerateAiTextMask,
-  handleGenerateAiFaceMask,
   handleCancelAiTask,
   activeAiTasks,
 }: any) {
   const { t } = useTranslation();
   const { showContextMenu } = useContextMenu();
   const isActive = !!container;
-  const presetButtonRef = useRef<HTMLButtonElement>(null);
-  const faceMaskTimeoutRef = useRef<ReturnType<typeof setTimeout>>(undefined);
-  const [textPrompt, setTextPrompt] = useState(activeSubMask?.parameters?.prompt || '');
-
-  useEffect(() => {
-    setTextPrompt(activeSubMask?.parameters?.prompt || '');
-  }, [activeSubMask?.id]);
-
   const placeholderContainer = {
     ...INITIAL_MASK_CONTAINER,
     adjustments: INITIAL_MASK_ADJUSTMENTS,
   };
   const displayContainer = container || placeholderContainer;
 
-  const handleApplyPresetToMask = (presetAdjustments: Partial<Adjustments>) => {
-    if (!container) return;
-    const currentAdjustments = container.adjustments;
-    const newMaskAdjustments = {
-      ...currentAdjustments,
-      ...presetAdjustments,
-      activeTools: mergeActiveTools(currentAdjustments, presetAdjustments),
-    };
-    updateContainer(container.id, { adjustments: newMaskAdjustments });
-  };
 
-  const generatePresetSubmenu = (presetList: any[]): any[] => {
-    return presetList
-      .map((item: any) => {
-        if (item.folder) {
-          return {
-            label: item.folder.name,
-            icon: FolderIcon,
-            submenu: generatePresetSubmenu(item.folder.children),
-          };
-        }
-        if (item.preset || item.adjustments) {
-          return {
-            label: item.name || item.preset.name,
-            onClick: () => handleApplyPresetToMask(item.adjustments || item.preset.adjustments),
-          };
-        }
-        return null;
-      })
-      .filter(Boolean);
-  };
-
-  const handlePresetSelectClick = () => {
-    if (presetButtonRef.current) {
-      const rect = presetButtonRef.current.getBoundingClientRect();
-      const presetSubmenu = generatePresetSubmenu(presets);
-      const options =
-        presetSubmenu.length > 0
-          ? presetSubmenu
-          : [{ label: t('editor.masks.settings.noPresetsFound'), disabled: true }];
-      showContextMenu(rect.left, rect.bottom + 5, options);
-    }
-  };
 
   const handleMaskPropertyChange = (key: string, value: any) => {
     if (!isActive) return;
@@ -1691,35 +1558,9 @@ function SettingsPanel({
   };
 
   const subMaskConfig = activeSubMask ? SUB_MASK_CONFIG[activeSubMask.type] || {} : {};
-  const isAiMask =
-    activeSubMask &&
-    [Mask.AiSubject, Mask.AiForeground, Mask.AiSky, Mask.AiDepth, Mask.AiText, Mask.AiFace].includes(
-      activeSubMask.type,
-    );
+  const isAiMask = activeSubMask && activeSubMask.type === Mask.AiDepth;
   const isComponentMode = !!activeSubMask;
-  const isTextMask = activeSubMask?.type === Mask.AiText;
-  const isFaceMask = activeSubMask?.type === Mask.AiFace;
-  const isTextMaskRunning = isTextMask && Boolean(activeAiTasks?.[activeSubMask.id]);
-  const faceParts: Array<string> = activeSubMask?.parameters?.parts || [];
 
-  const handleToggleFacePart = (part: string) => {
-    if (!isActive || !isFaceMask) return;
-    const subMaskId = activeSubMask.id;
-    const parts = FACE_PARTS.filter((p) => (p === part ? !faceParts.includes(p) : faceParts.includes(p)));
-    updateSubMask(subMaskId, {
-      parameters: { ...activeSubMask.parameters, parts, ...(parts.length === 0 && { maskDataBase64: null }) },
-    });
-    clearTimeout(faceMaskTimeoutRef.current);
-    if (parts.length > 0) {
-      faceMaskTimeoutRef.current = setTimeout(() => handleGenerateAiFaceMask(subMaskId, parts), FACE_MASK_DELAY_MS);
-    }
-  };
-
-  const handleGenerateTextMaskClick = () => {
-    if (!isActive || !isTextMask || !textPrompt.trim()) return;
-    updateSubMask(activeSubMask.id, { parameters: { ...activeSubMask.parameters, prompt: textPrompt } });
-    handleGenerateAiTextMask(activeSubMask.id, textPrompt);
-  };
 
   const containerId: string | null = container?.id ?? null;
   const setMaskContainerAdjustments = useCallback(
@@ -1871,74 +1712,6 @@ function SettingsPanel({
         isContentVisible={true}
       >
         <div className="space-y-4 pt-2">
-          {isTextMask && (
-            <>
-              <div className="flex items-center gap-2">
-                <Input
-                  autoFocus={!activeSubMask.parameters?.prompt}
-                  className="grow"
-                  disabled={isTextMaskRunning}
-                  key={activeSubMask.id}
-                  onChange={(e: ChangeEvent<HTMLInputElement>) => setTextPrompt(e.target.value)}
-                  onBlur={() =>
-                    isActive &&
-                    updateSubMask(activeSubMask.id, { parameters: { ...activeSubMask.parameters, prompt: textPrompt } })
-                  }
-                  onKeyDown={(e: React.KeyboardEvent<HTMLInputElement>) => {
-                    if (e.key === 'Enter' && !isTextMaskRunning) handleGenerateTextMaskClick();
-                  }}
-                  placeholder={t('editor.masks.settings.textPromptPlaceholder')}
-                  type="text"
-                  value={textPrompt}
-                />
-              </div>
-
-              {isTextMaskRunning ? (
-                <Button
-                  className="group w-full bg-red-500/15 hover:bg-red-500/25 text-red-400 border border-red-500/30 transition-colors"
-                  onClick={() => handleCancelAiTask(activeSubMask.id)}
-                >
-                  <span className="flex items-center justify-center group-hover:hidden">
-                    <Loader2 size={16} className="animate-spin mr-2" />
-                    {t('editor.ai.settings.generating')}
-                  </span>
-                  <span className="hidden items-center justify-center group-hover:flex">
-                    <X size={16} className="mr-2" />
-                    {t('editor.ai.settings.cancelGeneration')}
-                  </span>
-                </Button>
-              ) : (
-                <Button className="w-full" disabled={!textPrompt.trim()} onClick={handleGenerateTextMaskClick}>
-                  <Send size={16} />
-                  <span className="ml-2">{t('editor.masks.settings.generateTextMask')}</span>
-                </Button>
-              )}
-            </>
-          )}
-
-          {isFaceMask && (
-            <>
-              <FacePartsIllustration selected={faceParts} />
-
-              <div className="grid grid-cols-3 gap-2">
-                {FACE_PARTS.map((part) => (
-                  <button
-                    key={part}
-                    onClick={() => handleToggleFacePart(part)}
-                    className={clsx(
-                      'px-1 py-2 text-xs leading-tight rounded-md transition-colors',
-                      faceParts.includes(part)
-                        ? 'bg-accent text-button-text'
-                        : 'bg-bg-primary text-text-secondary hover:bg-card-active hover:text-text-primary',
-                    )}
-                  >
-                    {t(`editor.masks.settings.faceParts.${part}`)}
-                  </button>
-                ))}
-              </div>
-            </>
-          )}
-
           <Switch
             checked={!!(isComponentMode ? activeSubMask.invert : displayContainer.invert)}
             label={isComponentMode ? t('editor.masks.settings.invertComponent') : t('editor.masks.settings.invertMask')}
@@ -1946,22 +1719,6 @@ function SettingsPanel({
               isComponentMode ? updateSubMask(activeSubMask.id, { invert: v }) : handleMaskPropertyChange('invert', v)
             }
           />
-
-          {!isComponentMode && (
-            <div className="flex justify-between items-center">
-              <Text variant={TextVariants.label} className="select-none">
-                {t('editor.masks.settings.applyPreset')}
-              </Text>
-              <button
-                ref={presetButtonRef}
-                onClick={handlePresetSelectClick}
-                className="text-sm text-text-primary text-right select-none cursor-pointer hover:text-accent transition-colors"
-                data-tooltip={t('editor.masks.settings.selectPresetTooltip')}
-              >
-                {t('editor.masks.settings.select')}
-              </button>
-            </div>
-          )}
 
           <Slider
             defaultValue={100}

@@ -114,30 +114,6 @@ const SUB_MASK_CONFIG: any = {
     parameters: [{ key: 'intensity', min: 1, max: 100, step: 1, defaultValue: 40 }],
   },
   [Mask.Linear]: { parameters: [] },
-  [Mask.AiSubject]: {
-    parameters: [
-      { key: 'grow', min: -100, max: 100, step: 1, defaultValue: 50 },
-      { key: 'feather', min: 0, max: 100, step: 1, defaultValue: 25 },
-    ],
-  },
-  [Mask.AiForeground]: {
-    parameters: [
-      { key: 'grow', min: -100, max: 100, step: 1, defaultValue: 50 },
-      { key: 'feather', min: 0, max: 100, step: 1, defaultValue: 25 },
-    ],
-  },
-  [Mask.AiSky]: {
-    parameters: [
-      { key: 'grow', min: -100, max: 100, step: 1, defaultValue: 0 },
-      { key: 'feather', min: 0, max: 100, step: 1, defaultValue: 0 },
-    ],
-  },
-  [Mask.QuickEraser]: {
-    parameters: [
-      { key: 'grow', min: -100, max: 200, step: 1, defaultValue: 150 },
-      { key: 'feather', min: 0, max: 100, step: 1, defaultValue: 75 },
-    ],
-  },
 };
 
 interface ConnectionStatusProps {
@@ -254,13 +230,7 @@ export default function AIPanel() {
   const setCustomEscapeHandler = useUIStore((s) => s.setCustomEscapeHandler);
 
   const { setAdjustments } = useEditorActions();
-  const {
-    handleGenerativeReplace,
-    handleDeleteAiPatch,
-    handleGenerateAiForegroundMask,
-    handleDirectPatch,
-    handleCancelAiTask,
-  } = useAiMasking();
+  const { handleGenerativeReplace, handleDeleteAiPatch, handleDirectPatch, handleCancelAiTask } = useAiMasking();
 
   const aiProvider = useSettingsStore((s) => s.appSettings?.aiProvider || 'cpu');
   const isAiFree = aiProvider === 'ai-free';
@@ -450,13 +420,7 @@ export default function AIPanel() {
     const subMask = createMaskLogic(type);
 
     let name: string;
-    if (type === Mask.QuickEraser) {
-      const count =
-        (adjustments.aiPatches || []).filter((p: AiPatch) =>
-          p.subMasks.some((sm: SubMask) => sm.type === Mask.QuickEraser),
-        ).length + 1;
-      name = t('editor.ai.patches.quickErase', { count });
-    } else if (type === Mask.Clone) {
+    if (type === Mask.Clone) {
       const count =
         (adjustments.aiPatches || []).filter((p: AiPatch) => p.subMasks.some((sm: SubMask) => sm.type === Mask.Clone))
           .length + 1;
@@ -505,8 +469,6 @@ export default function AIPanel() {
     if (type === Mask.Brush || isStandalone) {
       selectBrushToolForNewMask(100);
     }
-
-    if (type === Mask.AiForeground) handleGenerateAiForegroundMask(subMask.id);
   };
 
   const handleAddSubMask = (
@@ -535,7 +497,6 @@ export default function AIPanel() {
     if (type === Mask.Brush || isStandaloneMask(type)) {
       selectBrushToolForNewMask(100);
     }
-    if (type === Mask.AiForeground) handleGenerateAiForegroundMask(subMask.id);
   };
 
   const handleAddAiContextMenu = (event: React.MouseEvent, targetContainerId?: string | null) => {
@@ -1624,7 +1585,6 @@ function SettingsPanel({
     if (container) setPrompt(container.prompt || '');
   }, [container?.id]);
 
-  const isQuickErasePatch = displayContainer.subMasks?.some((sm: SubMask) => sm.type === Mask.QuickEraser);
   const isStandalonePatch = displayContainer.subMasks?.some((sm: SubMask) => isStandaloneMask(sm.type));
   const isStandalone = isStandaloneContainer(displayContainer);
 
@@ -1633,20 +1593,15 @@ function SettingsPanel({
       if (!isGenerativeAvailable) {
         setUseFastInpaint(true);
       } else if (container.id !== prevContainerId.current) {
-        setUseFastInpaint(isQuickErasePatch);
+        setUseFastInpaint(false);
         prevContainerId.current = container.id;
       }
     } else {
       prevContainerId.current = null;
     }
-  }, [isGenerativeAvailable, container, isQuickErasePatch]);
+  }, [isGenerativeAvailable, container]);
 
   const subMaskConfig = activeSubMask ? SUB_MASK_CONFIG[activeSubMask.type] || {} : {};
-  const isAiMask =
-    activeSubMask &&
-    (activeSubMask.type === Mask.AiSubject ||
-      activeSubMask.type === Mask.AiForeground ||
-      activeSubMask.type === Mask.AiSky);
 
   const handleGenerateClick = () => {
     if (!container) return;
@@ -1689,11 +1644,9 @@ function SettingsPanel({
             )}
 
             <Text variant={TextVariants.small}>
-              {isQuickErasePatch
-                ? t('editor.ai.settings.quickEraseDesc')
-                : useFastInpaint
-                  ? t('editor.ai.settings.fastInpaintDesc')
-                  : t('editor.ai.settings.generativeDesc')}
+              {useFastInpaint
+                ? t('editor.ai.settings.fastInpaintDesc')
+                : t('editor.ai.settings.generativeDesc')}
             </Text>
 
             <div>
@@ -1801,22 +1754,6 @@ function SettingsPanel({
 
           {isComponentMode && (
             <>
-              {isAiMask && aiModelDownloadStatus && (
-                <Text
-                  as="div"
-                  variant={TextVariants.small}
-                  color={TextColors.accent}
-                  weight={TextWeights.medium}
-                  className="p-3 bg-card-active rounded-md border border-surface flex items-center gap-3"
-                >
-                  <Loader2 size={16} className="animate-spin shrink-0" />
-                  <div className="leading-relaxed">
-                    <Text variant={TextVariants.small}>{t('editor.ai.settings.aiModelDownloading')}</Text>
-                    <span>{aiModelDownloadStatus}</span>
-                  </div>
-                </Text>
-              )}
-
               {subMaskConfig.parameters?.map((param: any) => (
                 <Slider
                   key={param.key}

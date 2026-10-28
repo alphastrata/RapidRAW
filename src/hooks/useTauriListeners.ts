@@ -5,7 +5,7 @@ import { toast } from 'react-toastify';
 import { Status } from '../components/ui/ExportImportProperties';
 import { Invokes, Progress, WaveformData } from '../components/ui/AppProperties';
 import { MaskContainer } from '../utils/adjustments';
-import { AiJobsStatus, JobKind, JobStatus, useProcessStore } from '../store/useProcessStore';
+import { JobKind, JobStatus, useProcessStore } from '../store/useProcessStore';
 import { useEditorStore } from '../store/useEditorStore';
 import { useUIStore } from '../store/useUIStore';
 import { useLibraryStore } from '../store/useLibraryStore';
@@ -57,33 +57,28 @@ const parseAnalyticsPacket = async (buffer: ArrayBuffer) => {
 interface TauriListenerProps {
   refreshAllFolderTrees: () => void;
   handleSelectSubfolder: (path: string, isNewRoot?: boolean, preloadedImages?: any[], expandParents?: boolean) => void;
-  refreshImageList: () => void;
   markGenerated: (path: string) => void;
 }
 
 export function useTauriListeners({
   refreshAllFolderTrees,
   handleSelectSubfolder,
-  refreshImageList,
   markGenerated,
 }: TauriListenerProps) {
-  const refs = useRef({ refreshAllFolderTrees, handleSelectSubfolder, refreshImageList, markGenerated });
-
+  const refs = useRef({ refreshAllFolderTrees, handleSelectSubfolder, markGenerated });
   useEffect(() => {
-    refs.current = { refreshAllFolderTrees, handleSelectSubfolder, refreshImageList, markGenerated };
+    refs.current = { refreshAllFolderTrees, handleSelectSubfolder, markGenerated };
   });
-
   const thumbnailBuffer = useRef<Record<string, string>>({});
   const mediumThumbnailBuffer = useRef<Record<string, string>>({});
   const ratingBuffer = useRef<Record<string, number>>({});
   const editStatusBuffer = useRef<Record<string, boolean>>({});
-  const metadataBuffer = useRef<Record<string, { flag: any; tags: any; needs_ai: boolean }>>({});
+  const metadataBuffer = useRef<Record<string, { flag: any; tags: any }>>({});
   const progressBuffer = useRef<{ current: number; total: number } | null>(null);
   const flushHandle = useRef<number | null>(null);
 
   useEffect(() => {
     let isEffectActive = true;
-    let aiTaggingJobId: string | null = null;
     const modelDownloadJobIds: Record<string, string> = {};
 
     const flushThumbnailBatch = () => {
@@ -150,12 +145,11 @@ export function useTauriListeners({
           const isEdited = hasEdit ? pendingEdits[img.path] : img.is_edited;
           const flag = meta ? meta.flag : img.flag;
           const tags = meta ? (meta.tags ?? img.tags) : img.tags;
-          const needsAi = meta ? meta.needs_ai : img.needs_ai;
-          if (isEdited === img.is_edited && flag === img.flag && tags === img.tags && needsAi === img.needs_ai)
+          if (isEdited === img.is_edited && flag === img.flag && tags === img.tags)
             continue;
           if (!nextImageList) nextImageList = list.slice();
           nextImageList[i] = meta
-            ? { ...img, flag, is_edited: isEdited, tags, needs_ai: needsAi }
+            ? { ...img, flag, is_edited: isEdited, tags }
             : { ...img, is_edited: isEdited };
         }
       }
@@ -218,11 +212,11 @@ export function useTauriListeners({
       }),
       listen('image-metadata-loaded', (event: any) => {
         if (!isEffectActive) return;
-        const { path, rating, flag, is_edited, tags, needs_ai } = event.payload;
+        const { path, rating, flag, is_edited, tags } = event.payload;
 
         ratingBuffer.current[path] = rating;
         editStatusBuffer.current[path] = is_edited;
-        metadataBuffer.current[path] = { flag, tags, needs_ai };
+        metadataBuffer.current[path] = { flag, tags };
         scheduleFlush();
       }),
       listen<string>('ai-model-download-start', (event) => {
@@ -245,30 +239,6 @@ export function useTauriListeners({
           useProcessStore
             .getState()
             .updateJob(jobId, error ? { status: JobStatus.Error, error } : { status: JobStatus.Success });
-      }),
-      listen<Progress>('indexing-started', (event) => {
-        if (!isEffectActive) return;
-        const { removeJob, startJob } = useProcessStore.getState();
-        if (aiTaggingJobId) removeJob(aiTaggingJobId);
-        aiTaggingJobId = startJob(JobKind.AiTagging, { progress: event.payload });
-      }),
-      listen<Progress>('indexing-progress', (event) => {
-        if (isEffectActive && aiTaggingJobId)
-          useProcessStore.getState().updateJob(aiTaggingJobId, { progress: event.payload });
-      }),
-      listen('indexing-cancelled', () => {
-        if (isEffectActive && aiTaggingJobId) useProcessStore.getState().removeJob(aiTaggingJobId);
-        aiTaggingJobId = null;
-      }),
-      listen('indexing-finished', () => {
-        if (isEffectActive) {
-          if (aiTaggingJobId) useProcessStore.getState().updateJob(aiTaggingJobId, { status: JobStatus.Success });
-          aiTaggingJobId = null;
-          const currentPath = useLibraryStore.getState().currentFolderPath;
-          if (currentPath) {
-            refs.current.refreshImageList();
-          }
-        }
       }),
       listen('batch-export-progress', (event: any) => {
         if (isEffectActive) useProcessStore.getState().setExportState({ progress: event.payload });
@@ -353,58 +323,6 @@ export function useTauriListeners({
           };
         });
       }),
-      listen<AiJobsStatus>('ai-jobs-status', (event) => {
-        if (!isEffectActive) return;
-        const { aiJobs, setProcess } = useProcessStore.getState();
-        const selectedPath = useEditorStore.getState().selectedImage?.path;
-        event.payload.failed
-          .filter((job) => job.path === selectedPath && !aiJobs.failed.some((prev) => prev.path === job.path))
-          .forEach((job) => toast.error(`AI Processing Failed: ${job.error}`));
-        setProcess({ aiJobs: event.payload });
-      }),
-      listen<{ added: string[]; removed: string[]; resolved: boolean }>('ai-jobs-pending', (event) => {
-        if (!isEffectActive) return;
-        const { added, removed, resolved } = event.payload;
-        useProcessStore.getState().setProcess((state) => {
-          const aiPendingPaths = { ...state.aiPendingPaths };
-          added.forEach((path) => (aiPendingPaths[path] = true));
-          removed.forEach((path) => delete aiPendingPaths[path]);
-          return { aiPendingPaths };
-        });
-
-        const removedPaths = new Set(removed);
-        const { imageList, setLibrary } = useLibraryStore.getState();
-        if (imageList.some((img) => removedPaths.has(img.path) && img.needs_ai === resolved)) {
-          setLibrary({
-            imageList: imageList.map((img) => (removedPaths.has(img.path) ? { ...img, needs_ai: !resolved } : img)),
-          });
-        }
-      }),
-      listen<{ path: string; subMasks: Record<string, any>; maps: Record<string, string>; noResults: string[] }>(
-        'ai-job-result',
-        (event) => {
-          const { path, subMasks, maps, noResults } = event.payload;
-          const { selectedImage, patchesSentToBackend, setEditor } = useEditorStore.getState();
-          if (!isEffectActive || selectedImage?.path !== path) return;
-
-          noResults.forEach((noResult) => toast.error(`AI Mask: ${noResult}`));
-          Object.keys(subMasks).forEach((id) => patchesSentToBackend.delete(id));
-          setEditor((state) => ({
-            adjustments: {
-              ...state.adjustments,
-              ...maps,
-              masks: state.adjustments.masks?.map((container: MaskContainer) => ({
-                ...container,
-                subMasks: container.subMasks.map((subMask) =>
-                  subMasks[subMask.id]
-                    ? { ...subMask, parameters: { ...subMask.parameters, ...subMasks[subMask.id] } }
-                    : subMask,
-                ),
-              })),
-            },
-          }));
-        },
-      ),
       listen('wgpu-frame-ready', (event: any) => {
         const editorState = useEditorStore.getState();
         if (
@@ -453,11 +371,6 @@ export function useTauriListeners({
       }),
     ];
 
-    invoke<AiJobsStatus>(Invokes.GetAiJobsStatus)
-      .then((aiJobs) => {
-        if (isEffectActive) useProcessStore.getState().setProcess({ aiJobs });
-      })
-      .catch((err) => console.error('Failed to load AI job status:', err));
     let analyticsSequence = 0;
     let latestAppliedAnalytics = 0;
     const analyticsChannel = new Channel<ArrayBuffer>();
@@ -475,16 +388,6 @@ export function useTauriListeners({
     invoke(Invokes.SubscribeAnalytics, { channel: analyticsChannel }).catch((err) =>
       console.error('Failed to subscribe to analytics:', err),
     );
-
-    invoke<string[]>(Invokes.GetPendingAiPaths)
-      .then((paths) => {
-        if (isEffectActive) {
-          useProcessStore
-            .getState()
-            .setProcess({ aiPendingPaths: Object.fromEntries(paths.map((path) => [path, true as const])) });
-        }
-      })
-      .catch((err) => console.error('Failed to load pending AI jobs:', err));
 
     return () => {
       isEffectActive = false;

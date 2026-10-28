@@ -341,26 +341,6 @@ export default function DataManagementSettings({
         }),
     });
 
-  const clearTags = (key: 'aiTags' | 'allTags') =>
-    onRequestConfirm({
-      confirmText: t(key === 'aiTags' ? 'settings.data.modals.confirmClearAi' : 'settings.data.modals.confirmClearAll'),
-      message: t(key === 'aiTags' ? 'settings.data.modals.aiMessage' : 'settings.data.modals.allMessage'),
-      title: t(key === 'aiTags' ? 'settings.data.modals.confirmAiTitle' : 'settings.data.modals.confirmAllTitle'),
-      onConfirm: () =>
-        run(key, async () => {
-          let total = 0;
-          for (const root of rootPaths) {
-            total += await invoke<number>(key === 'aiTags' ? Invokes.ClearAiTags : Invokes.ClearAllTags, {
-              rootPath: root,
-            });
-          }
-          onLibraryRefresh();
-          return t(key === 'aiTags' ? 'settings.data.statuses.aiSuccess' : 'settings.data.statuses.allSuccess', {
-            count: total,
-          });
-        }),
-    });
-
   const resetLayout = () =>
     onRequestConfirm({
       confirmText: t('settings.data.modals.confirmResetLayout'),
@@ -502,25 +482,6 @@ export default function DataManagementSettings({
               </ActionButton>
             }
           />
-          {(['aiTags', 'allTags'] as const).map((key) => (
-            <Row
-              key={key}
-              title={t(`settings.data.${key}` as const)}
-              description={t(`settings.data.${key}Desc` as const)}
-              status={statuses[key]}
-              action={
-                <ActionButton
-                  danger
-                  busy={busy[key]}
-                  disabled={rootPaths.length === 0}
-                  icon={<Trash2 size={13} />}
-                  onClick={() => clearTags(key)}
-                >
-                  {t('settings.data.clear')}
-                </ActionButton>
-              }
-            />
-          ))}
           <Row
             title={t('settings.data.resetLayoutTitle')}
             description={t('settings.data.resetLayoutDesc')}

@@ -352,13 +352,6 @@ export const useKeyboardShortcuts = ({
           s.ui.setPanel(Panel.Ai);
         },
       },
-      toggle_presets: {
-        shouldFire: () => true,
-        execute: (e: any, s: any) => {
-          e.preventDefault();
-          s.ui.setPanel(Panel.Presets);
-        },
-      },
       toggle_metadata: {
         shouldFire: () => true,
         execute: (e: any, s: any) => {

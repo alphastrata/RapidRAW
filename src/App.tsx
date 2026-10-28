@@ -29,7 +29,6 @@ import MetadataPanel from './components/panel/right/MetadataPanel';
 import CropPanel from './components/panel/right/CropPanel';
 import MasksPanel from './components/panel/right/MasksPanel';
 import AIPanel from './components/panel/right/AIPanel';
-import PresetsPanel from './components/panel/right/PresetsPanel';
 
 
 import EditorView from './components/views/EditorView';
@@ -442,8 +441,8 @@ function App() {
     handleLibraryRefresh,
     handleRenameFiles,
     handleImportClick,
-    refreshAllFolderTrees,
     refreshImageList: handleLibraryRefresh,
+    refreshAllFolderTrees,
     executeDelete,
     handleDeleteRejected,
     handleTogglePinFolder,
@@ -453,7 +452,6 @@ function App() {
   useTauriListeners({
     refreshAllFolderTrees,
     handleSelectSubfolder,
-    refreshImageList: handleLibraryRefresh,
     markGenerated,
   });
 
@@ -746,8 +744,6 @@ function App() {
           return <MasksPanel />;
         case Panel.Ai:
           return <AIPanel />;
-        case Panel.Presets:
-          return <PresetsPanel onNavigateToCommunity={() => setUI({ activeView: 'community' })} />;
         default:
           return null;
       }

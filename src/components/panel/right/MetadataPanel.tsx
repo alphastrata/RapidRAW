@@ -1,6 +1,6 @@
 import { useState, useMemo, useEffect } from 'react';
 import { invoke } from '@tauri-apps/api/core';
-import { Check, ChevronDown, ChevronRight, Plus, Star, Tag, X, User } from 'lucide-react';
+import { Check, ChevronDown, ChevronRight, Star, Tag, User, X } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useTranslation } from 'react-i18next';
 import clsx from 'clsx';
@@ -43,7 +43,6 @@ interface MetaDataItemProps {
   value: any;
 }
 
-const USER_TAG_PREFIX = 'user:';
 const EMPTY_TAGS: string[] = [];
 
 function formatExifTag(str: string) {
@@ -237,15 +236,13 @@ export default function MetadataPanel() {
   const { t } = useTranslation();
   const [isOrganizationExpanded, setIsOrganizationExpanded] = useState(false);
   const [isAuthorExpanded, setIsAuthorExpanded] = useState(false);
-  const [tagInputValue, setTagInputValue] = useState('');
-  const [isTagInputFocused, setIsTagInputFocused] = useState(false);
   const selectedImage = useEditorStore((s) => s.selectedImage);
   const multiSelectedPaths = useLibraryStore((s) => s.multiSelectedPaths);
   const imageRatings = useLibraryStore((s) => s.imageRatings);
   const appSettings = useSettingsStore((s) => s.appSettings);
   const liveThumbnailUrl = useProcessStore((s) => (selectedImage ? s.thumbnails[selectedImage.path] : undefined));
 
-  const { handleRate, handleToggleFlag, handleSetColorLabel, handleTagsChanged, handleUpdateExif } =
+  const { handleRate, handleToggleFlag, handleSetColorLabel, handleUpdateExif } =
     useLibraryActions();
 
   const rating = selectedImage ? imageRatings[selectedImage.path] || 0 : 0;
@@ -333,16 +330,6 @@ export default function MetadataPanel() {
     return tags.find((tag: string) => tag.startsWith('color:'))?.substring(6) || null;
   }, [tags]);
 
-  const currentTags = useMemo(() => {
-    return tags
-      .filter((t) => !t.startsWith('color:'))
-      .map((t) => ({
-        tag: t.startsWith(USER_TAG_PREFIX) ? t.substring(USER_TAG_PREFIX.length) : t,
-        isUser: t.startsWith(USER_TAG_PREFIX),
-      }))
-      .sort((a, b) => a.tag.localeCompare(b.tag));
-  }, [tags]);
-
   const hasGps = gpsData.lat !== null && gpsData.lon !== null;
   const fullPath = selectedImage?.path || '';
   const isVirtualCopy = fullPath.includes('?vc=');
@@ -353,44 +340,6 @@ export default function MetadataPanel() {
     selectedImage?.width && selectedImage?.height
       ? ((selectedImage.width * selectedImage.height) / 1000000).toFixed(1)
       : null;
-
-  const handleAddTag = async (tagToAdd: string) => {
-    const newTagValue = tagToAdd.trim().toLowerCase();
-    if (newTagValue && !currentTags.some((t) => t.tag === newTagValue)) {
-      try {
-        const prefixedTag = `${USER_TAG_PREFIX}${newTagValue}`;
-        const pathsToUpdate = getPathsToUpdate();
-        await invoke(Invokes.AddTagForPaths, { paths: pathsToUpdate, tag: prefixedTag });
-
-        const newTags = [...currentTags, { tag: newTagValue, isUser: true }];
-        handleTagsChanged(targetPaths, newTags);
-        setTagInputValue('');
-      } catch (err) {
-        console.error(`Failed to add tag: ${err}`);
-      }
-    }
-  };
-
-  const handleRemoveTag = async (tagToRemove: { tag: string; isUser: boolean }) => {
-    try {
-      const prefixedTag = tagToRemove.isUser ? `${USER_TAG_PREFIX}${tagToRemove.tag}` : tagToRemove.tag;
-      const pathsToUpdate = getPathsToUpdate();
-      await invoke(Invokes.RemoveTagForPaths, { paths: pathsToUpdate, tag: prefixedTag });
-
-      const newTags = currentTags.filter((t) => t.tag !== tagToRemove.tag);
-      handleTagsChanged(targetPaths, newTags);
-    } catch (err) {
-      console.error(`Failed to remove tag: ${err}`);
-    }
-  };
-
-  const handleTagInputKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === 'Enter') {
-      e.preventDefault();
-      handleAddTag(tagInputValue);
-    }
-    e.stopPropagation();
-  };
 
   const LensIcon = CAMERA_ICONS['LensModel'];
 
@@ -674,85 +623,7 @@ export default function MetadataPanel() {
                             ))}
                           </div>
                         </div>
-                        <div>
-                          <Text
-                            variant={TextVariants.small}
-                            color={TextColors.primary}
-                            weight={TextWeights.semibold}
-                            className="uppercase tracking-wider mb-2 block"
-                          >
-                            {t('editor.metadata.organization.tags')}
-                          </Text>
-                          <div className="flex flex-wrap gap-1 mb-2">
-                            <AnimatePresence>
-                              {currentTags.length > 0 ? (
-                                currentTags.map((tagItem) => (
-                                  <motion.div
-                                    key={tagItem.tag}
-                                    layout
-                                    initial={{ opacity: 0, scale: 0.8 }}
-                                    animate={{ opacity: 1, scale: 1 }}
-                                    exit={{ opacity: 0, scale: 0.8 }}
-                                    className="flex items-center gap-1 bg-bg-primary px-2 py-1 rounded-md group cursor-pointer border border-surface hover:border-text-tertiary/50 transition-colors"
-                                    onClick={() => handleRemoveTag(tagItem)}
-                                  >
-                                    <Text
-                                      as="span"
-                                      variant={TextVariants.small}
-                                      color={TextColors.primary}
-                                      weight={TextWeights.medium}
-                                    >
-                                      {tagItem.tag}
-                                    </Text>
-                                    <X size={10} className="opacity-50 group-hover:opacity-100" />
-                                  </motion.div>
-                                ))
-                              ) : (
-                                <Text variant={TextVariants.small} className="italic text-text-secondary">
-                                  {t('editor.metadata.organization.noTags')}
-                                </Text>
-                              )}
-                            </AnimatePresence>
-                          </div>
-
-                          <div
-                            className={clsx(
-                              'flex items-center bg-bg-primary border rounded-md px-2 py-1.5 transition-colors',
-                              isTagInputFocused ? 'border-accent' : 'border-surface',
-                            )}
-                          >
-                            <input
-                              type="text"
-                              value={tagInputValue}
-                              onChange={(e) => setTagInputValue(e.target.value)}
-                              onKeyDown={handleTagInputKeyDown}
-                              onFocus={() => setIsTagInputFocused(true)}
-                              onBlur={() => setIsTagInputFocused(false)}
-                              placeholder={t('editor.metadata.organization.addTagPlaceholder')}
-                              className="bg-transparent border-none outline-hidden text-xs w-full text-text-primary placeholder-text-tertiary"
-                            />
-                            <button
-                              onClick={() => handleAddTag(tagInputValue)}
-                              disabled={!tagInputValue.trim()}
-                              className="text-text-secondary hover:text-accent disabled:opacity-30 transition-colors"
-                            >
-                              <Plus size={14} />
-                            </button>
-                          </div>
-                          {appSettings?.taggingShortcuts && appSettings.taggingShortcuts.length > 0 && (
-                            <div className="mt-2 flex flex-wrap gap-1">
-                              {appSettings.taggingShortcuts.map((shortcut) => (
-                                <button
-                                  key={shortcut}
-                                  onClick={() => handleAddTag(shortcut)}
-                                  className="text-xs font-medium bg-bg-secondary hover:bg-card-active text-text-secondary px-1.5 py-0.5 rounded-sm border border-transparent hover:border-border-color transition-all"
-                                >
-                                  {shortcut}
-                                </button>
-                              ))}
-                            </div>
-                          )}
-                        </div>
+                        
                       </div>
                     </motion.div>
                   )}

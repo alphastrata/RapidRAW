@@ -308,27 +308,6 @@ export function useLibraryActions(handleImageSelect?: (path: string, openInEdito
     }
   }, []);
 
-  const handleTagsChanged = useCallback((changedPaths: string[], newTags: { tag: string; isUser: boolean }[]) => {
-    const { imageList } = useLibraryStore.getState();
-    const groupingMode = useSettingsStore.getState().appSettings?.grouping ?? 'off';
-    const pathsToUpdate = expandGroupedPaths(imageList, changedPaths, groupingMode);
-    const pathSet = new Set(pathsToUpdate);
-
-    applyWithAutoAdvance(pathsToUpdate, false, () =>
-      useLibraryStore.getState().setLibrary((state) => ({
-        imageList: state.imageList.map((image) => {
-          if (pathSet.has(image.path)) {
-            const colorTags = (image.tags || []).filter((t) => t.startsWith('color:'));
-            const prefixedNewTags = newTags.map((t) => (t.isUser ? `user:${t.tag}` : t.tag));
-            const finalTags = [...colorTags, ...prefixedNewTags].sort();
-            return { ...image, tags: finalTags.length > 0 ? finalTags : null };
-          }
-          return image;
-        }),
-      })),
-    );
-  }, []);
-
   const handleUpdateExif = useCallback(async (paths: Array<string> | undefined, updates: Record<string, string>) => {
     const { multiSelectedPaths, imageList, setLibrary } = useLibraryStore.getState();
     const { selectedImage, setEditor } = useEditorStore.getState();
@@ -666,7 +645,6 @@ export function useLibraryActions(handleImageSelect?: (path: string, openInEdito
     handleSetFlag,
     handleToggleFlag,
     handleSetColorLabel,
-    handleTagsChanged,
     handleUpdateExif,
     handleClearSelection,
     handleLibraryImageSingleClick,

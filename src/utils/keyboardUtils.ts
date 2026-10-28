@@ -214,12 +214,6 @@ export const KEYBIND_DEFINITIONS: KeybindDefinition[] = [
     section: 'panels',
   },
   {
-    action: 'toggle_presets',
-    description: 'settings.keybinds.actions.toggle_presets',
-    defaultCombo: ['KeyP'],
-    section: 'panels',
-  },
-  {
     action: 'toggle_metadata',
     description: 'settings.keybinds.actions.toggle_metadata',
     defaultCombo: ['KeyI'],

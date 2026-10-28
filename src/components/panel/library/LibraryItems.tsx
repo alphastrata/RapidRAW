@@ -10,7 +10,6 @@ import {
   CloudOff,
   Layers,
   Loader2,
-  Pause,
 } from 'lucide-react';
 import clsx from 'clsx';
 import { useTranslation } from 'react-i18next';
@@ -57,9 +56,7 @@ const ThumbnailComponent = ({
   const { t } = useTranslation();
   const data = useProcessStore((s) => s.thumbnails[path]);
   const exif = useLibraryStore((s) => s.exifByPath[path]);
-  const isAiPending = useProcessStore((s) => !!s.aiPendingPaths[path]);
-  const isAiPaused = useProcessStore((s) => s.aiJobs.paused);
-  const cloudTooltip = 'library.items.cloudPlaceholder';
+const cloudTooltip = 'library.items.cloudPlaceholder';
   const exifOverlay = useSettingsStore((s) => s.appSettings?.exifOverlay || ExifOverlay.Off);
   const displayEditIcon = useSettingsStore((s) => s.appSettings?.displayEditIcon ?? true);
   const showEditIcon = isEdited && displayEditIcon;
@@ -177,7 +174,7 @@ const ThumbnailComponent = ({
   const hasRating = rating > 0 && !isRejected;
   const hasGroupBadge = !!groupBadgeLabel;
   const hasOtherBadge = hasEditIcon || hasColorLabel || hasRating || !!flag || hasGroupBadge;
-  const hasAnyOverlay = hasOtherBadge || isAiPending;
+  const hasAnyOverlay = hasOtherBadge;
 
   return (
     <div
@@ -355,20 +352,6 @@ const ThumbnailComponent = ({
             <Layers size={12} className="text-white" />
           </div>
 
-          <div
-            className={clsx(
-              'flex items-center shrink-0 transition-all duration-200 ease-out overflow-hidden',
-              isAiPending ? 'max-w-4 opacity-100 scale-100' : 'max-w-0 opacity-0 scale-75 pointer-events-none',
-              isAiPending && hasOtherBadge ? 'ml-1.5' : 'ml-0',
-            )}
-            data-tooltip={t(isAiPaused ? 'library.aiJobs.thumbnailPaused' : 'library.aiJobs.thumbnailPending')}
-          >
-            {isAiPaused ? (
-              <Pause size={12} className="text-white" />
-            ) : (
-              <Loader2 size={12} className="text-white animate-spin" />
-            )}
-          </div>
         </div>
       </div>
 

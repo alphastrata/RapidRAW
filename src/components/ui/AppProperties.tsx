@@ -31,7 +31,6 @@ export const GLOBAL_KEYS = [
 export const OPTION_SEPARATOR = 'separator';
 
 export enum Invokes {
-  AddTagForPaths = 'add_tag_for_paths',
   ApplyAdjustments = 'apply_adjustments',
   ApplyAdjustmentsToPaths = 'apply_adjustments_to_paths',
   ApplyAutoAdjustmentsToPaths = 'apply_auto_adjustments_to_paths',
@@ -43,43 +42,28 @@ export enum Invokes {
   CancelExport = 'cancel_export',
   CheckAIConnectorStatus = 'check_ai_connector_status',
   ClearAllSidecars = 'clear_all_sidecars',
-  ClearAiTags = 'clear_ai_tags',
-  ClearAllTags = 'clear_all_tags',
   ClearAiDenoiseCache = 'clear_ai_denoise_cache',
   ClearThumbnailCache = 'clear_thumbnail_cache',
   CopyFiles = 'copy_files',
   CreateFolder = 'create_folder',
   CreateVirtualCopy = 'create_virtual_copy',
   DeleteFolder = 'delete_folder',
-  DiscardAiJobs = 'discard_ai_jobs',
   DuplicateFile = 'duplicate_file',
   EstimateExportSizes = 'estimate_export_sizes',
   ExportImages = 'export_images',
   FrontendLog = 'frontend_log',
-  GenerateAiForegroundMask = 'generate_ai_foreground_mask',
-  GenerateAiSkyMask = 'generate_ai_sky_mask',
-  GenerateAiTextMask = 'generate_ai_text_mask',
-  GenerateAiFaceMask = 'generate_ai_face_mask',
-  GenerateAiSubjectMask = 'generate_ai_subject_mask',
   GeneratePreviewForPath = 'generate_preview_for_path',
   GenerateMaskOverlay = 'generate_mask_overlay',
-  GeneratePresetPreview = 'generate_preset_preview',
   GenerateUncroppedPreview = 'generate_uncropped_preview',
   GetStorageUsage = 'get_storage_usage',
   ClearAiMapsCache = 'clear_ai_maps_cache',
   ClearAiModels = 'clear_ai_models',
   ClearMetadataCache = 'clear_metadata_cache',
-  GetAiJobsStatus = 'get_ai_jobs_status',
   GetFolderTree = 'get_folder_tree',
   GetFolderChildren = 'get_folder_children',
   GetLogFilePath = 'get_log_file_path',
-  GetPendingAiPaths = 'get_pending_ai_paths',
   GetPinnedFolderTrees = 'get_pinned_folder_trees',
   GetSupportedFileTypes = 'get_supported_file_types',
-  HandleExportPresetsToFile = 'handle_export_presets_to_file',
-  HandleImportPresetsFromFile = 'handle_import_presets_from_file',
-  HandleImportPresetsFromFiles = 'handle_import_presets_from_files',
-  HandleImportLegacyPresetsFromFile = 'handle_import_legacy_presets_from_file',
   ImportFiles = 'import_files',
   InvokeGenerativeReplaceWithMaskDef = 'invoke_generative_replace_with_mask_def',
 
@@ -87,26 +71,18 @@ export enum Invokes {
   ListImagesRecursive = 'list_images_recursive',
   LoadImage = 'load_image',
   LoadMetadata = 'load_metadata',
-  LoadPresets = 'load_presets',
   LoadSettings = 'load_settings',
   MoveFiles = 'move_files',
   ReadExifForPaths = 'read_exif_for_paths',
-  RemoveTagForPaths = 'remove_tag_for_paths',
   RenameFiles = 'rename_files',
   RenameFolder = 'rename_folder',
-  PauseAiJobs = 'pause_ai_jobs',
-  QueueAiJobs = 'queue_ai_jobs',
   ResetAdjustmentsForPaths = 'reset_adjustments_for_paths',
-  ResumeAiJobs = 'resume_ai_jobs',
-  RetryFailedAiJobs = 'retry_failed_ai_jobs',
   SaveMetadataAndUpdateThumbnail = 'save_metadata_and_update_thumbnail',
-  SavePresets = 'save_presets',
   SaveSettings = 'save_settings',
   SetColorLabelForPaths = 'set_color_label_for_paths',
   SetRatingForPaths = 'set_rating_for_paths',
   SetFlagForPaths = 'set_flag_for_paths',
   ShowInFinder = 'show_in_finder',
-  StartBackgroundIndexing = 'start_background_indexing',
   StitchFocusStack = 'stitch_focus_stack',
   SubscribeAnalytics = 'subscribe_analytics',
   SaveFocusStack = 'save_focus_stack',
@@ -114,9 +90,6 @@ export enum Invokes {
   UpdateWgpuTransform = 'update_wgpu_transform',
   ReleaseOriginalPreview = 'release_original_preview',
   UpdateExifFields = 'update_exif_fields',
-  FetchCommunityPresets = 'fetch_community_presets',
-  GenerateAllCommunityPreviews = 'generate_all_community_previews',
-  SaveCommunityPreset = 'save_community_preset',
   SaveTempFile = 'save_temp_file',
   GetAlbums = 'get_albums',
   SaveAlbums = 'save_albums',
@@ -137,7 +110,6 @@ export enum Panel {
   Export = 'export',
   Masks = 'masks',
   Metadata = 'metadata',
-  Presets = 'presets',
   FolderTree = 'folderTree',
 }
 
@@ -364,7 +336,6 @@ export interface ImageFile {
   is_cloud_placeholder: boolean;
   is_raw: boolean;
   group_id: string | null;
-  needs_ai: boolean;
 }
 
 export interface Option {
@@ -382,16 +353,6 @@ export interface Option {
 export enum Orientation {
   Horizontal = 'horizontal',
   Vertical = 'vertical',
-}
-
-export interface Preset {
-  adjustments: Partial<Adjustments>;
-  folder?: Folder;
-  id: string;
-  name: string;
-  includeMasks?: boolean;
-  includeCropTransform?: boolean;
-  presetType?: 'tool' | 'style';
 }
 
 export interface Progress {

@@ -9,7 +9,6 @@ import {
   Crop,
   Layers,
   Paintbrush,
-  SwatchBook,
   FileInput,
   Folder as FolderIcon,
   type LucideIcon,
@@ -23,7 +22,6 @@ export const PANEL_ICONS: Record<Panel, LucideIcon> = {
   [Panel.Crop]: Crop,
   [Panel.Masks]: Layers,
   [Panel.Ai]: Paintbrush,
-  [Panel.Presets]: SwatchBook,
   [Panel.Export]: FileInput,
   [Panel.FolderTree]: FolderIcon,
 };
@@ -34,7 +32,6 @@ const PANEL_TITLES: Record<Panel, string> = {
   [Panel.Crop]: 'editor.switcher.tooltips.crop',
   [Panel.Masks]: 'editor.switcher.tooltips.masks',
   [Panel.Ai]: 'editor.switcher.tooltips.inpaint',
-  [Panel.Presets]: 'editor.switcher.tooltips.presets',
   [Panel.Export]: 'editor.switcher.tooltips.export',
   [Panel.FolderTree]: 'library.folders.sourcesTitle',
 };
@@ -252,7 +249,6 @@ export function MobilePanelSwitcher({
     Panel.Crop,
     Panel.Masks,
     Panel.Ai,
-    Panel.Presets,
     Panel.Export,
   ];
 

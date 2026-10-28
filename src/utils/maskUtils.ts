@@ -2,14 +2,7 @@ import { Mask, SubMask, SubMaskMode, formatMaskTypeName } from '../components/pa
 import { ImageDimensions } from '../hooks/useImageRenderSize';
 import { MaskContainer } from './adjustments';
 
-const AI_MASK_TYPES = new Set<string>([
-  Mask.AiDepth,
-  Mask.AiForeground,
-  Mask.AiSky,
-  Mask.AiSubject,
-  Mask.AiText,
-  Mask.AiFace,
-]);
+const AI_MASK_TYPES = new Set<string>([Mask.AiDepth]);
 
 const isAiSubMask = (subMask: SubMask) => AI_MASK_TYPES.has(subMask.type);
 
@@ -87,16 +80,6 @@ export const createSubMask = (
       return { ...common, parameters: { lines: [] } };
     case Mask.Flow:
       return { ...common, parameters: { lines: [], flow: 10 } };
-    case Mask.AiSubject:
-      return { ...common, parameters: { maskDataBase64: null, grow: 0, feather: 0 } };
-    case Mask.AiForeground:
-      return { ...common, parameters: { maskDataBase64: null, grow: 0, feather: 0 } };
-    case Mask.AiText:
-      return { ...common, name: '', parameters: { maskDataBase64: null, prompt: '', grow: 0, feather: 0 } };
-    case Mask.AiFace:
-      return { ...common, parameters: { maskDataBase64: null, parts: ['faceSkin'], grow: 0, feather: 0 } };
-    case Mask.QuickEraser:
-      return { ...common, parameters: { maskDataBase64: null, grow: 150, feather: 75 } };
     default:
       return { ...common, parameters: {} };
   }

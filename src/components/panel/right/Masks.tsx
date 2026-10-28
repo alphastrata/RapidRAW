@@ -4,11 +4,9 @@ import {
   Brush,
   Circle,
   ClipboardPaste,
-  Cloud,
   Copy,
   Droplet,
   Droplets,
-  Eraser,
   Eye,
   EyeOff,
   FileEdit,
@@ -19,16 +17,12 @@ import {
   PlusSquare,
   RectangleHorizontal,
   RotateCcw,
-  ScanFace,
   Spline,
-  SquareMousePointer,
   SquaresIntersect,
   Stamp,
   Sun,
-  TextSearch,
   Trash2,
   TriangleRight,
-  User,
 } from 'lucide-react';
 import { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -43,18 +37,12 @@ import i18n from 'i18next';
 
 export enum Mask {
   AiDepth = 'ai-depth',
-  AiForeground = 'ai-foreground',
-  AiSky = 'ai-sky',
-  AiSubject = 'ai-subject',
-  AiText = 'ai-text',
-  AiFace = 'ai-face',
   All = 'all',
   Brush = 'brush',
   Flow = 'flow',
   Color = 'color',
   Linear = 'linear',
   Luminance = 'luminance',
-  QuickEraser = 'quick-eraser',
   Radial = 'radial',
   Clone = 'clone',
   Heal = 'heal',
@@ -69,11 +57,8 @@ export enum SubMaskMode {
 }
 
 export enum ToolType {
-  AiSelector = 'ai-selector',
   Brush = 'brush',
   Eraser = 'eraser',
-  GenerativeReplace = 'generative-replace',
-  SelectSubject = 'select-subject',
 }
 
 export interface MaskType {
@@ -97,13 +82,7 @@ export interface SubMask {
 
 export function formatMaskTypeName(type: string) {
   if (type === Mask.AiDepth) return i18n.t('masks.types.depth');
-  if (type === Mask.AiSubject) return i18n.t('masks.types.subject');
-  if (type === Mask.AiForeground) return i18n.t('masks.types.foreground');
-  if (type === Mask.AiSky) return i18n.t('masks.types.sky');
-  if (type === Mask.AiText) return i18n.t('masks.types.text');
-  if (type === Mask.AiFace) return i18n.t('masks.types.face');
   if (type === Mask.All) return i18n.t('masks.types.all');
-  if (type === Mask.QuickEraser) return i18n.t('masks.types.quickEraser');
   if (type === Mask.Brush) return i18n.t('masks.types.brush');
   if (type === Mask.Flow) return i18n.t('masks.types.flow');
   if (type === Mask.Color) return i18n.t('masks.types.color');
@@ -119,35 +98,21 @@ export function formatMaskTypeName(type: string) {
 
 export function getMaskTypeName(mask: MaskType) {
   if (mask.id === 'others') return i18n.t('masks.types.others');
-  if (mask.type === Mask.QuickEraser && mask.name === 'Quick Erase') {
-    return i18n.t('masks.types.quickErase');
-  }
   return formatMaskTypeName(mask.type);
 }
 
-export function getSubMaskName(subMask: Pick<SubMask, 'name' | 'type' | 'parameters'>) {
-  const prompt = subMask.type === Mask.AiText ? subMask.parameters?.prompt?.trim() : '';
-  return (
-    subMask.name?.trim() ||
-    (prompt && prompt.charAt(0).toUpperCase() + prompt.slice(1)) ||
-    formatMaskTypeName(subMask.type)
-  );
+export function getSubMaskName(subMask: Pick<SubMask, 'name' | 'type'>) {
+  return subMask.name?.trim() || formatMaskTypeName(subMask.type);
 }
 
 export const MASK_ICON_MAP: Record<Mask, any> = {
   [Mask.AiDepth]: BringToFront,
-  [Mask.AiForeground]: User,
-  [Mask.AiSky]: Cloud,
-  [Mask.AiSubject]: SquareMousePointer,
-  [Mask.AiText]: TextSearch,
-  [Mask.AiFace]: ScanFace,
   [Mask.All]: RectangleHorizontal,
   [Mask.Brush]: Brush,
   [Mask.Flow]: Droplets,
   [Mask.Color]: Droplet,
   [Mask.Linear]: TriangleRight,
   [Mask.Luminance]: Sun,
-  [Mask.QuickEraser]: Eraser,
   [Mask.Radial]: Circle,
   [Mask.Clone]: Stamp,
   [Mask.Heal]: Bandage,
@@ -156,26 +121,8 @@ export const MASK_ICON_MAP: Record<Mask, any> = {
 };
 
 export const MASK_AI_TYPES: Array<MaskType> = [
-  { disabled: false, icon: SquareMousePointer, name: 'Subject', type: Mask.AiSubject },
-  { disabled: false, icon: Cloud, name: 'Sky', type: Mask.AiSky },
-  { disabled: false, icon: User, name: 'Foreground', type: Mask.AiForeground },
   { disabled: false, icon: BringToFront, name: 'Depth', type: Mask.AiDepth },
-  { disabled: false, icon: TextSearch, name: 'Text', type: Mask.AiText },
-  { disabled: false, icon: ScanFace, name: 'Face', type: Mask.AiFace },
 ];
-
-export const FACE_PARTS = [
-  'faceSkin',
-  'bodySkin',
-  'eyebrows',
-  'eyeWhites',
-  'iris',
-  'lips',
-  'teeth',
-  'nose',
-  'hair',
-] as const;
-export type FacePart = (typeof FACE_PARTS)[number];
 
 export const MASK_BASIC_TYPES: Array<MaskType> = [
   { disabled: false, icon: Brush, name: 'Brush', type: Mask.Brush },
@@ -223,24 +170,6 @@ export const AI_TOUCH_UP_TYPES: Array<MaskType> = [
 ];
 
 export const AI_GENERATIVE_CREATION_TYPES: Array<MaskType> = [
-  {
-    disabled: false,
-    icon: Eraser,
-    name: 'Quick Erase',
-    type: Mask.QuickEraser,
-  },
-  {
-    disabled: false,
-    icon: SquareMousePointer,
-    name: 'Subject',
-    type: Mask.AiSubject,
-  },
-  {
-    disabled: false,
-    icon: User,
-    name: 'Foreground',
-    type: Mask.AiForeground,
-  },
   {
     disabled: false,
     icon: Brush,
@@ -468,7 +397,7 @@ export function SharedSubMaskRow({
 
   const isDraggingContainer = activeDragItem?.type === 'Container';
   const isSubMaskTaskRunning = Boolean(activeAiTasks?.[subMask.id]);
-  const isAnalyzing = isSubMaskTaskRunning || (Boolean(isParentLoading) && subMask.type === Mask.QuickEraser);
+  const isAnalysing = isSubMaskTaskRunning;
 
   const handleMouseEnter = () => {
     if (hoverTimeoutRef.current) {
@@ -557,9 +486,9 @@ export function SharedSubMaskRow({
         className="relative w-4 h-4 ml-1 shrink-0 flex items-center justify-center"
       >
         <AnimatePresence mode="wait" initial={false}>
-          {isAnalyzing ? (
+          {isAnalysing ? (
             <motion.div
-              key="analyzing"
+              key="analysing"
               initial={{ opacity: 0, scale: 0.5 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.5 }}

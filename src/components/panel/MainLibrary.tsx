@@ -10,7 +10,6 @@ import {
   RefreshCw,
   Settings,
   Search,
-  Users,
   LayoutGrid,
   SlidersHorizontal,
   Rows3,
@@ -58,7 +57,6 @@ export interface ColumnWidths {
 interface MainLibraryProps {
   activePath: string | null;
   aiModelDownloadStatus: string | null;
-  aiTaggingJob: Job | null;
   appSettings: AppSettings | null;
   currentFolderPath: string | null;
   groupBadgeInfo: Map<GroupId, GroupBadgeInfo> | null;
@@ -90,7 +88,6 @@ interface MainLibraryProps {
   theme: string;
   thumbnailAspectRatio: ThumbnailAspectRatio;
   thumbnailSize: ThumbnailSize;
-  onNavigateToCommunity(): void;
 }
 
 interface DisplayModeSwitchProps {
@@ -601,7 +598,7 @@ export default function MainLibrary(props: MainLibraryProps) {
               <DisplayModeSwitch displayMode={libraryDisplayMode} setDisplayMode={setLibraryDisplayMode} t={t} />
 
               <div className="flex items-center bg-surface p-1 rounded-lg gap-1 border border-border-color/20">
-                <SearchInput indexingProgress={props.aiTaggingJob?.progress} isIndexing={!!props.aiTaggingJob} />
+                <SearchInput />
                 <ViewOptionsDropdown
                   libraryViewMode={props.libraryViewMode}
                   onSelectSize={props.onThumbnailSizeChange}
@@ -628,15 +625,6 @@ export default function MainLibrary(props: MainLibraryProps) {
                     <CheckCheck className="w-6 h-6" />
                   </Button>
                 )}
-                {!props.isAndroid && (
-                  <Button
-                    className="h-12 w-12 bg-transparent text-text-primary shadow-none p-0 flex items-center justify-center"
-                    onClick={props.onNavigateToCommunity}
-                    data-tooltip={t('library.tooltips.communityPresets')}
-                  >
-                    <Users className="w-5 h-5" />
-                  </Button>
-                )}
                 <Button
                   className="h-12 w-12 bg-transparent text-text-primary shadow-none p-0 flex items-center justify-center"
                   onClick={props.onGoHome}
@@ -657,25 +645,20 @@ export default function MainLibrary(props: MainLibraryProps) {
           selectionModeActive={selectionModeActive}
           thumbnailSizeOptions={translatedThumbnailSizeOptions}
         />
-      ) : props.aiTaggingJob || props.aiModelDownloadStatus || props.importState.status === Status.Importing ? (
+      ) : props.aiModelDownloadStatus || props.importState.status === Status.Importing ? (
         <div className="flex-1 flex flex-col items-center justify-center" onContextMenu={props.onEmptyAreaContextMenu}>
           <Loader2 className="h-12 w-12 text-secondary animate-spin mb-4" />
           <Text variant={TextVariants.heading} color={TextColors.secondary}>
             {props.aiModelDownloadStatus
               ? t('library.status.downloading', { status: props.aiModelDownloadStatus })
-              : props.aiTaggingJob
-                ? t('library.status.indexing', {
-                    current: props.aiTaggingJob.progress.current,
-                    total: props.aiTaggingJob.progress.total,
+              : props.importState.status === Status.Importing &&
+                  props.importState?.progress?.total &&
+                  props.importState.progress.total > 0
+                ? t('library.status.importing', {
+                    current: props.importState.progress?.current,
+                    total: props.importState.progress?.total,
                   })
-                : props.importState.status === Status.Importing &&
-                    props.importState?.progress?.total &&
-                    props.importState.progress.total > 0
-                  ? t('library.status.importing', {
-                      current: props.importState.progress?.current,
-                      total: props.importState.progress?.total,
-                    })
-                  : t('library.status.processing')}
+                : t('library.status.processing')}
           </Text>
           <Text className="mt-2">{t('library.status.moment')}</Text>
         </div>
@@ -690,7 +673,6 @@ export default function MainLibrary(props: MainLibraryProps) {
           </Text>
           <Text className="mt-2 max-w-sm">
             {t('library.search.noResultsDesc')}
-            {!props.appSettings?.enableAiTagging && t('library.search.noResultsAiHint')}
           </Text>
         </div>
       ) : (
