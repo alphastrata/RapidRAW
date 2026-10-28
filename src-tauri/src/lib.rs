@@ -47,24 +47,20 @@ mod window_customizer;
 use std::collections::hash_map::DefaultHasher;
 use std::fs;
 use std::hash::{Hash, Hasher};
-use std::io::Cursor;
 use std::io::Write;
 use std::panic;
-use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::atomic::Ordering;
 use std::sync::mpsc::{self, Receiver, Sender};
 
 use std::borrow::Cow;
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
-use base64::{Engine as _, engine::general_purpose};
-use image::codecs::jpeg::JpegEncoder;
-use image::{DynamicImage, GenericImageView, ImageBuffer, ImageFormat, Luma, RgbImage};
+use image::{DynamicImage, GenericImageView, ImageBuffer, Luma};
 use imgref::ImgRef;
 use mozjpeg_rs::{Encoder, Preset};
 use rgb::{FromSlice, RGBA8};
 
-use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use tauri::{
     Emitter, Manager,
@@ -79,13 +75,12 @@ use crate::formats::is_raw_file;
 use crate::gpu_processing::DisplayLayer;
 use crate::image_loader::prepare_base_image_cow;
 use crate::image_processing::{
-    Crop, RenderRequest, apply_coarse_rotation, apply_flip, apply_geometry_warp,
-    apply_linear_to_srgb, downscale_f32_image, get_all_adjustments_from_json,
+    Crop, RenderRequest, apply_coarse_rotation, apply_flip, apply_geometry_warp, downscale_f32_image, get_all_adjustments_from_json,
     get_geometry_params_from_json, get_or_init_gpu_context, is_geometry_identity,
     process_and_get_dynamic_image, resolve_render_options, warp_image_geometry,
 };
 use crate::mask_generation::{
-    MaskDefinition, build_full_warped_image_rgb8, build_warped_image_for_masks,
+    MaskDefinition, build_warped_image_for_masks,
     generate_mask_bitmap, get_cached_or_generate_masks, resolve_warped_image_for_masks,
 };
 use crate::window_customizer::PinchZoomDisablePlugin;
@@ -395,112 +390,6 @@ fn get_image_dimensions(path: String) -> Result<ImageDimensions, String> {
     image::image_dimensions(&source_path)
         .map(|(width, height)| ImageDimensions { width, height })
         .map_err(|e| e.to_string())
-}
-
-#[tauri::command]
-fn cancel_thumbnail_generation(
-    state: tauri::State<AppState>,
-    app_handle: tauri::AppHandle,
-) -> Result<(), String> {
-    state
-        .thumbnail_cancellation_token
-        .store(true, Ordering::SeqCst);
-
-    let mut tracker = state.thumbnail_progress.lock().unwrap();
-    tracker.total = 0;
-    tracker.completed = 0;
-    drop(tracker);
-
-    let _ = app_handle.emit(
-        "thumbnail-progress",
-        serde_json::json!({ "current": 0, "total": 0 }),
-    );
-    Ok(())
-}
-
-pub fn build_ai_source_image(
-    image: &DynamicImage,
-    is_raw: bool,
-    js_adjustments: &serde_json::Value,
-) -> DynamicImage {
-    let source =
-        crate::negative_conversion::apply_negative_conversion(Cow::Borrowed(image), js_adjustments);
-    build_full_warped_image_rgb8(
-        &source,
-        crate::negative_conversion::effective_is_raw(is_raw, js_adjustments),
-        js_adjustments,
-    )
-}
-
-pub fn get_cached_full_warped_image(
-    state: &tauri::State<AppState>,
-    js_adjustments: &serde_json::Value,
-) -> Result<Arc<DynamicImage>, String> {
-    get_cached_full_warped_image_for_path(state, None, js_adjustments)
-}
-
-pub fn get_cached_full_warped_image_for_path(
-    state: &tauri::State<AppState>,
-    path: Option<&str>,
-    js_adjustments: &serde_json::Value,
-) -> Result<Arc<DynamicImage>, String> {
-    let loaded_image = state
-        .original_image
-        .lock()
-        .unwrap_or_else(|e| e.into_inner())
-        .clone()
-        .ok_or("No original image loaded")?;
-
-    if let Some(path) = path
-        && parse_virtual_path(path).0 != parse_virtual_path(&loaded_image.path).0
-    {
-        return Err(format!("'{}' is not the loaded image", path));
-    }
-
-    let mut hasher = DefaultHasher::new();
-    loaded_image.path.hash(&mut hasher);
-    calculate_geometry_hash(js_adjustments).hash(&mut hasher);
-    let cache_key = hasher.finish();
-
-    let cached = || {
-        let mut cache_lock = state
-            .full_warped_cache
-            .lock()
-            .unwrap_or_else(|e| e.into_inner());
-        match cache_lock.as_ref() {
-            Some((hash, img)) if *hash == cache_key => Some(Arc::clone(img)),
-            _ => {
-                *cache_lock = None;
-                None
-            }
-        }
-    };
-
-    if let Some(img) = cached() {
-        return Ok(img);
-    }
-
-    let _build_guard = rayon::current_thread_index().is_none().then(|| {
-        state
-            .full_warped_build_lock
-            .lock()
-            .unwrap_or_else(|e| e.into_inner())
-    });
-    if let Some(img) = cached() {
-        return Ok(img);
-    }
-
-    let warped_arc = Arc::new(build_ai_source_image(
-        &loaded_image.image,
-        loaded_image.is_raw,
-        js_adjustments,
-    ));
-    *state
-        .full_warped_cache
-        .lock()
-        .unwrap_or_else(|e| e.into_inner()) = Some((cache_key, Arc::clone(&warped_arc)));
-
-    Ok(warped_arc)
 }
 
 #[tauri::command]
@@ -1640,8 +1529,7 @@ pub fn run() {
                 crate::ai_denoise::initialize_cache_dir(cache_dir.clone());
                 crate::effect_maps::initialize_cache_dir(cache_dir.clone());
                 crate::exif_processing::initialize_cache_dir(cache_dir.clone());
-                crate::storage::initialize_thumbnail_cache(cache_dir);
-            }
+                        }
 
             {
                 let disks_app_handle = app_handle.clone();
@@ -1764,8 +1652,6 @@ pub fn run() {
 
             start_preview_worker(app_handle.clone());
             start_analytics_worker(app_handle.clone());
-            file_management::start_thumbnail_workers(app_handle.clone());
-            file_management::start_metadata_workers(app_handle.clone());
             jxl_oxide::integration::register_image_decoding_hook();
 
             let window_cfg = app.config().app.windows.first().unwrap().clone();
@@ -1791,7 +1677,7 @@ pub fn run() {
                 window_builder = window_builder.decorations(decorations).visible(false);
             }
 
-            let window = window_builder.build().expect("Failed to build window");
+            let _window = window_builder.build().expect("Failed to build window");
 
             #[cfg(target_os = "android")]
 
@@ -1981,7 +1867,6 @@ pub fn run() {
             save_temp_file,
             get_image_dimensions,
             frontend_ready,
-            cancel_thumbnail_generation,
             update_wgpu_transform,
             release_original_preview,
             cache_utils::clear_session_caches,
@@ -2011,47 +1896,18 @@ pub fn run() {
             auto_straighten::calculate_auto_straighten,
             file_management::apply_auto_straighten_to_paths,
             mask_generation::generate_mask_overlay,
-            file_management::update_exif_fields,
             file_management::get_supported_file_types,
-            file_management::read_exif_for_paths,
-            file_management::list_images_in_dir,
-            file_management::list_images_recursive,
-            file_management::get_folder_tree,
-            file_management::get_folder_children,
-            file_management::get_pinned_folder_trees,
-            file_management::update_thumbnail_queue,
-            file_management::create_folder,
-            file_management::delete_folder,
-            file_management::copy_files,
-            file_management::move_files,
-            file_management::rename_folder,
-            file_management::rename_files,
-            file_management::duplicate_file,
-            file_management::show_in_finder,
-            file_management::delete_files_from_disk,
-            file_management::delete_files_with_associated,
             file_management::save_metadata_and_update_thumbnail,
             file_management::apply_adjustments_to_paths,
             file_management::load_metadata,
-            file_management::get_or_create_internal_library_root,
             file_management::reset_adjustments_for_paths,
             file_management::apply_auto_lens_correction_to_paths,
             file_management::apply_auto_adjustments_to_paths,
             file_management::clear_all_sidecars,
-            file_management::clear_thumbnail_cache,
             storage::get_storage_usage,
             storage::clear_ai_maps_cache,
             storage::clear_metadata_cache,
             storage::clear_ai_models,
-            file_management::set_color_label_for_paths,
-            file_management::set_rating_for_paths,
-            file_management::set_flag_for_paths,
-            file_management::import_files,
-            file_management::create_virtual_copy,
-            file_management::get_albums,
-            file_management::save_albums,
-            file_management::add_to_album,
-            file_management::get_album_images,
             lens_correction::get_lensfun_makers,
             lens_correction::get_lensfun_lenses_for_maker,
             lens_correction::autodetect_lens,
