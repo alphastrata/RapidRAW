@@ -1,4 +1,6 @@
 [default.extend-words]
+Serialize = "Serialize"
+maximized = "maximized"
 color = "color"
 colors = "colors"
 center = "center"
