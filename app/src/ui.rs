@@ -93,7 +93,7 @@ fn slider(
         .horizontal(|ui| {
             ui.monospace(label);
             ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                let reset = ui.small_button("\u{21BA}").clicked();
+                let reset = ui.small_button("↺").clicked();
                 let dragged = ui
                     .add(egui::Slider::new(&mut shown, min..=max).step_by(step))
                     .changed();
