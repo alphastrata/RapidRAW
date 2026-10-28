@@ -14,7 +14,7 @@ use crate::AppState;
 use crate::app_settings::{AppSettings, load_settings};
 use crate::as_shot::as_shot;
 use crate::baseline_exposure::BaselineOptions;
-use crate::formats::is_supported_image_file;
+
 use crate::image_loader;
 use crate::image_processing::{
     AutoAdjustMode, ImageMetadata, auto_results_to_json, default_adjustments,
@@ -354,10 +354,7 @@ async fn update_sidecars_from_images(
 
         if fast_decode {
             run_batch_workers(paths.iter(), process);
-        } else if let Ok(pool) = rayon::ThreadPoolBuilder::new()
-            .num_threads(2)
-            .build()
-        {
+        } else if let Ok(pool) = rayon::ThreadPoolBuilder::new().num_threads(2).build() {
             pool.install(|| paths.par_iter().for_each(process));
         } else {
             paths.iter().for_each(process);
@@ -532,17 +529,6 @@ pub fn clear_all_sidecars(root_path: String) -> Result<usize, String> {
     Ok(deleted_count)
 }
 
-pub fn list_supported_images_recursive(path: String) -> Vec<String> {
-    WalkDir::new(&path)
-        .into_iter()
-        .filter_map(Result::ok)
-        .filter(|e| {
-            e.file_type().is_file() && is_supported_image_file(e.file_name().to_string_lossy().as_ref())
-        })
-        .map(|e| e.path().to_string_lossy().into_owned())
-        .collect()
-}
-
 pub fn generate_filename_from_template(
     template: &str,
     original_path: &std::path::Path,
@@ -677,11 +663,12 @@ pub fn sync_metadata_to_xmp(source_path: &Path, metadata: &ImageMetadata, create
     }
 
     let Some(xmp_file) = actual_xmp else { return };
-    let Ok(mut content) = fs::read_to_string(&xmp_file) else { return };
+    let Ok(mut content) = fs::read_to_string(&xmp_file) else {
+        return;
+    };
 
     let re_subject =
-        regex::Regex::new(r#"(?s)<dc:subject>\s*<rdf:Bag>.*?</rdf:Bag>\s*</dc:subject>"#)
-            .unwrap();
+        regex::Regex::new(r#"(?s)<dc:subject>\s*<rdf:Bag>.*?</rdf:Bag>\s*</dc:subject>"#).unwrap();
     let tags = metadata.tags.clone().unwrap_or_default();
     if tags.is_empty() {
         content = re_subject.replace_all(&content, "").to_string();
@@ -693,7 +680,9 @@ pub fn sync_metadata_to_xmp(source_path: &Path, metadata: &ImageMetadata, create
         let bag = xmp_subject_bag(&escaped);
 
         if re_subject.is_match(&content) {
-            content = re_subject.replace(&content, regex::NoExpand(&bag)).to_string();
+            content = re_subject
+                .replace(&content, regex::NoExpand(&bag))
+                .to_string();
         } else if let Some(last_index) = content.rfind("</rdf:Description>") {
             let (start, end) = content.split_at(last_index);
             content = format!("{} {}\n  {}", start, bag, end);

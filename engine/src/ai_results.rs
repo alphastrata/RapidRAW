@@ -35,7 +35,9 @@ pub fn source_id(source_path: &Path) -> Option<String> {
         .as_nanos();
 
     {
-        let ids = SOURCE_IDS.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
+        let ids = SOURCE_IDS
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
         if let Some((cached_len, cached_mtime, id)) = ids.get(source_path)
             && (*cached_len, *cached_mtime) == (len, mtime)
         {
@@ -121,7 +123,11 @@ pub fn has_ai_results(adjustments: &Value) -> bool {
         .into_iter()
         .flatten()
         .flat_map(|container| container["subMasks"].as_array().into_iter().flatten())
-        .any(|sub_mask| sub_mask["type"].as_str().is_some_and(|t| t.starts_with("ai-")))
+        .any(|sub_mask| {
+            sub_mask["type"]
+                .as_str()
+                .is_some_and(|t| t.starts_with("ai-"))
+        })
         || adjustments["aiDenoiseEnabled"].as_bool().unwrap_or(false)
         || EffectMapKind::ALL
             .iter()

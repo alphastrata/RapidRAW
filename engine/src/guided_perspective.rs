@@ -598,15 +598,16 @@ pub fn compute_max_inscribed_crop(forward_h: &[[f64; 3]; 3], width: f64, height:
             let ny1 = (y1 + dy1).clamp(y_min, y_max);
             let ny2 = (y2 + dy2).clamp(y_min, y_max);
             if ny2 > ny1
-                && let Some(rect) = slab_rect(&poly, ny1, ny2) {
-                    let area = rect[2] * rect[3];
-                    if area > best_area {
-                        best_area = area;
-                        best = rect;
-                        y1 = ny1;
-                        y2 = ny2;
-                    }
+                && let Some(rect) = slab_rect(&poly, ny1, ny2)
+            {
+                let area = rect[2] * rect[3];
+                if area > best_area {
+                    best_area = area;
+                    best = rect;
+                    y1 = ny1;
+                    y2 = ny2;
                 }
+            }
         });
     }
 

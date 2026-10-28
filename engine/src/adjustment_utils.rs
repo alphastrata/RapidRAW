@@ -32,7 +32,8 @@ pub fn hydrate_sub_masks(
         {
             let keys_to_check = ["mask_data_base64", "maskDataBase64"];
             let present_keys: Vec<&str> = keys_to_check
-                .iter().copied()
+                .iter()
+                .copied()
                 .filter(|&key| params.contains_key(key))
                 .collect::<Vec<&str>>();
             for key in present_keys {

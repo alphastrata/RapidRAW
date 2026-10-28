@@ -481,7 +481,6 @@ fn push_pull(base: Vec<Cell>, width: usize, height: usize, full_weight: f32) -> 
         })],
     };
 
-
     levels
         .iter()
         .rev()

@@ -636,12 +636,14 @@ fn render_stroke_layer_parallel(
 
                 if is_point_active
                     && let Some(pt) = single_point.as_ref()
-                        && x_i32 >= pt.2 && x_i32 <= pt.3 {
-                            let dist_sq = (px - pt.0) * (px - pt.0) + (py - pt.1) * (py - pt.1);
-                            if dist_sq < min_dist_sq {
-                                min_dist_sq = dist_sq;
-                            }
-                        }
+                    && x_i32 >= pt.2
+                    && x_i32 <= pt.3
+                {
+                    let dist_sq = (px - pt.0) * (px - pt.0) + (py - pt.1) * (py - pt.1);
+                    if dist_sq < min_dist_sq {
+                        min_dist_sq = dist_sq;
+                    }
+                }
 
                 if min_dist_sq <= radius_sq {
                     let intensity = if min_dist_sq <= inner_radius_sq {

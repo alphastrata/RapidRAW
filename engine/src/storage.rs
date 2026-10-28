@@ -2,9 +2,7 @@ use crate::best_effort::best_effort;
 use std::path::Path;
 use std::time::Duration;
 
-use crate::settings::{
-    AppSettings, default_ai_cache_limit_gb, default_ai_maps_cache_limit_gb,
-};
+use crate::settings::{AppSettings, default_ai_cache_limit_gb, default_ai_maps_cache_limit_gb};
 
 fn mark_used_interval() -> Duration {
     Duration::from_mins(10)

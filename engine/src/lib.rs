@@ -15,7 +15,7 @@ pub mod bm3d;
 pub mod cache_utils;
 pub mod effect_maps;
 pub mod exif_processing;
-pub mod export_geometry;
+
 pub mod focus_stacking;
 pub mod fog;
 pub mod formats;

@@ -20,7 +20,6 @@ use crate::launch_request::ExternalEditSession;
 use crate::lens_correction::LensDatabase;
 use crate::lut_processing::Lut;
 
-
 pub struct AiTaskToken {
     cancelled: AtomicBool,
     notify: Notify,
@@ -216,7 +215,6 @@ impl AppState {
             memory_budget: crate::memory_budget::MemoryBudget::from_total_ram(0.6),
             disks_cache: Mutex::new(None),
             disks_cache_refreshing: AtomicBool::new(false),
-
         }
     }
 }

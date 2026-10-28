@@ -286,10 +286,7 @@ pub fn get_or_init_gpu_context(
 
     let instance = wgpu::Instance::new(instance_desc);
 
-    #[cfg_attr(
-        target_os = "linux",
-        allow(unused_variables)
-    )]
+    #[cfg_attr(target_os = "linux", allow(unused_variables))]
     let (surface_opt, inner_size) = match host.display_setup() {
         Some(setup) => (
             (setup.create_surface)(&instance).ok(),
