@@ -33,10 +33,7 @@ HALD = "HALD"
 
 [files]
 extend-exclude = [
-    "src/locales",
-    "src-tauri/lensfun_db",
+    "vendor",
     "data",
-    "i18n",
-    "src/i18n/locales",
     "README.md",
 ]
